@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Advertiser portal — Kolex</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+</head>
+<body>
+  <header class="nav" data-nav></header>
+
+  <main class="wrap" style="padding-top:40px;padding-bottom:60px">
+    <!-- Login -->
+    <div id="login" class="hide" style="max-width:420px;margin:40px auto">
+      <span class="eyebrow">Advertiser portal</span>
+      <h1 style="font-size:28px;font-weight:600;letter-spacing:-.02em;margin:12px 0 6px">Sign in to manage campaigns.</h1>
+      <p class="muted" style="margin-top:0">Enter the email you launched with.</p>
+      <div id="login-err" class="errors hide"></div>
+      <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@acme.com" /></div>
+      <button class="btn btn-primary btn-lg" id="signin" style="width:100%;justify-content:center">Continue</button>
+      <p class="center muted" style="margin-top:14px;font-size:13px">No campaigns yet? <a href="/advertise">Launch one →</a></p>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dash" class="hide">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div><span class="eyebrow">Advertiser</span><h1 style="font-size:26px;font-weight:600;letter-spacing:-.02em;margin:8px 0 0" id="who"></h1></div>
+        <span class="spacer" style="flex:1"></span>
+        <a class="btn btn-primary" href="/advertise">New campaign</a>
+        <button class="btn btn-ghost" id="logout">Sign out</button>
+      </div>
+
+      <div class="stats-strip" id="adv-stats" style="margin-top:22px"></div>
+
+      <table class="board" style="margin-top:8px">
+        <thead>
+          <tr>
+            <th>Campaign</th>
+            <th class="num">Bid / 1k</th>
+            <th class="num hide-sm">Impressions</th>
+            <th class="num hide-sm">Clicks</th>
+            <th class="num">Spend</th>
+            <th class="num">Status</th>
+          </tr>
+        </thead>
+        <tbody id="adv-body"></tbody>
+      </table>
+    </div>
+  </main>
+
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
+
+  <script type="module">
+    import { api, money, num, mountNav, store } from "/assets/app.js";
+    mountNav();
+
+    const $ = (id) => document.getElementById(id);
+
+    async function loadDash() {
+      const token = store.get("advToken");
+      if (!token) return showLogin();
+      try {
+        const data = await api("/api/advertiser/campaigns", { token });
+        $("login").classList.add("hide");
+        $("dash").classList.remove("hide");
+        $("who").textContent = data.email;
+        const totalImp = data.campaigns.reduce((s, c) => s + c.impressions, 0);
+        const totalClk = data.campaigns.reduce((s, c) => s + c.clicks, 0);
+        $("adv-stats").innerHTML = [
+          ["Campaigns", num(data.campaigns.length)],
+          ["Impressions served", num(totalImp)],
+          ["Clicks", num(totalClk)],
+          ["Total spend", money(data.totalSpendUsd)],
+        ].map(([l, v]) => `<div class="stat-chip"><b>${v}</b><span>${l}</span></div>`).join("");
+        $("adv-body").innerHTML = data.campaigns.length ? data.campaigns
+          .sort((a, b) => b.bidPerBlock - a.bidPerBlock)
+          .map((c) => `
+            <tr>
+              <td><div class="brandcell">${c.iconDataUrl ? `<img src="${c.iconDataUrl}" alt="">` : ""}<span>${c.brand}</span></div>
+                  <div class="muted" style="font-size:12px;margin-top:2px">${c.text}</div></td>
+              <td class="num bid">${money(c.bidPerBlock)}</td>
+              <td class="num hide-sm mono">${num(c.impressions)}</td>
+              <td class="num hide-sm mono">${num(c.clicks)}</td>
+              <td class="num mono">${money(c.spendUsd)}</td>
+              <td class="num"><span class="pill ${c.status === "active" ? "live" : "done"}">${c.status === "active" ? "Live" : "Done"}</span></td>
+            </tr>`).join("")
+          : '<tr><td colspan="6" class="muted center" style="padding:24px">No campaigns yet.</td></tr>';
+      } catch {
+        store.del("advToken");
+        showLogin();
+      }
+    }
+
+    function showLogin() { $("dash").classList.add("hide"); $("login").classList.remove("hide"); }
+
+    $("signin").addEventListener("click", async () => {
+      $("login-err").classList.add("hide");
+      try {
+        const { token } = await api("/api/login", { method: "POST", body: { email: $("email").value, kind: "advertiser" } });
+        store.set("advToken", token);
+        loadDash();
+      } catch (e) {
+        $("login-err").textContent = e.message;
+        $("login-err").classList.remove("hide");
+      }
+    });
+    $("email")?.addEventListener("keydown", (e) => { if (e.key === "Enter") $("signin").click(); });
+    $("logout").addEventListener("click", () => { store.del("advToken"); showLogin(); });
+
+    loadDash();
+  </script>
+</body>
+</html>

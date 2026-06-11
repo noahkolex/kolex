@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Your earnings — Kolex</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+</head>
+<body>
+  <header class="nav" data-nav></header>
+
+  <main class="wrap narrow" style="padding-top:40px;padding-bottom:60px">
+    <!-- Login (forced when arriving from the extension) -->
+    <div id="login" class="hide" style="max-width:420px;margin:30px auto">
+      <span class="eyebrow">Get paid</span>
+      <h1 style="font-size:28px;font-weight:600;letter-spacing:-.02em;margin:12px 0 6px">Log in to cash out.</h1>
+      <p class="muted" style="margin-top:0" id="login-sub">Your earnings are waiting. Enter your email to claim them.</p>
+      <div id="login-err" class="errors hide"></div>
+      <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@email.com" /></div>
+      <button class="btn btn-primary btn-lg" id="signin" style="width:100%;justify-content:center">Continue</button>
+      <p class="center muted" style="margin-top:14px;font-size:13px">New here? We'll create your account automatically.</p>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dash" class="hide">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div><span class="eyebrow">Your earnings</span><h1 style="font-size:26px;font-weight:600;letter-spacing:-.02em;margin:8px 0 0" id="who"></h1></div>
+        <span class="spacer" style="flex:1"></span>
+        <button class="btn btn-ghost" id="logout">Sign out</button>
+      </div>
+
+      <div id="linked" class="success hide" style="margin-top:18px;padding:12px 16px;font-size:14px"></div>
+
+      <div class="card center" style="margin-top:22px">
+        <span class="eyebrow" style="justify-content:center">Available to withdraw</span>
+        <div class="mono" id="pending" style="font-size:44px;font-weight:600;color:var(--positive);margin:8px 0">$0.00</div>
+        <button class="btn btn-primary btn-lg" id="payout">Withdraw</button>
+        <div class="muted" id="payout-note" style="font-size:12px;margin-top:10px">Prototype payout — moves your balance to "paid".</div>
+      </div>
+
+      <div class="stats-strip" id="usr-stats" style="margin-top:22px"></div>
+
+      <div class="card" style="margin-top:6px">
+        <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Linked devices</div>
+        <div id="devices" class="muted" style="font-size:13px">None yet.</div>
+        <p class="muted" style="font-size:12px;margin:12px 0 0">Open the Kolex extension and click <b>Cash out →</b> to link this browser.</p>
+      </div>
+    </div>
+  </main>
+
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
+
+  <script type="module">
+    import { api, money, num, mountNav, store, qp } from "/assets/app.js";
+    mountNav("/portal");
+
+    const $ = (id) => document.getElementById(id);
+    const device = qp("device");       // from the extension "Cash out" CTA
+    const code = qp("code");           // from device-code flow
+    const connect = qp("connect") === "1" || device || code;
+
+    if (connect) {
+      $("login-sub").textContent = "One step to connect your extension and claim your earnings. Enter your email — we'll link this browser automatically.";
+    }
+
+    async function linkIfNeeded(token) {
+      if (!device && !code) return null;
+      try {
+        const r = await api("/api/portal/link-device", { method: "POST", token, body: { deviceId: device || "", deviceCode: code || "" } });
+        return r.deviceId;
+      } catch { return null; }
+    }
+
+    async function loadDash() {
+      const token = store.get("usrToken");
+      if (!token) return showLogin();
+      try {
+        const linked = await linkIfNeeded(token);
+        const data = await api("/api/portal/summary", { token });
+        $("login").classList.add("hide");
+        $("dash").classList.remove("hide");
+        $("who").textContent = data.email;
+        $("pending").textContent = money(data.pendingUsd);
+        $("payout").disabled = data.pendingUsd <= 0;
+        if (linked) {
+          $("linked").textContent = `✓ Linked this browser (device ${linked.slice(0, 8)}). Earnings will appear here.`;
+          $("linked").classList.remove("hide");
+        }
+        $("usr-stats").innerHTML = [
+          ["Impressions", num(data.impressions)],
+          ["Clicks", num(data.clicks)],
+          ["Paid out", money(data.paidUsd)],
+          ["Your share", "50%"],
+        ].map(([l, v]) => `<div class="stat-chip"><b>${v}</b><span>${l}</span></div>`).join("");
+        $("devices").textContent = data.devices.length ? data.devices.map((d) => d.slice(0, 12) + "…").join(", ") : "None yet.";
+      } catch {
+        store.del("usrToken");
+        showLogin();
+      }
+    }
+
+    function showLogin() { $("dash").classList.add("hide"); $("login").classList.remove("hide"); }
+
+    $("signin").addEventListener("click", async () => {
+      $("login-err").classList.add("hide");
+      try {
+        const { token } = await api("/api/login", { method: "POST", body: { email: $("email").value, kind: "user" } });
+        store.set("usrToken", token);
+        loadDash();
+      } catch (e) {
+        $("login-err").textContent = e.message;
+        $("login-err").classList.remove("hide");
+      }
+    });
+    $("email")?.addEventListener("keydown", (e) => { if (e.key === "Enter") $("signin").click(); });
+    $("logout").addEventListener("click", () => { store.del("usrToken"); showLogin(); });
+
+    $("payout").addEventListener("click", async () => {
+      const token = store.get("usrToken");
+      const r = await api("/api/portal/payout", { method: "POST", token });
+      $("payout-note").textContent = `Withdrew ${money(r.paidUsd)}. (Prototype — no real transfer.)`;
+      loadDash();
+    });
+
+    loadDash();
+  </script>
+</body>
+</html>

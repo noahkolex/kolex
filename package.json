@@ -21,7 +21,9 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/test/",
     "icons": "node scripts/make-icons.mjs",
-    "package": "npm run build && cd extension && zip -qr ../kolex-extension.zip ."
+    "package": "npm run build && cd extension && zip -qr ../kolex-extension.zip .",
+    "server": "node server/index.mjs",
+    "server:reset": "node -e \"import('./server/db.mjs').then(m=>{m.reset();console.log('db reseeded')})\""
   },
   "devDependencies": {
     "@types/chrome": "^0.0.270",
@@ -30,5 +32,8 @@
     "esbuild": "^0.23.0",
     "jsdom": "^29.1.1",
     "typescript": "^5.5.0"
+  },
+  "dependencies": {
+    "express": "^4.22.2"
   }
 }

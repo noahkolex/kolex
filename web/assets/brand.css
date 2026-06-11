@@ -1,0 +1,164 @@
+/* Kolex website — Sefra design language (meetsefra.com).
+   Cool bone, ink black, cobalt accent. Geist + Geist Mono. */
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;450;500;600;700&family=Geist+Mono:wght@400;500&display=swap");
+
+:root {
+  --paper: #f4f4f1;
+  --paper-deep: #eaeae4;
+  --surface: #ffffff;
+  --ink: #0f1216;
+  --ink-soft: #1e2228;
+  --muted: #6e7079;
+  --muted-dark: #9ca0ac;
+  --rule: #dbdbd5;
+  --rule-soft: #e8e8e2;
+  --accent: #1547f5;
+  --accent-deep: #0e2fbc;
+  --accent-bg: #e8edff;
+  --signal: #ff4f1f;
+  --signal-bg: #ffe5dd;
+  --positive: #16a34a;
+  --positive-bg: #dcfce7;
+  --sans: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 15px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { color: var(--accent-deep); }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+.narrow { max-width: 680px; }
+
+/* Header */
+.nav {
+  position: sticky; top: 0; z-index: 20;
+  background: rgba(244, 244, 241, 0.85);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--rule);
+}
+.nav .wrap { display: flex; align-items: center; gap: 16px; height: 60px; }
+.brandmark { display: inline-flex; align-items: center; gap: 9px; font-weight: 600; font-size: 17px; letter-spacing: -0.02em; color: var(--ink); }
+.brandmark svg { height: 22px; width: auto; display: block; }
+.nav .spacer { flex: 1; }
+.nav a.navlink { color: var(--ink); font-weight: 500; font-size: 14px; }
+.nav a.navlink:hover { color: var(--accent); }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 500 14px var(--sans);
+  padding: 11px 20px; border-radius: 4px; border: 1px solid transparent;
+  cursor: pointer; transition: background 120ms, border-color 120ms, color 120ms;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-deep); color: #fff; }
+.btn-ghost { background: transparent; border-color: var(--rule); color: var(--ink); }
+.btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+.btn-lg { padding: 14px 26px; font-size: 15px; }
+.btn[disabled] { opacity: 0.5; cursor: default; }
+
+/* Eyebrow / labels */
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px;
+  font: 500 11px/1 var(--mono); letter-spacing: 1.4px; text-transform: uppercase; color: var(--muted);
+}
+.eyebrow::before { content: ""; width: 6px; height: 6px; background: var(--accent); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+
+/* Hero */
+.hero { padding: 84px 0 56px; }
+.hero h1 { font-size: clamp(38px, 6vw, 64px); line-height: 1.02; letter-spacing: -0.03em; font-weight: 600; margin: 18px 0 18px; }
+.hero p.sub { font-size: 19px; color: var(--muted); max-width: 560px; margin: 0 0 28px; }
+.hero .cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
+
+/* Cards / sections */
+section { padding: 56px 0; }
+.section-head { margin-bottom: 28px; }
+.section-head h2 { font-size: clamp(26px, 4vw, 36px); letter-spacing: -0.02em; font-weight: 600; margin: 10px 0 8px; }
+.section-head p { color: var(--muted); margin: 0; max-width: 560px; }
+.card {
+  background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 22px;
+}
+
+/* Install steps */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.step { background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 20px; }
+.step .num { font: 500 12px var(--mono); color: var(--accent); }
+.step h3 { font-size: 16px; margin: 10px 0 6px; font-weight: 600; }
+.step p { margin: 0; color: var(--muted); font-size: 14px; }
+
+/* Leaderboard table */
+.board { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; overflow: hidden; }
+.board th, .board td { text-align: left; padding: 13px 16px; border-bottom: 1px solid var(--rule-soft); font-size: 14px; }
+.board th { font: 500 10.5px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); background: var(--paper-deep); }
+.board tr:last-child td { border-bottom: none; }
+.board td.num, .board th.num { text-align: right; font-variant-numeric: tabular-nums; }
+.board .rank { color: var(--muted); width: 36px; }
+.board .brandcell { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.board .brandcell img { width: 22px; height: 22px; border-radius: 5px; display: block; }
+.board .bid { font-family: var(--mono); font-weight: 500; color: var(--accent); }
+.pill { display: inline-block; font: 500 10px var(--mono); letter-spacing: .6px; text-transform: uppercase; padding: 2px 7px; border-radius: 3px; }
+.pill.live { background: var(--positive-bg); color: var(--positive); }
+.pill.done { background: var(--paper-deep); color: var(--muted); }
+
+/* Stat strip */
+.stats-strip { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 24px; }
+.stat-chip { flex: 1; min-width: 140px; background: var(--surface); border: 1px solid var(--rule); border-radius: 8px; padding: 14px 16px; }
+.stat-chip b { display: block; font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.stat-chip span { font: 500 10px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+
+/* Forms */
+.field { margin-bottom: 16px; }
+.field label { display: block; font: 500 12px var(--mono); letter-spacing: .5px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.field input[type=text], .field input[type=email], .field input[type=url], .field input[type=number], .field textarea {
+  width: 100%; padding: 11px 13px; border: 1px solid var(--rule); border-radius: 5px;
+  background: var(--surface); color: var(--ink); font: 400 14px var(--sans);
+}
+.field input:focus, .field textarea:focus { outline: none; border-color: var(--accent); }
+.field .hint { font-size: 12px; color: var(--muted); margin-top: 5px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.errors { background: var(--signal-bg); border: 1px solid var(--signal); border-radius: 5px; padding: 10px 13px; color: #a8310f; font-size: 13px; margin-bottom: 14px; }
+.errors ul { margin: 4px 0 0; padding-left: 18px; }
+
+/* The ad preview line (mirror of the extension overlay) */
+.adline {
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 8px 13px; background: #fff; border: 1px solid var(--rule); border-radius: 6px;
+  box-shadow: 0 2px 10px rgba(15,18,22,.1); font: 500 13px var(--sans); color: var(--ink); white-space: nowrap;
+  --a: var(--accent);
+}
+.adline .mk { width: 18px; height: 18px; border-radius: 4px; flex: none; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.adline .mk img { width: 18px; height: 18px; object-fit: contain; }
+.adline .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--a); animation: kxpulse 1.1s ease-in-out infinite; flex: none; }
+@keyframes kxpulse { 0%,100% { opacity: 1; } 50% { opacity: .3; transform: scale(.8); } }
+.adline .tag { font: 500 10px var(--mono); letter-spacing: 1.2px; text-transform: uppercase; color: var(--a); }
+.adline .bn { font-weight: 600; }
+.adline .cp { color: var(--muted); font-weight: 400; }
+.adline .ar { color: var(--a); }
+
+/* Footer */
+footer { border-top: 1px solid var(--rule); padding: 28px 0; color: var(--muted); font-size: 13px; margin-top: 40px; }
+footer .wrap { display: flex; gap: 16px; align-items: center; }
+footer .spacer { flex: 1; }
+
+.center { text-align: center; }
+.hide { display: none !important; }
+.muted { color: var(--muted); }
+.success { background: var(--positive-bg); border: 1px solid var(--positive); border-radius: 6px; padding: 16px; }
+
+@media (max-width: 720px) {
+  .steps { grid-template-columns: 1fr; }
+  .row2 { grid-template-columns: 1fr; }
+  .board .hide-sm { display: none; }
+}

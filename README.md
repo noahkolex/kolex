@@ -86,6 +86,11 @@ the creative. Unsold time falls back to house ads, which use the Sefra mark.
   popup, and one toggle turns it off instantly. A server-side killswitch can
   halt all serving remotely (bad creative, billing incident).
 
+Supported surfaces: **ChatGPT** (chatgpt.com, chat.openai.com), **Claude**
+(claude.ai), **Gemini** (gemini.google.com), and **Grok** (grok.com,
+x.com/i/grok). Each has its own detection config; the animation heuristic
+covers the rest.
+
 ## Repo layout
 
 ```
@@ -93,12 +98,61 @@ extension/          MV3 extension (manifest, popup, built bundles, icons)
 src/shared/         Chrome-free core: economics, auction, rotation, ledger,
                     wait-state detection — fully unit-tested in Node
 src/background/     Service worker: settings, remote config, event sync
-src/content/        Wait-state watcher + inline ad placement (shadow DOM)
-src/popup/          Consent gate + live earnings dashboard
+src/content/        Wait-state watcher + pin-to-rect ad placement (shadow DOM)
+src/popup/          Consent gate + live earnings dashboard + Cash out CTA
+server/             Express backend: auction, settlement, accounts, API
+web/                Website: landing, advertise, advertiser portal, earner portal
 demo/               Local harness that fakes a chat UI for visual testing
 scripts/            esbuild bundling + zero-dependency PNG icon generator
 test/               node:test suite (core logic + jsdom DOM-glue tests)
 ```
+
+## Backend + website
+
+The `server/` is a single Express app (file-backed store, no native deps)
+that serves both the JSON API and the static `web/` site.
+
+```bash
+npm run server         # http://localhost:4000  (seeds a live auction)
+npm run server:reset   # wipe + reseed the store
+```
+
+Pages (Sefra-branded, vanilla JS, no build step):
+
+- **`/` landing** — hero, 3-step install, and the **live auction
+  leaderboard** showing each brand, its bid per 1,000 impressions, spend,
+  and status (what they're paying).
+- **`/advertise`** — kickbacks-style quick submit: brand, copy, URL, logo
+  upload (→ data URL), accent color, bid, blocks, with a **live preview of
+  the exact ad line** and a real-time "you'd rank #N" against the auction.
+  Submitting drops you straight into your portal.
+- **`/advertiser`** — campaign dashboard: spend, impressions, clicks, status
+  per campaign. Email login.
+- **`/portal`** — earner portal. The extension's **Cash out →** button opens
+  `/portal?device=<id>&connect=1`, which forces a login and **auto-links the
+  browser** to the account, then shows the live balance and a withdraw
+  button.
+
+API surface:
+
+| Route | Who | Purpose |
+|-------|-----|---------|
+| `GET /v1/config` | extension | current auction winners as ads (+ remote selectors, killswitch) |
+| `POST /v1/events` | extension | ingest impressions/clicks; idempotent on event id; settles money |
+| `GET /v1/balance` | extension | device's pending/settled earnings |
+| `GET /r/:adId?d=device` | browser | record click, 302 to advertiser |
+| `GET /api/auction` | public | leaderboard + stats for the landing page |
+| `POST /api/ads` | public | quick ad submission (creates advertiser, enters auction) |
+| `POST /api/login` | public | email login (user or advertiser) |
+| `GET /api/advertiser/campaigns` | advertiser | campaign stats |
+| `GET /api/portal/summary` | user | earnings across linked devices |
+| `POST /api/portal/link-device` | user | link an extension device to the account |
+| `POST /api/portal/payout` | user | withdraw pending balance |
+
+Settlement mirrors the extension's economics exactly: an impression bills
+`bid/1000`, a click bills `50×` that, and **50% of every billed dollar** is
+credited to the device that showed the ad. Point the extension at a local
+server by setting its API base to `http://localhost:4000/v1` during dev.
 
 ## Develop
 

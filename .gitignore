@@ -4,3 +4,4 @@ kolex-extension.zip
 extension/content.js
 extension/background.js
 extension/popup.js
+server/data/db.json

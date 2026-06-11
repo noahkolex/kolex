@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Advertise on Kolex</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+</head>
+<body>
+  <header class="nav" data-nav></header>
+
+  <main class="wrap narrow" style="padding-top:40px;padding-bottom:60px">
+    <span class="eyebrow">Launch an ad</span>
+    <h1 style="font-size:34px;letter-spacing:-.02em;font-weight:600;margin:12px 0 6px">Your brand, in the spinner.</h1>
+    <p class="muted" style="margin-top:0">Under a minute. Upload your logo and pick a color — the whole loading indicator wears your brand. Bid for blocks of 1,000 five-second impressions.</p>
+
+    <!-- Live preview -->
+    <div style="margin:24px 0 28px">
+      <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Live preview — exactly how it appears</div>
+      <div style="background:var(--paper-deep);border:1px solid var(--rule);border-radius:8px;padding:28px;display:flex;justify-content:center">
+        <div class="adline" id="preview"></div>
+      </div>
+    </div>
+
+    <div id="errors" class="errors hide"></div>
+
+    <form id="form" autocomplete="off">
+      <div class="row2">
+        <div class="field">
+          <label>Brand name</label>
+          <input type="text" id="brand" maxlength="40" placeholder="Acme" required />
+        </div>
+        <div class="field">
+          <label>Your email</label>
+          <input type="email" id="email" placeholder="you@acme.com" required />
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Ad copy <span id="copycount" class="muted">0/60</span></label>
+        <input type="text" id="text" maxlength="60" placeholder="The fastest way to ship your product" required />
+        <div class="hint">3–60 characters. Shown in muted text after your brand name.</div>
+      </div>
+
+      <div class="field">
+        <label>Destination URL</label>
+        <input type="url" id="url" placeholder="https://acme.com" required />
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Brand logo</label>
+          <input type="file" id="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+          <div class="hint">PNG, JPG, WebP, or SVG, under 64KB. Replaces the Kolex mark.</div>
+        </div>
+        <div class="field">
+          <label>Accent color</label>
+          <input type="text" id="accent" value="#1547F5" maxlength="7" />
+          <div class="hint">Tints the dot, the AD tag, and the arrow.</div>
+        </div>
+      </div>
+
+      <div class="row2">
+        <div class="field">
+          <label>Bid per 1,000 impressions</label>
+          <input type="number" id="bid" min="1" step="1" value="25" required />
+          <div class="hint" id="rankhint">Higher bids serve first.</div>
+        </div>
+        <div class="field">
+          <label>Blocks (× 1,000 impressions)</label>
+          <input type="number" id="blocks" min="1" step="1" value="50" required />
+          <div class="hint" id="budgethint">Budget: $1,250 · 50,000 impressions</div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-lg" id="submit" style="width:100%;justify-content:center">Enter the auction</button>
+      <p class="muted center" style="font-size:12px;margin-top:10px">Prototype — no card charged. You'll land in your advertiser portal.</p>
+    </form>
+
+    <!-- Success -->
+    <div id="done" class="success hide" style="margin-top:24px">
+      <h3 style="margin:0 0 8px">You're live. 🎉</h3>
+      <p style="margin:0 0 6px" id="done-msg"></p>
+      <div class="adline" id="done-ad" style="margin:12px 0"></div>
+      <a class="btn btn-primary" href="/advertiser" id="done-portal">Open your portal →</a>
+    </div>
+  </main>
+
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertiser">Advertiser login</a></div></footer>
+
+  <script type="module">
+    import { api, money, num, mountNav, renderAdline, store } from "/assets/app.js";
+    mountNav("/advertise");
+
+    const $ = (id) => document.getElementById(id);
+    let logoData = null;
+
+    function model() {
+      return {
+        brand: $("brand").value, text: $("text").value, accent: $("accent").value, iconDataUrl: logoData,
+      };
+    }
+    function refresh() {
+      renderAdline($("preview"), model());
+      $("copycount").textContent = $("text").value.length + "/60";
+      const bid = Number($("bid").value) || 0, blocks = Number($("blocks").value) || 0;
+      $("budgethint").textContent = `Budget: ${money(bid * blocks)} · ${num(blocks * 1000)} impressions`;
+    }
+    ["brand", "text", "accent", "bid", "blocks"].forEach((id) => $(id).addEventListener("input", refresh));
+
+    // Rank preview against the live auction.
+    api("/api/auction").then(({ leaderboard }) => {
+      const update = () => {
+        const bid = Number($("bid").value) || 0;
+        const above = leaderboard.filter((c) => c.bidPerBlock > bid).length;
+        $("rankhint").textContent = above === 0 ? "🥇 You'd take the #1 spot — served first." : `You'd rank #${above + 1} of ${leaderboard.length + 1}.`;
+      };
+      $("bid").addEventListener("input", update);
+      update();
+    }).catch(() => {});
+
+    $("logo").addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) { logoData = null; refresh(); return; }
+      if (file.size > 64 * 1024) { alert("Logo must be under 64KB."); e.target.value = ""; return; }
+      const r = new FileReader();
+      r.onload = () => { logoData = r.result; refresh(); };
+      r.readAsDataURL(file);
+    });
+
+    $("form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      $("errors").classList.add("hide");
+      $("submit").disabled = true;
+      try {
+        const res = await api("/api/ads", {
+          method: "POST",
+          body: {
+            email: $("email").value, brand: $("brand").value, text: $("text").value,
+            url: $("url").value, accent: $("accent").value, iconDataUrl: logoData,
+            bidPerBlock: Number($("bid").value), blocks: Number($("blocks").value),
+          },
+        });
+        store.set("advToken", res.token);
+        store.set("advEmail", $("email").value.toLowerCase().trim());
+        $("form").classList.add("hide");
+        document.querySelector('[style*="Live preview"]')?.closest("div")?.classList.add("hide");
+        $("done").classList.remove("hide");
+        $("done-msg").textContent = res.rank === 1
+          ? `Your campaign is #1 in the auction — served first. ${num(res.impressions)} impressions queued for ${money(res.budgetUsd)}.`
+          : `Your campaign entered at rank #${res.rank}. ${num(res.impressions)} impressions queued for ${money(res.budgetUsd)}.`;
+        renderAdline($("done-ad"), { brand: $("brand").value, text: $("text").value, accent: $("accent").value, iconDataUrl: logoData });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } catch (err) {
+        const list = err.data?.errors || [err.message];
+        $("errors").innerHTML = "<b>Couldn't launch:</b><ul>" + list.map((x) => `<li>${x}</li>`).join("") + "</ul>";
+        $("errors").classList.remove("hide");
+      } finally {
+        $("submit").disabled = false;
+      }
+    });
+
+    refresh();
+  </script>
+</body>
+</html>
