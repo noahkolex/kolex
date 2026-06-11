@@ -94,10 +94,10 @@ function placementTick(): void {
     return;
   }
 
-  const spinner = suppressor.findSpinner();
-  suppressor.suppress();
-  if (spinner) {
-    adView.showInline(spinner, currentAd, currentEarnedUsd);
+  const anchor = suppressor.findAnchor();
+  if (anchor) {
+    suppressor.collapse(anchor);
+    adView.showInline(anchor, currentAd, currentEarnedUsd);
   } else {
     adView.showFloating(currentAd, currentEarnedUsd);
   }

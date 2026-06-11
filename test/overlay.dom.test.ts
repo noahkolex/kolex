@@ -95,18 +95,90 @@ test("suppressor collapses the native indicator and restores it exactly", () => 
   const spinner = doc.querySelector<HTMLElement>(".spinner")!;
   const suppressor = new SpinnerSuppressor(doc, [".spinner", "%%bad-selector%%"]);
 
-  assert.equal(suppressor.findSpinner(), spinner);
+  assert.equal(suppressor.findAnchor(), spinner);
 
-  suppressor.suppress();
+  suppressor.collapse(spinner);
   assert.equal(spinner.style.getPropertyValue("display"), "none");
   assert.equal(spinner.style.getPropertyPriority("display"), "important");
   assert.ok(suppressor.contains(spinner), "collapsed elements still count as present");
 
-  suppressor.suppress(); // idempotent
+  suppressor.collapse(spinner); // idempotent
   suppressor.restore();
   assert.equal(spinner.style.getPropertyValue("display"), "");
   assert.equal(suppressor.contains(spinner), false);
 
   suppressor.restore(); // double-restore is a no-op
   assert.equal(spinner.style.getPropertyValue("display"), "");
+});
+
+// ---- Animation heuristic: find the indicator with no selector at all ----
+
+function rectOf(width: number, height: number) {
+  return () =>
+    ({ width, height, top: 0, left: 0, right: width, bottom: height, x: 0, y: 0 }) as DOMRect;
+}
+
+function loopingAnim(target: Element, iterations: number = Infinity) {
+  return { effect: { target, getTiming: () => ({ iterations }) } } as unknown as Animation;
+}
+
+function heuristicPage() {
+  const dom = new JSDOM(
+    `<!doctype html><html><body>
+      <main>
+        <div class="msg">streamed text</div>
+        <div id="starburst"></div>
+      </main>
+      <form><div contenteditable="true"><span id="caret"></span></div></form>
+      <div id="sidebar-dot"></div>
+    </body></html>`,
+  );
+  const doc = dom.window.document;
+  const star = doc.querySelector<HTMLElement>("#starburst")!;
+  const caret = doc.querySelector<HTMLElement>("#caret")!;
+  const dot = doc.querySelector<HTMLElement>("#sidebar-dot")!;
+  star.getBoundingClientRect = rectOf(48, 48);
+  caret.getBoundingClientRect = rectOf(2, 18);
+  dot.getBoundingClientRect = rectOf(8, 8);
+  return { doc, star, caret, dot };
+}
+
+test("animation heuristic picks the looping indicator, not the caret or chrome", () => {
+  const { doc, star, caret, dot } = heuristicPage();
+  (doc as unknown as { getAnimations: () => Animation[] }).getAnimations = () => [
+    loopingAnim(caret), // inside the composer → excluded
+    loopingAnim(dot), // outside <main> → loses to in-main candidate
+    loopingAnim(star),
+  ];
+  const suppressor = new SpinnerSuppressor(doc, ["%%no-such-selector%%"]);
+  assert.equal(suppressor.findAnchor(), star);
+});
+
+test("one-shot transitions and oversized animations are not indicators", () => {
+  const { doc, star } = heuristicPage();
+  const msg = doc.querySelector<HTMLElement>(".msg")!;
+  msg.getBoundingClientRect = rectOf(600, 24); // shimmering text — too wide
+  (doc as unknown as { getAnimations: () => Animation[] }).getAnimations = () => [
+    loopingAnim(star, 1), // finite → excluded
+    loopingAnim(msg),
+  ];
+  const suppressor = new SpinnerSuppressor(doc, []);
+  assert.equal(suppressor.findAnchor(), null);
+});
+
+test("collapsed anchor stays the anchor even after its animation stops", () => {
+  const { doc, star } = heuristicPage();
+  const docAnims = doc as unknown as { getAnimations: () => Animation[] };
+  docAnims.getAnimations = () => [loopingAnim(star)];
+  const suppressor = new SpinnerSuppressor(doc, []);
+
+  const anchor = suppressor.findAnchor()!;
+  suppressor.collapse(anchor);
+  // display:none stops the animation — the heuristic alone would lose it.
+  docAnims.getAnimations = () => [];
+  assert.equal(suppressor.findAnchor(), anchor, "anchor persists while collapsed");
+
+  // Site re-render removes the node → anchor is released.
+  anchor.remove();
+  assert.equal(suppressor.findAnchor(), null);
 });

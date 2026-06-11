@@ -189,22 +189,41 @@ export class AdView {
   }
 }
 
+type StyledElement = Element & ElementCSSInlineStyle;
+
+/** Indicators are small; anything bigger is content, not a spinner. */
+const MAX_INDICATOR_PX = 160;
+
 /**
- * Collapses native loading indicators (display:none) so the sponsored line
- * can take their place in flow, and restores them exactly the moment
- * serving stops. Pure inline-style toggles — the page's own DOM is never
- * mutated structurally.
+ * Finds the native loading indicator and collapses it (display:none) so the
+ * sponsored line can take its place in flow, restoring it exactly the
+ * moment serving stops. Pure inline-style toggles — the page's own DOM is
+ * never mutated structurally.
+ *
+ * Anchor discovery, in order:
+ * 1. Configured spinner selectors (remotely updatable).
+ * 2. Animation heuristic: the loading indicator is, by definition, the
+ *    thing that's animating. `document.getAnimations()` exposes every
+ *    running animation's target; the spinner is a small, infinitely
+ *    looping one in the content area. This survives UI redeploys that
+ *    rename every class.
+ *
+ * Once an anchor is collapsed it stays the anchor while it remains in the
+ * DOM — collapsing it stops its animation, so re-running the heuristic
+ * would no longer find it.
  */
 export class SpinnerSuppressor {
-  private hidden = new Set<HTMLElement>();
+  private hidden = new Set<StyledElement>();
 
   constructor(
     private doc: Document,
     private selectors: string[],
   ) {}
 
-  /** First element currently matching a spinner selector, if any. */
-  findSpinner(): HTMLElement | null {
+  /** The element the sponsored line should replace, if one is on screen. */
+  findAnchor(): StyledElement | null {
+    for (const el of this.hidden) if (el.isConnected) return el;
+
     for (const sel of this.selectors) {
       let node: Element | null;
       try {
@@ -212,29 +231,74 @@ export class SpinnerSuppressor {
       } catch {
         continue;
       }
-      const el = node as HTMLElement | null;
+      // Duck-typed instead of `instanceof HTMLElement`: elements from
+      // iframes (or test DOMs) live in a different realm.
+      const el = node as StyledElement | null;
       if (el && typeof el.style?.setProperty === "function") return el;
     }
-    return null;
+
+    return this.findAnimatedIndicator();
   }
 
-  suppress(): void {
-    for (const sel of this.selectors) {
-      let nodes: NodeListOf<Element>;
-      try {
-        nodes = this.doc.querySelectorAll(sel);
-      } catch {
-        continue;
+  private findAnimatedIndicator(): StyledElement | null {
+    const doc = this.doc as Document & { getAnimations?: () => Animation[] };
+    if (typeof doc.getAnimations !== "function") return null;
+    let animations: Animation[];
+    try {
+      animations = doc.getAnimations();
+    } catch {
+      return null;
+    }
+
+    const main = this.doc.querySelector("main");
+    let best: StyledElement | null = null;
+    let bestInMain = false;
+
+    for (const anim of animations) {
+      const effect = anim.effect as KeyframeEffect | null;
+      let el = effect?.target as StyledElement | null;
+      if (!el || typeof el.style?.setProperty !== "function") continue;
+
+      // Climb out of SVG internals so we anchor at the drawable root.
+      const svgRoot = (el as { ownerSVGElement?: StyledElement | null }).ownerSVGElement;
+      if (svgRoot) el = svgRoot;
+
+      // Never anchor to our own pulse animation.
+      if (el.localName === "kolex-ad") continue;
+      const root = el.getRootNode();
+      if ((root as ShadowRoot).host?.localName === "kolex-ad") continue;
+
+      // Spinners loop forever; one-shot transitions are not wait states.
+      const timing = effect?.getTiming?.();
+      if (!timing || timing.iterations !== Infinity) continue;
+
+      // The composer caret and input affordances are not loading indicators.
+      if (el.closest?.("form, textarea, [contenteditable], kolex-ad")) continue;
+
+      const rect = el.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) continue;
+      if (rect.width > MAX_INDICATOR_PX || rect.height > MAX_INDICATOR_PX) continue;
+
+      // Prefer candidates in <main>, then the last one in document order
+      // (the indicator rides the end of the conversation).
+      const inMain = main !== null && main.contains(el);
+      if (bestInMain && !inMain) continue;
+      if (
+        !best ||
+        (inMain && !bestInMain) ||
+        !!(best.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
+      ) {
+        best = el;
+        bestInMain = inMain;
       }
-      for (const node of nodes) {
-        // Duck-typed instead of `instanceof HTMLElement`: elements from
-        // iframes (or test DOMs) live in a different realm.
-        const el = node as HTMLElement;
-        if (typeof el.style?.setProperty === "function" && !this.hidden.has(el)) {
-          el.style.setProperty("display", "none", "important");
-          this.hidden.add(el);
-        }
-      }
+    }
+    return best;
+  }
+
+  collapse(el: StyledElement): void {
+    if (!this.hidden.has(el)) {
+      el.style.setProperty("display", "none", "important");
+      this.hidden.add(el);
     }
   }
 
@@ -248,6 +312,6 @@ export class SpinnerSuppressor {
    * otherwise hiding the spinner would end the busy state we detected it by.
    */
   contains(el: Element): boolean {
-    return this.hidden.has(el as HTMLElement);
+    return this.hidden.has(el as StyledElement);
   }
 }
