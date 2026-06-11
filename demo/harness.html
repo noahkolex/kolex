@@ -88,6 +88,8 @@
             if (accrued >= 5000) { accrued -= 5000; idx = (idx + 1) % ADS.length; earned += 0.005; }
             return { serving: true, ad: ADS[idx], estEarnedUsd: earned, impressionRecorded: false };
           }
+          if (msg.type === "kolex:open-page") { alert("would open kolex.ai/" + msg.page); return { ok: true };
+          }
           if (msg.type === "kolex:click") { alert("click recorded → would open kolex.ai/r/" + msg.adId); return { ok: true }; }
           return { ok: true };
         },

@@ -96,8 +96,8 @@ function placementTick(): void {
 
   const anchor = suppressor.findAnchor();
   if (anchor) {
-    suppressor.collapse(anchor);
-    adView.showInline(anchor, currentAd, currentEarnedUsd);
+    suppressor.hide(anchor);
+    adView.showAnchored(anchor.getBoundingClientRect(), currentAd, currentEarnedUsd);
   } else {
     adView.showFloating(currentAd, currentEarnedUsd);
   }

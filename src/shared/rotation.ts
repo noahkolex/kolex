@@ -9,7 +9,7 @@ import {
 import { findAd, pickNextAd, sanitizeAds, HOUSE_ADS } from "./inventory.js";
 import type { KV } from "./kv.js";
 
-export type Surface = "chatgpt" | "claude" | "other";
+export type Surface = "chatgpt" | "claude" | "gemini" | "grok" | "other";
 
 export interface LedgerEvent {
   /** Idempotency key — the backend deduplicates on this. */

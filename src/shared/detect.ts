@@ -41,6 +41,27 @@ export const DEFAULT_SITES: SiteConfig[] = [
     ],
     spinnerSelectors: ['[data-is-streaming="true"] [class*="shimmer"]', '[class*="thinking"]'],
   },
+  {
+    surface: "gemini",
+    hosts: ["gemini.google.com"],
+    busySelectors: [
+      'button[aria-label*="Stop" i]',
+      ".stop-icon",
+      "model-response .blinking-cursor",
+      ".response-container.is-streaming",
+    ],
+    spinnerSelectors: [".blinking-cursor", "[class*='loading']", "[class*='thinking']"],
+  },
+  {
+    surface: "grok",
+    hosts: ["grok.com", "x.com", "twitter.com"],
+    busySelectors: [
+      'button[aria-label*="Stop" i]',
+      'button[aria-label*="Stop model response" i]',
+      "[class*='streaming']",
+    ],
+    spinnerSelectors: ["[class*='loading']", "[class*='spinner']", "[class*='thinking']"],
+  },
 ];
 
 export function siteForHost(host: string, sites: SiteConfig[] = DEFAULT_SITES): SiteConfig | undefined {
@@ -69,15 +90,17 @@ export function sanitizeSites(raw: unknown): SiteConfig[] {
   for (const item of raw) {
     if (typeof item !== "object" || item === null) continue;
     const s = item as Partial<SiteConfig>;
+    const surfaces = ["chatgpt", "claude", "gemini", "grok", "other"];
     if (
-      (s.surface === "chatgpt" || s.surface === "claude" || s.surface === "other") &&
+      typeof s.surface === "string" &&
+      surfaces.includes(s.surface) &&
       Array.isArray(s.hosts) &&
       s.hosts.every((h) => typeof h === "string") &&
       Array.isArray(s.busySelectors) &&
       s.busySelectors.every((sel) => typeof sel === "string")
     ) {
       sites.push({
-        surface: s.surface,
+        surface: s.surface as SiteConfig["surface"],
         hosts: s.hosts,
         busySelectors: s.busySelectors,
         spinnerSelectors: Array.isArray(s.spinnerSelectors)

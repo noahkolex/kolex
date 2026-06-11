@@ -153,6 +153,15 @@ async function handle(req: KolexRequest): Promise<unknown> {
       void refreshRemoteConfig();
       return { ok: true };
 
+    case "kolex:open-page": {
+      // Carry the device id so the portal can link earnings to the account
+      // after the user logs in (the "cash out" flow from the popup).
+      const path = req.page === "home" ? "/" : `/${req.page}`;
+      const url = `${SITE_BASE}${path}?device=${encodeURIComponent(s.deviceId)}&connect=1`;
+      await chrome.tabs.create({ url, active: true });
+      return { ok: true };
+    }
+
     default:
       return { ok: false };
   }

@@ -11,7 +11,17 @@ test("hosts map to their surface", () => {
   assert.equal(siteForHost("chatgpt.com")?.surface, "chatgpt");
   assert.equal(siteForHost("chat.openai.com")?.surface, "chatgpt");
   assert.equal(siteForHost("claude.ai")?.surface, "claude");
+  assert.equal(siteForHost("gemini.google.com")?.surface, "gemini");
+  assert.equal(siteForHost("grok.com")?.surface, "grok");
+  assert.equal(siteForHost("x.com")?.surface, "grok");
   assert.equal(siteForHost("example.com"), undefined);
+});
+
+test("every default site has busy and spinner selectors", () => {
+  for (const site of DEFAULT_SITES) {
+    assert.ok(site.busySelectors.length > 0, `${site.surface} has busy selectors`);
+    assert.ok(Array.isArray(site.spinnerSelectors), `${site.surface} has spinner selectors`);
+  }
 });
 
 test("isBusy is true when any selector matches", () => {

@@ -46,9 +46,16 @@ export interface GrantConsentRequest {
   type: "kolex:grant-consent";
 }
 
+/** Open a kolex.ai page (portal, advertise) in a new tab, with device id. */
+export interface OpenPageRequest {
+  type: "kolex:open-page";
+  page: "portal" | "advertise" | "home";
+}
+
 export type KolexRequest =
   | TickRequest
   | ClickRequest
   | StatusRequest
   | SetEnabledRequest
-  | GrantConsentRequest;
+  | GrantConsentRequest
+  | OpenPageRequest;

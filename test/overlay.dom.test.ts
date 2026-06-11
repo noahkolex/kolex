@@ -15,32 +15,36 @@ function page() {
   return { dom, doc: dom.window.document };
 }
 
-const AD = { id: "house-ramp", brand: "Ramp", text: "Close your books 8x faster" };
+const AD = { id: "ex-indie", brand: "Indie Hackers", text: "Where founders share what's working" };
 
-test("inline mode mounts the ad directly after the spinner", () => {
+const RECT = { left: 240, top: 300, width: 24, height: 24 };
+
+test("anchored mode pins the line to the indicator's rect", () => {
   const { doc } = page();
   const view = new AdView(doc, () => {});
-  const spinner = doc.querySelector(".spinner")!;
 
-  view.showInline(spinner, AD, 0.0123);
+  view.showAnchored(RECT, AD, 0.0123);
 
   const host = doc.querySelector("kolex-ad");
   assert.ok(host, "host mounted");
-  assert.equal(spinner.nextElementSibling, host, "ad sits in the spinner's place in flow");
+  assert.equal(host.parentElement, doc.documentElement, "host attached to the root");
 
-  const line = host.shadowRoot?.querySelector(".line");
+  const line = host.shadowRoot?.querySelector<HTMLElement>(".line");
   assert.ok(line, "line rendered in shadow root");
   assert.ok(line.classList.contains("visible"));
-  assert.equal(line.classList.contains("floating"), false, "inline mode is not floating");
-  assert.ok(line.querySelector(".mark .bird"), "sefra bird mark present by default");
+  // Left-aligned to the indicator, vertically centered on it.
+  assert.equal(line.style.left, "240px");
+  assert.equal(line.style.top, "312px");
+  assert.equal(line.style.transform, "translateY(-50%)");
+  assert.ok(line.querySelector(".mark .bird"), "house ad with no logo uses the Kolex bird");
   assert.match(line.textContent ?? "", /Ad/);
-  assert.match(line.textContent ?? "", /Ramp/);
-  assert.match(line.textContent ?? "", /Close your books 8x faster/);
+  assert.match(line.textContent ?? "", /Indie Hackers/);
   assert.match(line.textContent ?? "", /\$0\.01 earned/);
 
-  // Re-show on the same anchor is stable (no duplicate hosts).
-  view.showInline(spinner, AD, 0.02);
+  // Re-pinning to a new rect is stable (no duplicate hosts).
+  view.showAnchored({ left: 50, top: 80, width: 20, height: 20 }, AD, 0.02);
   assert.equal(doc.querySelectorAll("kolex-ad").length, 1);
+  assert.equal(line.style.left, "50px");
 
   view.hide();
   assert.equal(doc.querySelector("kolex-ad"), null, "hide detaches the host");
@@ -65,38 +69,24 @@ test("brand takeover: advertiser logo and accent replace the defaults", () => {
   assert.equal(line.querySelector(".mark .bird"), null, "no default bird when brand logo is set");
   assert.equal(host.style.getPropertyValue("--kx-accent"), "#FF4F1F", "accent tints the line");
 
-  // Switching to a house ad with no icon falls back to the Sefra bird.
-  view.showFloating({ id: "house-ramp", brand: "Ramp", text: "Books, fast", house: true }, 0);
-  assert.ok(line.querySelector(".mark .bird"), "house ad uses the bird again");
+  // Switching to an ad with no icon falls back to the Kolex bird.
+  view.showFloating({ id: "ex-indie", brand: "Indie", text: "Founders share", house: true }, 0);
+  assert.ok(line.querySelector(".mark .bird"), "logo-less ad uses the bird");
   assert.equal(line.querySelector(".mark img"), null);
   assert.equal(host.style.getPropertyValue("--kx-accent"), "#1547F5", "accent resets to cobalt");
 });
 
-test("inline mode follows the spinner when the site re-renders", () => {
-  const { doc } = page();
-  const view = new AdView(doc, () => {});
-  const first = doc.querySelector(".spinner")!;
-  view.showInline(first, AD, 0);
-
-  // Stream re-render: old spinner gone, new one appears elsewhere.
-  first.remove();
-  const next = doc.createElement("div");
-  next.className = "spinner";
-  doc.querySelector(".chat")!.appendChild(next);
-
-  view.showInline(next, AD, 0);
-  assert.equal(next.nextElementSibling, doc.querySelector("kolex-ad"));
-  assert.equal(doc.querySelectorAll("kolex-ad").length, 1);
-});
-
-test("floating fallback attaches to the document root", () => {
+test("floating fallback pins to the bottom center", () => {
   const { doc } = page();
   const view = new AdView(doc, () => {});
   view.showFloating(AD, 0);
 
   const host = doc.querySelector("kolex-ad")!;
   assert.equal(host.parentElement, doc.documentElement);
-  assert.ok(host.shadowRoot!.querySelector(".line")!.classList.contains("floating"));
+  const line = host.shadowRoot!.querySelector<HTMLElement>(".line")!;
+  assert.equal(line.style.left, "50%");
+  assert.equal(line.style.bottom, "96px");
+  assert.equal(line.style.transform, "translateX(-50%)");
 });
 
 test("clicking the line reports the served ad id", () => {
@@ -123,18 +113,18 @@ test("suppressor collapses the native indicator and restores it exactly", () => 
 
   assert.equal(suppressor.findAnchor(), spinner);
 
-  suppressor.collapse(spinner);
-  assert.equal(spinner.style.getPropertyValue("display"), "none");
-  assert.equal(spinner.style.getPropertyPriority("display"), "important");
-  assert.ok(suppressor.contains(spinner), "collapsed elements still count as present");
+  suppressor.hide(spinner);
+  assert.equal(spinner.style.getPropertyValue("visibility"), "hidden");
+  assert.equal(spinner.style.getPropertyPriority("visibility"), "important");
+  assert.ok(suppressor.contains(spinner), "hidden elements still count as present");
 
-  suppressor.collapse(spinner); // idempotent
+  suppressor.hide(spinner); // idempotent
   suppressor.restore();
-  assert.equal(spinner.style.getPropertyValue("display"), "");
+  assert.equal(spinner.style.getPropertyValue("visibility"), "");
   assert.equal(suppressor.contains(spinner), false);
 
   suppressor.restore(); // double-restore is a no-op
-  assert.equal(spinner.style.getPropertyValue("display"), "");
+  assert.equal(spinner.style.getPropertyValue("visibility"), "");
 });
 
 // ---- Animation heuristic: find the indicator with no selector at all ----
@@ -230,10 +220,10 @@ test("collapsed anchor stays the anchor even after its animation stops", () => {
   const suppressor = new SpinnerSuppressor(doc, []);
 
   const anchor = suppressor.findAnchor()!;
-  suppressor.collapse(anchor);
-  // display:none stops the animation — the heuristic alone would lose it.
+  suppressor.hide(anchor);
+  // hiding stops the animation — the heuristic alone would lose it.
   docAnims.getAnimations = () => [];
-  assert.equal(suppressor.findAnchor(), anchor, "anchor persists while collapsed");
+  assert.equal(suppressor.findAnchor(), anchor, "anchor persists while hidden");
 
   // Site re-render removes the node → anchor is released.
   anchor.remove();

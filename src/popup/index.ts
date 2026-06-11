@@ -40,6 +40,11 @@ async function main(): Promise<void> {
     render(await status());
   });
 
+  el("cashout").addEventListener("click", async () => {
+    await chrome.runtime.sendMessage({ type: "kolex:open-page", page: "portal" });
+    window.close();
+  });
+
   // Live-refresh while the popup is open so earnings tick in real time.
   setInterval(async () => render(await status()), 1_000);
 }
