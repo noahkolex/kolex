@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { JSDOM } from "jsdom";
-import { AdView, SpinnerSuppressor } from "../src/content/overlay.js";
+import { AdView, SpinnerSuppressor, placeLine } from "../src/content/overlay.js";
 
 function page() {
   const dom = new JSDOM(
@@ -17,13 +17,38 @@ function page() {
 
 const AD = { id: "ex-indie", brand: "Indie Hackers", text: "Where founders share what's working" };
 
-const RECT = { left: 240, top: 300, width: 24, height: 24 };
+const ANCHOR = { left: 240, top: 300, width: 24, height: 24 };
 
-test("anchored mode pins the line to the indicator's rect", () => {
+test("placeLine centers on an anchor that sits safely above the composer", () => {
+  // 0-size line in jsdom; anchor centered vertically, left-aligned.
+  const p = placeLine(ANCHOR, 0, 0, 1024, 768, 600);
+  assert.deepEqual(p, { left: 240, top: 312 });
+});
+
+test("placeLine never lets the line cross into the composer/input", () => {
+  // Anchor is down near the input (top 700) but composer starts at 600.
+  const p = placeLine({ left: 200, top: 700, width: 24, height: 24 }, 0, 40, 1024, 768, 600);
+  // bottom must stay a gap (14) above composerTop(600): top <= 546.
+  assert.ok(p.top <= 600 - 14 - 40, `top ${p.top} keeps the line above the composer`);
+});
+
+test("placeLine docks just above the composer when there is no anchor", () => {
+  const p = placeLine(null, 300, 40, 1024, 768, 600);
+  assert.equal(p.left, (1024 - 300) / 2, "centered horizontally");
+  assert.equal(p.top, 600 - 14 - 40, "sits a gap above the composer");
+});
+
+test("placeLine clamps a wide line inside the viewport", () => {
+  const p = placeLine({ left: 1000, top: 100, width: 24, height: 24 }, 560, 40, 1024, 768, 700);
+  assert.equal(p.left, 1024 - 560 - 12, "right edge stays in view");
+  assert.ok(p.top >= 12);
+});
+
+test("show() renders, places the line, and is stable across re-shows", () => {
   const { doc } = page();
   const view = new AdView(doc, () => {});
 
-  view.showAnchored(RECT, AD, 0.0123);
+  view.show(AD, 0.0123, { anchor: ANCHOR, composerTop: 600 });
 
   const host = doc.querySelector("kolex-ad");
   assert.ok(host, "host mounted");
@@ -32,18 +57,15 @@ test("anchored mode pins the line to the indicator's rect", () => {
   const line = host.shadowRoot?.querySelector<HTMLElement>(".line");
   assert.ok(line, "line rendered in shadow root");
   assert.ok(line.classList.contains("visible"));
-  // Left-aligned to the indicator, vertically centered on it.
   assert.equal(line.style.left, "240px");
   assert.equal(line.style.top, "312px");
-  assert.equal(line.style.transform, "translateY(-50%)");
+  assert.equal(line.style.transform, "", "no transform — exact pixel placement");
   assert.ok(line.querySelector(".mark .bird"), "house ad with no logo uses the Kolex bird");
-  assert.match(line.textContent ?? "", /Ad/);
   assert.match(line.textContent ?? "", /Indie Hackers/);
   assert.match(line.textContent ?? "", /\$0\.01 earned/);
 
-  // Re-pinning to a new rect is stable (no duplicate hosts).
-  view.showAnchored({ left: 50, top: 80, width: 20, height: 20 }, AD, 0.02);
-  assert.equal(doc.querySelectorAll("kolex-ad").length, 1);
+  view.show(AD, 0.02, { anchor: { left: 50, top: 80, width: 20, height: 20 }, composerTop: 600 });
+  assert.equal(doc.querySelectorAll("kolex-ad").length, 1, "no duplicate hosts");
   assert.equal(line.style.left, "50px");
 
   view.hide();
@@ -56,7 +78,7 @@ test("brand takeover: advertiser logo and accent replace the defaults", () => {
   const icon =
     "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
 
-  view.showFloating(
+  view.show(
     { id: "acme", brand: "Acme", text: "Ship faster", iconDataUrl: icon, accent: "#FF4F1F" },
     0,
   );
@@ -70,30 +92,17 @@ test("brand takeover: advertiser logo and accent replace the defaults", () => {
   assert.equal(host.style.getPropertyValue("--kx-accent"), "#FF4F1F", "accent tints the line");
 
   // Switching to an ad with no icon falls back to the Kolex bird.
-  view.showFloating({ id: "ex-indie", brand: "Indie", text: "Founders share", house: true }, 0);
+  view.show({ id: "ex-indie", brand: "Indie", text: "Founders share", house: true }, 0);
   assert.ok(line.querySelector(".mark .bird"), "logo-less ad uses the bird");
   assert.equal(line.querySelector(".mark img"), null);
   assert.equal(host.style.getPropertyValue("--kx-accent"), "#1547F5", "accent resets to cobalt");
-});
-
-test("floating fallback pins to the bottom center", () => {
-  const { doc } = page();
-  const view = new AdView(doc, () => {});
-  view.showFloating(AD, 0);
-
-  const host = doc.querySelector("kolex-ad")!;
-  assert.equal(host.parentElement, doc.documentElement);
-  const line = host.shadowRoot!.querySelector<HTMLElement>(".line")!;
-  assert.equal(line.style.left, "50%");
-  assert.equal(line.style.bottom, "96px");
-  assert.equal(line.style.transform, "translateX(-50%)");
 });
 
 test("clicking the line reports the served ad id", () => {
   const { dom, doc } = page();
   let clicked: string | null = null;
   const view = new AdView(doc, (id) => (clicked = id));
-  view.showFloating({ id: "acme-1", brand: "Acme", text: "ten chars!" }, 0);
+  view.show({ id: "acme-1", brand: "Acme", text: "ten chars!" }, 0);
 
   const line = doc.querySelector("kolex-ad")!.shadowRoot!.querySelector(".line")!;
   line.dispatchEvent(new dom.window.Event("click"));

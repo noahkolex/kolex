@@ -85,11 +85,49 @@ const STYLE = `
   }
 `;
 
-export interface AnchorRect {
+export interface Box {
   left: number;
   top: number;
   width: number;
   height: number;
+}
+
+export interface PlaceOpts {
+  /** The indicator's captured rect to sit at, or null to dock near the composer. */
+  anchor?: Box | null;
+  /** Top edge of the composer/input region — the line never crosses below it. */
+  composerTop?: number;
+}
+
+/**
+ * Compute the line's top-left, given the (stable) anchor rect, the line's
+ * measured size, the viewport, and the composer's top edge.
+ *
+ * Hard rule: the line's bottom is always kept a gap above `composerTop`, so
+ * it can never overlap the input box or any text the user is typing. When
+ * the anchor itself sits at/over the composer, the line is pushed up above
+ * it. Pure function so the geometry is unit-tested without a DOM.
+ */
+export function placeLine(
+  anchor: Box | null,
+  lineW: number,
+  lineH: number,
+  vw: number,
+  vh: number,
+  composerTop: number,
+): { left: number; top: number } {
+  const margin = 12;
+  const gap = 14;
+  const floor = composerTop > 0 && composerTop <= vh ? composerTop : vh;
+  const maxTop = floor - gap - lineH; // bottom stays gap above the composer
+
+  let left = anchor ? anchor.left : (vw - lineW) / 2;
+  let top = anchor ? anchor.top + anchor.height / 2 - lineH / 2 : maxTop;
+
+  if (top > maxTop) top = maxTop; // never over the input / composer
+  left = Math.max(margin, Math.min(left, vw - lineW - margin));
+  top = Math.max(margin, top);
+  return { left: Math.round(left), top: Math.round(top) };
 }
 
 /**
@@ -153,24 +191,36 @@ export class AdView {
     root.append(style, this.line);
   }
 
-  /** Pin the line to the native indicator's rect (left-aligned, v-centered). */
-  showAnchored(rect: AnchorRect, ad: OverlayAd, earnedUsd: number): void {
+  /**
+   * Render the ad and place it. The caller passes a *stable* anchor rect
+   * (captured once, so the line doesn't crawl as text streams) and the
+   * composer's top edge; placement clamps the line above the composer so it
+   * never covers the input or typed text.
+   */
+  show(ad: OverlayAd, earnedUsd: number, opts: PlaceOpts = {}): void {
     this.attach();
-    this.line.style.left = `${Math.round(rect.left)}px`;
-    this.line.style.top = `${Math.round(rect.top + rect.height / 2)}px`;
-    this.line.style.bottom = "";
-    this.line.style.transform = "translateY(-50%)";
-    this.render(ad, earnedUsd);
-  }
+    // Rebuild the logo/brand only when the ad changes — re-running it every
+    // placement tick would reload the <img> and flicker.
+    if (ad.id !== this.currentAdId) this.renderContent(ad);
+    this.updateEarned(earnedUsd);
+    this.line.classList.add("visible");
 
-  /** Bottom-center fallback when no indicator is on screen. */
-  showFloating(ad: OverlayAd, earnedUsd: number): void {
-    this.attach();
-    this.line.style.left = "50%";
-    this.line.style.top = "";
-    this.line.style.bottom = "96px";
-    this.line.style.transform = "translateX(-50%)";
-    this.render(ad, earnedUsd);
+    const r = this.line.getBoundingClientRect();
+    const win = this.doc.defaultView;
+    const vw = win?.innerWidth || 1024;
+    const vh = win?.innerHeight || 768;
+    const { left, top } = placeLine(
+      opts.anchor ?? null,
+      r.width || 0,
+      r.height || 0,
+      vw,
+      vh,
+      opts.composerTop ?? vh,
+    );
+    this.line.style.left = `${left}px`;
+    this.line.style.top = `${top}px`;
+    this.line.style.bottom = "";
+    this.line.style.transform = "";
   }
 
   hide(): void {
@@ -202,7 +252,7 @@ export class AdView {
     return bird;
   }
 
-  private render(ad: OverlayAd, earnedUsd: number): void {
+  private renderContent(ad: OverlayAd): void {
     this.currentAdId = ad.id;
 
     // Brand takeover: the advertiser's accent tints every accent surface,
@@ -224,10 +274,12 @@ export class AdView {
 
     this.brandEl.textContent = ad.brand;
     this.textEl.textContent = `— ${ad.text}`;
+    this.line.title = `Sponsored · ${ad.brand}. You earn 50% of this ad's revenue.`;
+  }
+
+  private updateEarned(earnedUsd: number): void {
     this.earnedEl.textContent = earnedUsd > 0 ? `${formatUsd(earnedUsd)} earned` : "";
     this.earnedEl.style.display = earnedUsd > 0 ? "" : "none";
-    this.line.classList.add("visible");
-    this.line.title = `Sponsored · ${ad.brand}. You earn 50% of this ad's revenue.`;
   }
 }
 

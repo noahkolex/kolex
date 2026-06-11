@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Kolex — get paid for waiting",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "description": "Replaces the loading indicators on ChatGPT, Claude, Gemini, and Grok with one sponsored status line. You keep 50% of the ad revenue.",
   "homepage_url": "https://kolex.ai",
   "icons": {
