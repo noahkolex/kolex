@@ -10,7 +10,7 @@ export interface TickRequest {
 
 export interface TickResponse {
   serving: boolean;
-  ad?: Pick<Ad, "id" | "brand" | "text" | "house">;
+  ad?: Pick<Ad, "id" | "brand" | "text" | "house" | "iconDataUrl" | "accent">;
   estEarnedUsd: number;
   impressionRecorded: boolean;
 }

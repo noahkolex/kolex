@@ -22,8 +22,31 @@ export interface Ad {
   bidPerBlock: number;
   /** Impressions left across all purchased blocks. */
   impressionsRemaining: number;
+  /**
+   * Advertiser logo as a `data:image/*` URL (delivered inline by the
+   * backend, ≤64KB like kickbacks). When present the whole loading
+   * indicator wears the brand: this mark replaces the Sefra bird.
+   */
+  iconDataUrl?: string;
+  /** Brand accent color (`#rrggbb`) — tints the dot, tag, and arrow. */
+  accent?: string;
   /** House ads fill unsold space and pay $0. */
   house?: boolean;
+}
+
+/** Max length of an inline icon data URL (~64KB after base64 + prefix). */
+export const MAX_ICON_DATA_URL = 90_000;
+
+export function isValidAccent(value: unknown): value is string {
+  return typeof value === "string" && /^#[0-9a-fA-F]{6}$/.test(value);
+}
+
+export function isValidIconDataUrl(value: unknown): value is string {
+  return (
+    typeof value === "string" &&
+    /^data:image\/(png|jpeg|jpg|webp|svg\+xml);/.test(value) &&
+    value.length <= MAX_ICON_DATA_URL
+  );
 }
 
 /** User payout for one impression of this ad, in USD. */

@@ -101,7 +101,14 @@ async function handle(req: KolexRequest): Promise<unknown> {
       return {
         serving: !!out.ad,
         ad: out.ad
-          ? { id: out.ad.id, brand: out.ad.brand, text: out.ad.text, house: out.ad.house }
+          ? {
+              id: out.ad.id,
+              brand: out.ad.brand,
+              text: out.ad.text,
+              house: out.ad.house,
+              iconDataUrl: out.ad.iconDataUrl,
+              accent: out.ad.accent,
+            }
           : undefined,
         estEarnedUsd: out.estEarnedUsd,
         impressionRecorded: out.impressionRecorded,

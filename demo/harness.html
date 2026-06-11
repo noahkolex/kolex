@@ -12,10 +12,8 @@
     main { flex: 1; max-width: 720px; margin: 0 auto; padding: 48px 24px 140px; width: 100%; box-sizing: border-box; }
     .msg { margin-bottom: 28px; }
     .who { font-size: 12px; color: #9a9a9a; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
-    .spinner { display: none; align-items: center; gap: 10px; color: #9a9a9a; }
-    .spinner.on { display: flex; }
-    .dot { width: 10px; height: 10px; border-radius: 50%; background: #ececec; animation: pulse 1s ease-in-out infinite; }
-    @keyframes pulse { 50% { opacity: 0.25; transform: scale(0.8); } }
+    .spinner { display: none; }
+    .spinner.on { display: block; }
     .composer {
       position: fixed; bottom: 0; left: 0; right: 0;
       padding: 16px 24px 28px; display: flex; gap: 10px; justify-content: center;
@@ -34,13 +32,26 @@
   </style>
 </head>
 <body>
-  <div class="note">kolex demo · the "Thinking…" spinner below is replaced inline while busy (6s busy / 2s idle)</div>
+  <div class="note">kolex demo · the bare starburst (no text) is replaced inline while busy (6s busy / 2s idle)</div>
   <main>
     <div class="msg"><div class="who">You</div>Plan a two-week trip to Japan on a budget.</div>
     <div class="msg">
       <div class="who">Assistant</div>
-      <div class="spinner" id="spinner"><span class="dot"></span> Thinking…</div>
       <div id="answer" style="display:none">Here's a two-week itinerary…</div>
+      <!-- A bare SMIL starburst with NO sibling text — the claude.ai case. -->
+      <svg class="spinner" id="spinner" width="34" height="34" viewBox="0 0 34 34" fill="none" stroke="#e0936b" stroke-width="2" stroke-linecap="round">
+        <g>
+          <animateTransform attributeName="transform" type="rotate" from="0 17 17" to="360 17 17" dur="1.1s" repeatCount="indefinite"/>
+          <line x1="17" y1="3"  x2="17" y2="9"/>
+          <line x1="17" y1="25" x2="17" y2="31"/>
+          <line x1="3"  y1="17" x2="9"  y2="17"/>
+          <line x1="25" y1="17" x2="31" y2="17"/>
+          <line x1="7"  y1="7"  x2="11" y2="11"/>
+          <line x1="23" y1="23" x2="27" y2="27"/>
+          <line x1="7"  y1="27" x2="11" y2="23"/>
+          <line x1="23" y1="11" x2="27" y2="7"/>
+        </g>
+      </svg>
     </div>
   </main>
   <div class="composer">
@@ -51,9 +62,14 @@
   <script>
     // ---- Stub the extension APIs so extension/content.js runs on file:// ----
     let earned = 0, accrued = 0, last = null, idx = 0;
-    const HOUSE = [
+    // A branded advertiser (cobalt "L" logo + orange accent) plus house ads,
+    // to show full brand takeover of the loading indicator.
+    const LINEAR_LOGO = "data:image/svg+xml;base64," + btoa(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="#5E6AD2"/><path d="M7 18.5 13.5 25A9 9 0 0 1 7 18.5Z M7 14.2A12.8 12.8 0 0 0 17.8 25 M7.6 10.6A16.4 16.4 0 0 0 21.4 24.4" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round"/></svg>'
+    );
+    const ADS = [
+      { id: "ad-linear", brand: "Linear", text: "The issue tracker teams actually enjoy", iconDataUrl: LINEAR_LOGO, accent: "#5E6AD2" },
       { id: "house-ramp", brand: "Ramp", text: "Close your books 8x faster — finance built for builders", house: true },
-      { id: "house-jellyfish", brand: "Jellyfish", text: "See how your engineering org really ships", house: true },
       { id: "house-foundersnetwork", brand: "Founders Network", text: "Peer mentorship for tech founders, since 2011", house: true },
     ];
     window.chrome = {
@@ -61,7 +77,7 @@
         surface: "chatgpt",
         hosts: [location.hostname], // "" on file:// — matches this page only
         busySelectors: ['button[data-testid="stop-button"].on', ".spinner.on"],
-        spinnerSelectors: [".spinner.on"],
+        spinnerSelectors: [], // force the selector-free animation heuristic
       }] }) } },
       runtime: {
         sendMessage: async (msg) => {
@@ -69,8 +85,8 @@
             const now = Date.now();
             if (last && now - last <= 4000) accrued += now - last;
             last = now;
-            if (accrued >= 5000) { accrued -= 5000; idx = (idx + 1) % HOUSE.length; earned += 0.005; }
-            return { serving: true, ad: HOUSE[idx], estEarnedUsd: earned, impressionRecorded: false };
+            if (accrued >= 5000) { accrued -= 5000; idx = (idx + 1) % ADS.length; earned += 0.005; }
+            return { serving: true, ad: ADS[idx], estEarnedUsd: earned, impressionRecorded: false };
           }
           if (msg.type === "kolex:click") { alert("click recorded → would open kolex.ai/r/" + msg.adId); return { ok: true }; }
           return { ok: true };

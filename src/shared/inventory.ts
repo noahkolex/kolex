@@ -1,4 +1,4 @@
-import type { Ad } from "./economics.js";
+import { isValidAccent, isValidIconDataUrl, type Ad } from "./economics.js";
 
 /**
  * Bundled house inventory. Serves when the auction backend is unreachable
@@ -114,6 +114,8 @@ export function sanitizeAds(raw: unknown): Ad[] {
         url: a.url,
         bidPerBlock: a.bidPerBlock,
         impressionsRemaining: Math.max(0, a.impressionsRemaining),
+        ...(isValidIconDataUrl(a.iconDataUrl) ? { iconDataUrl: a.iconDataUrl } : {}),
+        ...(isValidAccent(a.accent) ? { accent: a.accent } : {}),
         house: !!a.house,
       });
     }

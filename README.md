@@ -32,8 +32,14 @@ Geist + Geist Mono, square 4px corners, and the Sefra bird mark.
 3. A separate 250ms placement loop collapses the native loading indicator
    (`display:none`, fully restored the moment serving stops) and mounts the
    sponsored line **in its place in document flow** — a true replacement,
-   not a floating toast. If the page is busy but no spinner element can be
-   located (only a stop button), a bottom-center fallback placement serves.
+   not a floating toast. The indicator is found by configured selectors
+   first, then by a **selector-free animation heuristic** that catches it
+   regardless of markup: CSS/Web-Animation targets, **SVG SMIL spinners**
+   (`<animateTransform>`, which `getAnimations()` can't see — this is the
+   bare rotating starburst on claude.ai), and infinite-CSS small elements
+   in `<main>`. Composer carets, toolbar icons, and shimmering text are
+   filtered out. Only if nothing is found does a bottom-center fallback
+   serve.
 4. The service worker runs the auction locally: the highest live bid serves
    first, ties round-robin, exhausted blocks fall out, and $0 house ads
    backfill when no paid inventory is queued. Clicks route through the
@@ -50,6 +56,23 @@ Geist + Geist Mono, square 4px corners, and the Sefra bird mark.
 - **50% of every settled dollar** goes to the person whose screen showed the
   ad. Balance and payouts live at kolex.ai; the extension popup shows a
   live estimate.
+
+## Brand takeover
+
+An ad is more than a line of text — the whole loading indicator wears the
+advertiser's brand. Each creative carries:
+
+- `text` — 3–60 chars of copy
+- `iconDataUrl` — the brand logo, delivered inline as a `data:image/*` URL
+  (≤64KB, like kickbacks). It replaces the default Sefra bird mark.
+- `accent` — a `#rrggbb` brand color that tints the pulsing dot, the `AD`
+  tag, the arrow, and the hover border.
+
+So while a Linear-sponsored block is serving, the spinner becomes the Linear
+logo in Linear's indigo; a Ramp block, Ramp's mark and color. Icons arrive
+as data URLs (not external `<img src>`) so the extension still makes **zero
+requests that could reveal what you're browsing**, and page CSP can't block
+the creative. Unsold time falls back to house ads, which use the Sefra mark.
 
 ## Privacy, by construction
 

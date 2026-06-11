@@ -4,6 +4,10 @@ export interface OverlayAd {
   id: string;
   brand: string;
   text: string;
+  /** Advertiser logo as a data: URL. Replaces the default mark when set. */
+  iconDataUrl?: string;
+  /** Brand accent color (#rrggbb). Tints the dot, tag, arrow, hover. */
+  accent?: string;
   house?: boolean;
 }
 
@@ -25,13 +29,13 @@ const SEFRA_BIRD_PATH =
   "M66.616 51.836 L67.015 51.703 L125.47 110.157 L129.997 116.016 L133.193 121.076 L135.59 125.603 L137.987 131.995 L139.851 141.582 L139.851 150.636 L139.318 154.897 L137.72 161.821 L135.856 167.147 L131.595 175.936 L123.872 189.517 L118.812 199.637 L114.818 206.561 L114.152 207.227 L70.078 207.094 L113.353 173.406 L114.285 172.207 L114.551 170.876 L114.551 166.881 L112.954 162.62 L109.625 158.759 L100.038 153.699 L92.581 150.503 L86.19 146.508 L83.526 144.378 L79.132 139.984 L77.268 137.587 L74.339 133.06 L71.942 128.266 L70.344 123.739 L70.344 122.94 L71.01 122.807 L73.14 124.405 L77.934 127.068 L99.771 136.655 L106.163 140.117 L106.562 139.984 L102.168 135.856 L96.309 131.329 L78.2 118.812 L74.206 115.35 L70.344 111.223 L66.083 105.097 L62.621 97.907 L60.757 90.983 L60.224 85.923 L60.358 82.861 L61.689 83.393 L67.814 89.518 L73.407 94.046 L96.842 110.557 L106.163 117.747 L106.695 118.013 L106.828 117.614 L102.301 112.554 L78.6 89.385 L71.409 80.597 L68.214 74.472 L65.817 66.216 L65.284 59.292 L65.551 59.026 L65.551 55.83 L66.483 51.969Z M167.014 89.385 L170.077 89.252 L174.87 90.584 L178.066 92.448 L180.995 95.643 L186.588 95.91 L189.784 96.709 L192.713 98.307 L195.509 101.369 L188.985 103.1 L183.659 106.03 L179.797 109.891 L177.4 114.152 L175.802 119.478 L175.802 137.054 L175.27 141.848 L174.205 146.642 L172.607 151.701 L169.145 159.424 L165.683 164.751 L162.487 168.745 L155.163 175.536 L148.239 180.063 L141.848 183.259 L135.989 185.656 L132.794 186.721 L131.728 186.721 L131.595 186.055 L134.791 180.729 L140.117 170.077 L141.715 166.082 L143.845 159.158 L145.177 150.37 L145.177 142.114 L144.378 136.256 L142.248 128.533 L140.916 125.071 L138.519 120.543 L138.519 119.478 L148.106 104.299 L145.044 103.366 L141.582 101.236 L139.584 98.972 L138.519 96.842 L144.511 96.709 L147.707 96.176 L151.968 94.845 L161.022 90.85 L164.218 89.785 L166.881 89.518Z";
 
 const STYLE = `
-  :host { all: initial; display: block; }
+  :host { all: initial; display: block; --kx-accent: ${SEFRA.accent}; }
   .line {
     display: inline-flex;
     align-items: center;
-    gap: 10px;
+    gap: 9px;
     max-width: min(620px, calc(100vw - 48px));
-    padding: 9px 14px;
+    padding: 8px 13px;
     background: ${SEFRA.surface};
     border: 1px solid ${SEFRA.rule};
     border-radius: 4px;
@@ -44,7 +48,7 @@ const STYLE = `
     transition: opacity 140ms ease;
   }
   .line.visible { opacity: 1; }
-  .line:hover { border-color: ${SEFRA.accent}; }
+  .line:hover { border-color: var(--kx-accent); }
   .line.floating {
     position: fixed;
     left: 50%;
@@ -53,34 +57,38 @@ const STYLE = `
     z-index: 2147483646;
     box-shadow: 0 4px 16px rgba(15, 18, 22, 0.14);
   }
-  .bird { height: 14px; width: auto; flex: none; display: block; }
+  /* Mark: brand logo when supplied, else the Sefra bird. */
+  .mark { flex: none; display: inline-flex; align-items: center; }
+  .mark .bird { height: 15px; width: auto; display: block; }
+  .mark img {
+    height: 17px; width: 17px; object-fit: contain;
+    border-radius: 3px; display: block;
+  }
+  /* Spinner dot — keeps the "still loading" read, in the brand color. */
+  .dot {
+    flex: none;
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--kx-accent);
+    animation: kolexpulse 1.1s ease-in-out infinite;
+  }
+  @keyframes kolexpulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; transform: scale(0.8); } }
   .tag {
     flex: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
     font: 500 10px/1 ${SEFRA.mono};
     letter-spacing: 1.2px;
     text-transform: uppercase;
-    color: ${SEFRA.accent};
+    color: var(--kx-accent);
   }
-  .tag::before {
-    content: "";
-    width: 6px;
-    height: 6px;
-    background: ${SEFRA.accent};
-    animation: kolexpulse 1.1s ease-in-out infinite;
-  }
-  @keyframes kolexpulse { 50% { opacity: 0.25; } }
   .brand { flex: none; font-weight: 600; }
   .copy { overflow: hidden; text-overflow: ellipsis; color: ${SEFRA.muted}; font-weight: 400; }
-  .arrow { flex: none; color: ${SEFRA.accent}; }
+  .arrow { flex: none; color: var(--kx-accent); }
   .earned {
     flex: none;
     font: 500 11px/1 ${SEFRA.mono};
     color: ${SEFRA.positive};
     font-variant-numeric: tabular-nums;
-    padding-left: 10px;
+    padding-left: 9px;
     border-left: 1px solid ${SEFRA.rule};
   }
 `;
@@ -101,6 +109,7 @@ export class AdView {
   private doc: Document;
   private host: HTMLElement;
   private line: HTMLElement;
+  private markEl: HTMLElement;
   private brandEl: HTMLElement;
   private textEl: HTMLElement;
   private earnedEl: HTMLElement;
@@ -118,17 +127,10 @@ export class AdView {
     this.line.className = "line";
     this.line.setAttribute("role", "status");
 
-    const ns = "http://www.w3.org/2000/svg";
-    const bird = doc.createElementNS(ns, "svg");
-    bird.setAttribute("viewBox", "59 49 139 160");
-    bird.setAttribute("class", "bird");
-    bird.setAttribute("aria-hidden", "true");
-    const path = doc.createElementNS(ns, "path");
-    path.setAttribute("d", SEFRA_BIRD_PATH);
-    path.setAttribute("fill", SEFRA.accent);
-    path.setAttribute("fill-rule", "evenodd");
-    bird.appendChild(path);
-
+    this.markEl = doc.createElement("span");
+    this.markEl.className = "mark";
+    const dot = doc.createElement("span");
+    dot.className = "dot";
     const tag = doc.createElement("span");
     tag.className = "tag";
     tag.textContent = "Ad";
@@ -142,12 +144,27 @@ export class AdView {
     this.earnedEl = doc.createElement("span");
     this.earnedEl.className = "earned";
 
-    this.line.append(bird, tag, this.brandEl, this.textEl, arrow, this.earnedEl);
+    this.line.append(this.markEl, dot, tag, this.brandEl, this.textEl, arrow, this.earnedEl);
     this.line.addEventListener("click", () => {
       if (this.currentAdId) onClick(this.currentAdId);
     });
 
     root.append(style, this.line);
+  }
+
+  /** Default Sefra bird mark, in the active accent color. */
+  private birdMark(color: string): SVGElement {
+    const ns = "http://www.w3.org/2000/svg";
+    const bird = this.doc.createElementNS(ns, "svg");
+    bird.setAttribute("viewBox", "59 49 139 160");
+    bird.setAttribute("class", "bird");
+    bird.setAttribute("aria-hidden", "true");
+    const path = this.doc.createElementNS(ns, "path");
+    path.setAttribute("d", SEFRA_BIRD_PATH);
+    path.setAttribute("fill", color);
+    path.setAttribute("fill-rule", "evenodd");
+    bird.appendChild(path);
+    return bird;
   }
 
   /** Place the ad in flow, directly after the (collapsed) spinner. */
@@ -180,6 +197,22 @@ export class AdView {
 
   private render(ad: OverlayAd, earnedUsd: number): void {
     this.currentAdId = ad.id;
+
+    // Brand takeover: the advertiser's accent tints every accent surface,
+    // and their logo replaces the default Sefra bird.
+    const accent = ad.accent && /^#[0-9a-fA-F]{6}$/.test(ad.accent) ? ad.accent : SEFRA.accent;
+    this.host.style.setProperty("--kx-accent", accent);
+
+    this.markEl.replaceChildren();
+    if (ad.iconDataUrl && ad.iconDataUrl.startsWith("data:image/")) {
+      const img = this.doc.createElement("img");
+      img.src = ad.iconDataUrl;
+      img.alt = "";
+      this.markEl.appendChild(img);
+    } else {
+      this.markEl.appendChild(this.birdMark(accent));
+    }
+
     this.brandEl.textContent = ad.brand;
     this.textEl.textContent = `— ${ad.text}`;
     this.earnedEl.textContent = earnedUsd > 0 ? `${formatUsd(earnedUsd)} earned` : "";
@@ -240,47 +273,58 @@ export class SpinnerSuppressor {
     return this.findAnimatedIndicator();
   }
 
+  /**
+   * Find the loading indicator by the one property it can't hide: it's
+   * animating. We gather candidates from three independent sources so the
+   * detection survives any spinner implementation:
+   *
+   *  - CSS / Web Animations targets (`getAnimations()`)
+   *  - SVG SMIL spinners (`<animate*>` children) — getAnimations() is blind
+   *    to these, and bare rotating starbursts are usually SMIL. This is the
+   *    case the text-shimmer heuristic was missing.
+   *  - infinite CSS animations found via computed style on small SVGs/divs
+   *    in <main> (a backstop when an animation isn't enumerable).
+   *
+   * Candidates are then filtered to small, square-ish, visible elements
+   * that aren't part of the composer or a toolbar button, and the last one
+   * in document order wins (the indicator rides the end of the chat).
+   */
   private findAnimatedIndicator(): StyledElement | null {
+    const main = this.doc.querySelector("main");
+    const candidates = new Set<StyledElement>();
+
     const doc = this.doc as Document & { getAnimations?: () => Animation[] };
-    if (typeof doc.getAnimations !== "function") return null;
-    let animations: Animation[];
-    try {
-      animations = doc.getAnimations();
-    } catch {
-      return null;
+    if (typeof doc.getAnimations === "function") {
+      try {
+        for (const anim of doc.getAnimations()) {
+          const effect = anim.effect as KeyframeEffect | null;
+          if (effect?.getTiming?.()?.iterations !== Infinity) continue;
+          const el = this.drawableRoot(effect.target as Element | null);
+          if (el) candidates.add(el);
+        }
+      } catch {
+        // fall through to structural scan
+      }
     }
 
-    const main = this.doc.querySelector("main");
+    // Structural scan: SMIL spinners and infinite-CSS small elements.
+    const scope = main ?? this.doc.body ?? this.doc.documentElement;
+    let svgs: NodeListOf<Element>;
+    try {
+      svgs = scope.querySelectorAll("svg, [class*='spin'], [class*='load'], [class*='think']");
+    } catch {
+      svgs = scope.querySelectorAll("svg");
+    }
+    for (const node of svgs) {
+      const el = node as StyledElement;
+      if (typeof el.style?.setProperty !== "function") continue;
+      if (this.isAnimating(el)) candidates.add(el);
+    }
+
     let best: StyledElement | null = null;
     let bestInMain = false;
-
-    for (const anim of animations) {
-      const effect = anim.effect as KeyframeEffect | null;
-      let el = effect?.target as StyledElement | null;
-      if (!el || typeof el.style?.setProperty !== "function") continue;
-
-      // Climb out of SVG internals so we anchor at the drawable root.
-      const svgRoot = (el as { ownerSVGElement?: StyledElement | null }).ownerSVGElement;
-      if (svgRoot) el = svgRoot;
-
-      // Never anchor to our own pulse animation.
-      if (el.localName === "kolex-ad") continue;
-      const root = el.getRootNode();
-      if ((root as ShadowRoot).host?.localName === "kolex-ad") continue;
-
-      // Spinners loop forever; one-shot transitions are not wait states.
-      const timing = effect?.getTiming?.();
-      if (!timing || timing.iterations !== Infinity) continue;
-
-      // The composer caret and input affordances are not loading indicators.
-      if (el.closest?.("form, textarea, [contenteditable], kolex-ad")) continue;
-
-      const rect = el.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) continue;
-      if (rect.width > MAX_INDICATOR_PX || rect.height > MAX_INDICATOR_PX) continue;
-
-      // Prefer candidates in <main>, then the last one in document order
-      // (the indicator rides the end of the conversation).
+    for (const el of candidates) {
+      if (!this.isPlausibleIndicator(el)) continue;
       const inMain = main !== null && main.contains(el);
       if (bestInMain && !inMain) continue;
       if (
@@ -293,6 +337,54 @@ export class SpinnerSuppressor {
       }
     }
     return best;
+  }
+
+  /** Climb out of SVG internals so we anchor at the drawable root. */
+  private drawableRoot(el: Element | null): StyledElement | null {
+    if (!el) return null;
+    const svgRoot = (el as { ownerSVGElement?: StyledElement | null }).ownerSVGElement;
+    const target = (svgRoot ?? el) as StyledElement;
+    return typeof target.style?.setProperty === "function" ? target : null;
+  }
+
+  /** SMIL animation children, or an infinite CSS animation. */
+  private isAnimating(el: StyledElement): boolean {
+    try {
+      if (el.querySelector?.("animate, animateTransform, animateMotion, set")) return true;
+    } catch {
+      // some elements reject querySelector for these names
+    }
+    const win = (el.ownerDocument as Document | null)?.defaultView;
+    if (win?.getComputedStyle) {
+      try {
+        const cs = win.getComputedStyle(el);
+        if (
+          cs.animationName &&
+          cs.animationName !== "none" &&
+          (cs.animationIterationCount || "").split(",").some((v) => v.trim() === "infinite")
+        ) {
+          return true;
+        }
+      } catch {
+        // jsdom and some realms throw — treat as not-animating
+      }
+    }
+    return false;
+  }
+
+  private isPlausibleIndicator(el: StyledElement): boolean {
+    if (el.localName === "kolex-ad") return false;
+    if ((el.getRootNode() as ShadowRoot).host?.localName === "kolex-ad") return false;
+    // Not the composer caret, and not a clickable toolbar icon (copy, retry…).
+    if (el.closest?.("form, textarea, [contenteditable], button, [role='button'], a, kolex-ad")) {
+      return false;
+    }
+    const rect = el.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return false;
+    if (rect.width > MAX_INDICATOR_PX || rect.height > MAX_INDICATOR_PX) return false;
+    // Square-ish: spinners are roughly 1:1; wide bars are shimmering text.
+    const ratio = rect.width / rect.height;
+    return ratio >= 0.4 && ratio <= 2.5;
   }
 
   collapse(el: StyledElement): void {

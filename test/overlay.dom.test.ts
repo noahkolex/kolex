@@ -32,7 +32,7 @@ test("inline mode mounts the ad directly after the spinner", () => {
   assert.ok(line, "line rendered in shadow root");
   assert.ok(line.classList.contains("visible"));
   assert.equal(line.classList.contains("floating"), false, "inline mode is not floating");
-  assert.ok(line.querySelector(".bird"), "sefra bird mark present");
+  assert.ok(line.querySelector(".mark .bird"), "sefra bird mark present by default");
   assert.match(line.textContent ?? "", /Ad/);
   assert.match(line.textContent ?? "", /Ramp/);
   assert.match(line.textContent ?? "", /Close your books 8x faster/);
@@ -44,6 +44,32 @@ test("inline mode mounts the ad directly after the spinner", () => {
 
   view.hide();
   assert.equal(doc.querySelector("kolex-ad"), null, "hide detaches the host");
+});
+
+test("brand takeover: advertiser logo and accent replace the defaults", () => {
+  const { doc } = page();
+  const view = new AdView(doc, () => {});
+  const icon =
+    "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==";
+
+  view.showFloating(
+    { id: "acme", brand: "Acme", text: "Ship faster", iconDataUrl: icon, accent: "#FF4F1F" },
+    0,
+  );
+
+  const host = doc.querySelector<HTMLElement>("kolex-ad")!;
+  const line = host.shadowRoot!.querySelector<HTMLElement>(".line")!;
+  const img = line.querySelector<HTMLImageElement>(".mark img");
+  assert.ok(img, "brand logo rendered as <img>");
+  assert.equal(img.getAttribute("src"), icon);
+  assert.equal(line.querySelector(".mark .bird"), null, "no default bird when brand logo is set");
+  assert.equal(host.style.getPropertyValue("--kx-accent"), "#FF4F1F", "accent tints the line");
+
+  // Switching to a house ad with no icon falls back to the Sefra bird.
+  view.showFloating({ id: "house-ramp", brand: "Ramp", text: "Books, fast", house: true }, 0);
+  assert.ok(line.querySelector(".mark .bird"), "house ad uses the bird again");
+  assert.equal(line.querySelector(".mark img"), null);
+  assert.equal(host.style.getPropertyValue("--kx-accent"), "#1547F5", "accent resets to cobalt");
 });
 
 test("inline mode follows the spinner when the site re-renders", () => {
@@ -164,6 +190,37 @@ test("one-shot transitions and oversized animations are not indicators", () => {
   ];
   const suppressor = new SpinnerSuppressor(doc, []);
   assert.equal(suppressor.findAnchor(), null);
+});
+
+test("standalone SMIL starburst is found with no animation API and no text", () => {
+  // The claude.ai case: a bare rotating spinner with no sibling text.
+  // getAnimations() is blind to SMIL, so detection must scan the DOM.
+  const dom = new JSDOM(
+    `<!doctype html><html><body>
+      <main>
+        <div class="msg">previous answer</div>
+        <div class="toolbar">
+          <button><svg class="icon" viewBox="0 0 24 24"><path d="M0 0h24v24H0z"/></svg></button>
+        </div>
+        <svg id="starburst" viewBox="0 0 24 24">
+          <g><animateTransform attributeName="transform" type="rotate"
+             from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></g>
+        </svg>
+      </main>
+    </body></html>`,
+  );
+  const doc = dom.window.document;
+  const star = doc.querySelector<HTMLElement>("#starburst")!;
+  const toolbarIcon = doc.querySelector<HTMLElement>(".icon")!;
+  star.getBoundingClientRect = rectOf(40, 40);
+  toolbarIcon.getBoundingClientRect = rectOf(20, 20);
+  // No getAnimations() at all → must rely on the SMIL structural scan.
+  delete (doc as unknown as { getAnimations?: unknown }).getAnimations;
+
+  const suppressor = new SpinnerSuppressor(doc, ["%%no-match%%"]);
+  const anchor = suppressor.findAnchor();
+  assert.equal(anchor, star, "the SMIL-animated starburst is the anchor");
+  assert.notEqual(anchor, toolbarIcon, "the toolbar button icon is never picked");
 });
 
 test("collapsed anchor stays the anchor even after its animation stops", () => {
