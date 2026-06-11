@@ -1,0 +1,159 @@
+import { ChromeKV } from "../shared/kv.js";
+import { Rotation } from "../shared/rotation.js";
+import { sanitizeSites, DEFAULT_SITES } from "../shared/detect.js";
+import type {
+  KolexRequest,
+  StatusResponse,
+  TickResponse,
+} from "../shared/messages.js";
+
+const API_BASE = "https://api.kolex.ai/v1";
+const SITE_BASE = "https://kolex.ai";
+
+const kv = new ChromeKV(chrome.storage.local);
+const rotation = new Rotation(kv);
+
+interface Settings {
+  deviceId: string;
+  consent: boolean;
+  enabled: boolean;
+  killswitch: boolean;
+}
+
+async function settings(): Promise<Settings> {
+  let s = await kv.get<Settings | null>("settings", null);
+  if (!s) {
+    s = { deviceId: crypto.randomUUID(), consent: false, enabled: true, killswitch: false };
+    await kv.set("settings", s);
+  }
+  return s;
+}
+
+async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
+  const merged = { ...(await settings()), ...patch };
+  await kv.set("settings", merged);
+  return merged;
+}
+
+/** Short-timeout fetch — an unreachable ad server must never block the UI. */
+async function api<T>(path: string, init?: RequestInit): Promise<T> {
+  const s = await settings();
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      "content-type": "application/json",
+      "x-kolex-device": s.deviceId,
+      ...(init?.headers ?? {}),
+    },
+    signal: AbortSignal.timeout(4_000),
+  });
+  if (!res.ok) throw new Error(`kolex api ${path}: HTTP ${res.status}`);
+  return (await res.json()) as T;
+}
+
+/** Pull auction winners, remote selector config, and the killswitch. */
+async function refreshRemoteConfig(): Promise<void> {
+  try {
+    const remote = await api<{ ads?: unknown; sites?: unknown; killswitch?: boolean }>("/config");
+    await rotation.setAds(remote.ads ?? []);
+    const sites = sanitizeSites(remote.sites);
+    await kv.set("sites", sites.length > 0 ? sites : DEFAULT_SITES);
+    await saveSettings({ killswitch: !!remote.killswitch });
+  } catch {
+    // Offline or backend down: keep cached config, house ads backfill.
+  }
+}
+
+/** Upload unsynced ledger events. Idempotent on event id. */
+async function flushLedger(): Promise<void> {
+  const pending = await rotation.unsyncedEvents();
+  if (pending.length === 0) return;
+  try {
+    for (let i = 0; i < pending.length; i += 100) {
+      const batch = pending.slice(i, i + 100);
+      await api("/events", { method: "POST", body: JSON.stringify({ events: batch }) });
+      await rotation.markSynced(batch.map((e) => e.id));
+    }
+  } catch {
+    // Stays queued; the backend dedupes on event id.
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  chrome.alarms.create("kolex:refresh", { periodInMinutes: 30, delayInMinutes: 0 });
+  chrome.alarms.create("kolex:flush", { periodInMinutes: 5, delayInMinutes: 1 });
+});
+
+chrome.alarms.onAlarm.addListener((alarm) => {
+  if (alarm.name === "kolex:refresh") void refreshRemoteConfig();
+  if (alarm.name === "kolex:flush") void flushLedger();
+});
+
+async function handle(req: KolexRequest): Promise<unknown> {
+  const s = await settings();
+
+  switch (req.type) {
+    case "kolex:tick": {
+      if (!s.consent || !s.enabled || s.killswitch) {
+        return { serving: false, estEarnedUsd: 0, impressionRecorded: false } satisfies TickResponse;
+      }
+      const out = await rotation.tick(req.surface);
+      return {
+        serving: !!out.ad,
+        ad: out.ad
+          ? { id: out.ad.id, brand: out.ad.brand, text: out.ad.text, house: out.ad.house }
+          : undefined,
+        estEarnedUsd: out.estEarnedUsd,
+        impressionRecorded: out.impressionRecorded,
+      } satisfies TickResponse;
+    }
+
+    case "kolex:click": {
+      if (!s.consent || !s.enabled) return { ok: false };
+      await rotation.click(req.adId, req.surface);
+      const ads = await rotation.getAds();
+      const ad = ads.find((a) => a.id === req.adId);
+      const url = ad?.house
+        ? ad.url
+        : `${SITE_BASE}/r/${encodeURIComponent(req.adId)}?d=${encodeURIComponent(s.deviceId)}`;
+      await chrome.tabs.create({ url, active: true });
+      void flushLedger();
+      return { ok: true };
+    }
+
+    case "kolex:status": {
+      const sum = await rotation.summary();
+      const ads = await rotation.getAds();
+      return {
+        consent: s.consent,
+        enabled: s.enabled,
+        killswitch: s.killswitch,
+        deviceId: s.deviceId,
+        totalImpressions: sum.totalImpressions,
+        totalClicks: sum.totalClicks,
+        estEarnedUsd: sum.estEarnedUsd,
+        pendingEvents: sum.pendingEvents,
+        adCount: ads.length,
+      } satisfies StatusResponse;
+    }
+
+    case "kolex:set-enabled":
+      await saveSettings({ enabled: req.enabled });
+      return { ok: true };
+
+    case "kolex:grant-consent":
+      await saveSettings({ consent: true });
+      void refreshRemoteConfig();
+      return { ok: true };
+
+    default:
+      return { ok: false };
+  }
+}
+
+chrome.runtime.onMessage.addListener((req: KolexRequest, _sender, sendResponse) => {
+  handle(req)
+    .then(sendResponse)
+    .catch(() => sendResponse({ ok: false }));
+  return true; // async response
+});

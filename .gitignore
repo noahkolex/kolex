@@ -1,0 +1,6 @@
+node_modules/
+dist-test/
+kolex-extension.zip
+extension/content.js
+extension/background.js
+extension/popup.js

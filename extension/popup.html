@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Kolex</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #F4F4F1;
+      --surface: #FFFFFF;
+      --ink: #0F1216;
+      --muted: #6E7079;
+      --rule: #DBDBD5;
+      --accent: #1547F5;
+      --accent-deep: #0E2FBC;
+      --accent-bg: #E8EDFF;
+      --positive: #16A34A;
+      --signal: #FF4F1F;
+      --sans: "Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+    }
+    body {
+      width: 340px;
+      margin: 0;
+      background: var(--paper);
+      color: var(--ink);
+      font: 400 13px/1.5 var(--sans);
+    }
+    header {
+      display: flex; align-items: center; gap: 8px;
+      padding: 14px 16px 12px;
+      border-bottom: 1px solid var(--rule);
+      background: var(--surface);
+    }
+    header svg { height: 20px; width: auto; display: block; }
+    header h1 {
+      font-size: 15px; margin: 0; font-weight: 600; letter-spacing: -0.02em;
+    }
+    header .spacer { flex: 1; }
+    main { padding: 16px; }
+    .eyebrow {
+      display: inline-flex; align-items: center; gap: 8px;
+      font: 500 10px/1 var(--mono);
+      letter-spacing: 1.2px; text-transform: uppercase; color: var(--muted);
+    }
+    .eyebrow::before { content: ""; width: 6px; height: 6px; background: var(--accent); }
+    .balance {
+      background: var(--surface); border: 1px solid var(--rule); border-radius: 4px;
+      padding: 16px; text-align: center; margin-bottom: 10px;
+    }
+    .balance .usd {
+      font-size: 32px; font-weight: 600; letter-spacing: -0.03em;
+      color: var(--ink); font-variant-numeric: tabular-nums; margin-top: 6px;
+    }
+    .stats { display: flex; gap: 8px; margin-bottom: 10px; }
+    .stat {
+      flex: 1; background: var(--surface); border: 1px solid var(--rule);
+      border-radius: 4px; padding: 10px; text-align: center;
+    }
+    .stat b { display: block; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+    .stat span {
+      color: var(--muted); font: 500 9.5px/1 var(--mono);
+      letter-spacing: 1px; text-transform: uppercase;
+    }
+    .row { display: flex; align-items: center; justify-content: space-between; padding: 6px 2px; }
+    .muted { color: var(--muted); font-size: 11.5px; }
+    button.primary {
+      width: 100%; padding: 12px; border: 0; border-radius: 4px;
+      background: var(--accent); color: #fff; font: 500 13px var(--sans); cursor: pointer;
+    }
+    button.primary:hover { background: var(--accent-deep); }
+    .consent p { color: var(--ink); margin: 10px 0; }
+    .consent ul { color: var(--muted); font-size: 12px; padding-left: 18px; margin: 0 0 14px; }
+    .switch { position: relative; width: 36px; height: 20px; }
+    .switch input { opacity: 0; width: 0; height: 0; }
+    .switch .track {
+      position: absolute; inset: 0; border-radius: 999px;
+      background: var(--rule); transition: background 120ms; cursor: pointer;
+    }
+    .switch .track::after {
+      content: ""; position: absolute; top: 2px; left: 2px;
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--surface); box-shadow: 0 1px 2px rgba(15,18,22,0.2);
+      transition: transform 120ms;
+    }
+    .switch input:checked + .track { background: var(--accent); }
+    .switch input:checked + .track::after { transform: translateX(16px); }
+    .hidden { display: none; }
+    footer {
+      padding: 10px 16px; border-top: 1px solid var(--rule);
+      display: flex; justify-content: space-between; align-items: center;
+      color: var(--muted); font: 500 10px/1 var(--mono); letter-spacing: 0.6px;
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    .kill {
+      color: var(--signal); font-size: 11.5px; margin-top: 8px;
+      border: 1px solid var(--signal); border-radius: 4px; padding: 8px 10px;
+      background: #FFE5DD;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <svg viewBox="59 49 139 160" aria-hidden="true">
+      <path fill="#1547F5" fill-rule="evenodd" d="M66.616 51.836 L67.015 51.703 L125.47 110.157 L129.997 116.016 L133.193 121.076 L135.59 125.603 L137.987 131.995 L139.851 141.582 L139.851 150.636 L139.318 154.897 L137.72 161.821 L135.856 167.147 L131.595 175.936 L123.872 189.517 L118.812 199.637 L114.818 206.561 L114.152 207.227 L70.078 207.094 L113.353 173.406 L114.285 172.207 L114.551 170.876 L114.551 166.881 L112.954 162.62 L109.625 158.759 L100.038 153.699 L92.581 150.503 L86.19 146.508 L83.526 144.378 L79.132 139.984 L77.268 137.587 L74.339 133.06 L71.942 128.266 L70.344 123.739 L70.344 122.94 L71.01 122.807 L73.14 124.405 L77.934 127.068 L99.771 136.655 L106.163 140.117 L106.562 139.984 L102.168 135.856 L96.309 131.329 L78.2 118.812 L74.206 115.35 L70.344 111.223 L66.083 105.097 L62.621 97.907 L60.757 90.983 L60.224 85.923 L60.358 82.861 L61.689 83.393 L67.814 89.518 L73.407 94.046 L96.842 110.557 L106.163 117.747 L106.695 118.013 L106.828 117.614 L102.301 112.554 L78.6 89.385 L71.409 80.597 L68.214 74.472 L65.817 66.216 L65.284 59.292 L65.551 59.026 L65.551 55.83 L66.483 51.969Z M167.014 89.385 L170.077 89.252 L174.87 90.584 L178.066 92.448 L180.995 95.643 L186.588 95.91 L189.784 96.709 L192.713 98.307 L195.509 101.369 L188.985 103.1 L183.659 106.03 L179.797 109.891 L177.4 114.152 L175.802 119.478 L175.802 137.054 L175.27 141.848 L174.205 146.642 L172.607 151.701 L169.145 159.424 L165.683 164.751 L162.487 168.745 L155.163 175.536 L148.239 180.063 L141.848 183.259 L135.989 185.656 L132.794 186.721 L131.728 186.721 L131.595 186.055 L134.791 180.729 L140.117 170.077 L141.715 166.082 L143.845 159.158 L145.177 150.37 L145.177 142.114 L144.378 136.256 L142.248 128.533 L140.916 125.071 L138.519 120.543 L138.519 119.478 L148.106 104.299 L145.044 103.366 L141.582 101.236 L139.584 98.972 L138.519 96.842 L144.511 96.709 L147.707 96.176 L151.968 94.845 L161.022 90.85 L164.218 89.785 L166.881 89.518Z"/>
+    </svg>
+    <h1>kolex</h1>
+    <span class="spacer"></span>
+    <label class="switch hidden" id="toggleWrap" title="Sponsorship on/off">
+      <input type="checkbox" id="toggle" />
+      <span class="track"></span>
+    </label>
+  </header>
+
+  <main>
+    <section id="consent" class="consent hidden">
+      <span class="eyebrow">Get paid for waiting</span>
+      <p>While ChatGPT or Claude is thinking, Kolex replaces the loading
+      indicator with one sponsored line. You keep 50% of the ad revenue.</p>
+      <ul>
+        <li>Never reads your prompts, chats, or files</li>
+        <li>Sends only an anonymous device id and ad view counts</li>
+        <li>One click here turns it off, instantly</li>
+      </ul>
+      <button class="primary" id="grant">Enable &amp; start earning</button>
+    </section>
+
+    <section id="dash" class="hidden">
+      <div class="balance">
+        <span class="eyebrow">Estimated earnings</span>
+        <div class="usd" id="usd">$0.00</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b id="impressions">0</b><span>Impressions</span></div>
+        <div class="stat"><b id="clicks">0</b><span>Clicks</span></div>
+        <div class="stat"><b id="adCount">0</b><span>Live ads</span></div>
+      </div>
+      <div class="row">
+        <span class="muted">Pending sync</span>
+        <span class="muted" id="pending">0 events</span>
+      </div>
+      <div class="kill hidden" id="kill">Serving paused remotely by kolex.ai</div>
+    </section>
+  </main>
+
+  <footer>
+    <span id="device"></span>
+    <a href="https://kolex.ai" target="_blank" rel="noreferrer">kolex.ai ↗</a>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>

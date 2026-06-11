@@ -1,0 +1,116 @@
+# Kolex — get paid for waiting
+
+**kolex.ai** replaces the most-stared-at pixels on the internet — the loading
+indicators on **ChatGPT** and **Claude** — with one sponsored status line.
+While the model thinks, the spinner becomes an ad. **50% of the ad revenue
+goes to you.**
+
+[Kickbacks.ai](https://kickbacks.ai) proved the model for developers inside
+Claude Code and Codex. Kolex is the same market, two orders of magnitude
+wider: the hundreds of millions of non-engineers who watch a shimmer for
+10–60 seconds every time they ask a chatbot anything. No IDE, no terminal —
+a Chrome extension.
+
+```
+   Assistant
+   ┌──────────────────────────────────────────────────────────────────┐
+   │ ⬩ AD · Ramp — Close your books 8x faster ↗ │ $0.0042 earned      │
+   └──────────────────────────────────────────────────────────────────┘
+   (rendered in place of "Thinking…" — restored the instant text streams)
+```
+
+Branding follows the [Sefra](https://meetsefra.com/) design language: cool
+bone `#F4F4F1`, ink `#0F1216`, cobalt accent `#1547F5`, hairline rules,
+Geist + Geist Mono, square 4px corners, and the Sefra bird mark.
+
+## How it works
+
+1. A content script watches chatgpt.com / claude.ai for a **wait state**
+   (model streaming or thinking), using a remotely updatable selector set.
+2. While a wait state is on screen **and the tab is visible**, it pings the
+   service worker once a second. Five contiguous seconds = one impression.
+3. A separate 250ms placement loop collapses the native loading indicator
+   (`display:none`, fully restored the moment serving stops) and mounts the
+   sponsored line **in its place in document flow** — a true replacement,
+   not a floating toast. If the page is busy but no spinner element can be
+   located (only a stop button), a bottom-center fallback placement serves.
+4. The service worker runs the auction locally: the highest live bid serves
+   first, ties round-robin, exhausted blocks fall out, and $0 house ads
+   backfill when no paid inventory is queued. Clicks route through the
+   kolex.ai redirect so the backend can settle them.
+5. Impressions and clicks land in a local idempotent ledger and sync in
+   batches whenever the backend is reachable. Offline never loses an event.
+
+## The market
+
+- Advertisers buy **blocks of 1,000 five-second impressions**, bidding any
+  amount from $1. Highest bid serves first — outbid the top to take #1, or
+  queue behind it.
+- **Clicks bill at 50× the impression rate.**
+- **50% of every settled dollar** goes to the person whose screen showed the
+  ad. Balance and payouts live at kolex.ai; the extension popup shows a
+  live estimate.
+
+## Privacy, by construction
+
+- The content script queries a handful of CSS selectors to know "is the
+  model working?" — it **never reads prompts, conversations, or files**.
+- Telemetry is an anonymous device id plus impression/click counts. Nothing
+  else leaves the machine.
+- No site code is patched. The page's spinner element is collapsed with an
+  inline style while an ad serves and restored exactly afterward.
+- Consent-gated: the extension serves nothing until you opt in from the
+  popup, and one toggle turns it off instantly. A server-side killswitch can
+  halt all serving remotely (bad creative, billing incident).
+
+## Repo layout
+
+```
+extension/          MV3 extension (manifest, popup, built bundles, icons)
+src/shared/         Chrome-free core: economics, auction, rotation, ledger,
+                    wait-state detection — fully unit-tested in Node
+src/background/     Service worker: settings, remote config, event sync
+src/content/        Wait-state watcher + inline ad placement (shadow DOM)
+src/popup/          Consent gate + live earnings dashboard
+demo/               Local harness that fakes a chat UI for visual testing
+scripts/            esbuild bundling + zero-dependency PNG icon generator
+test/               node:test suite (core logic + jsdom DOM-glue tests)
+```
+
+## Develop
+
+```bash
+npm install
+npm test          # typecheck the core + run the unit suite
+npm run build     # typecheck + bundle into extension/
+npm run package   # → kolex-extension.zip
+```
+
+Load it: `chrome://extensions` → Developer mode → **Load unpacked** → select
+the `extension/` directory. Open ChatGPT or Claude, ask something slow, and
+watch the wait state start paying rent.
+
+To poke at the placement without an account, open `demo/harness.html` in any
+browser — it fakes a chat UI, stubs the extension APIs, and toggles a wait
+state every few seconds so you can watch the spinner get replaced inline.
+
+## Architecture notes
+
+- **Selectors are config, not code.** ChatGPT and Claude ship UI changes
+  weekly; busy/spinner selectors come from `/v1/config` and fall back to
+  bundled defaults. A breakage is a config push, not a release.
+- **Two loops on purpose.** Accounting (1s) talks to the worker and is the
+  source of truth for impressions; placement (250ms) only moves DOM, so the
+  swap is instant even as the site re-renders mid-stream.
+- **The economics are pure functions** (`src/shared/economics.ts`), the
+  rotation engine takes an injected clock and storage, and detection takes
+  an injected DOM query — which is why the interesting logic has tests and
+  the chrome glue is thin.
+- **Backend optional.** Every network call has a short timeout and a cached
+  or bundled fallback. The extension is fully functional offline; it just
+  serves house inventory and queues events.
+
+## Status
+
+Client is real; the auction backend (`api.kolex.ai`) is stubbed — the
+extension degrades to house ads until it ships. MIT licensed.

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Kolex demo harness — fake chat UI</title>
+  <style>
+    body {
+      margin: 0; min-height: 100vh; display: flex; flex-direction: column;
+      background: #212121; color: #ececec;
+      font: 15px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    main { flex: 1; max-width: 720px; margin: 0 auto; padding: 48px 24px 140px; width: 100%; box-sizing: border-box; }
+    .msg { margin-bottom: 28px; }
+    .who { font-size: 12px; color: #9a9a9a; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+    .spinner { display: none; align-items: center; gap: 10px; color: #9a9a9a; }
+    .spinner.on { display: flex; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; background: #ececec; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.25; transform: scale(0.8); } }
+    .composer {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      padding: 16px 24px 28px; display: flex; gap: 10px; justify-content: center;
+      background: linear-gradient(transparent, #212121 30%);
+    }
+    .composer input {
+      width: min(640px, 80vw); padding: 14px 18px; border-radius: 24px;
+      border: 1px solid #424242; background: #2f2f2f; color: #ececec; font-size: 15px;
+    }
+    .stop {
+      display: none; border: 1px solid #555; background: #2f2f2f; color: #ececec;
+      border-radius: 50%; width: 48px; height: 48px; cursor: pointer; font-size: 16px;
+    }
+    .stop.on { display: block; }
+    .note { position: fixed; top: 12px; right: 16px; font-size: 12px; color: #777; }
+  </style>
+</head>
+<body>
+  <div class="note">kolex demo · the "Thinking…" spinner below is replaced inline while busy (6s busy / 2s idle)</div>
+  <main>
+    <div class="msg"><div class="who">You</div>Plan a two-week trip to Japan on a budget.</div>
+    <div class="msg">
+      <div class="who">Assistant</div>
+      <div class="spinner" id="spinner"><span class="dot"></span> Thinking…</div>
+      <div id="answer" style="display:none">Here's a two-week itinerary…</div>
+    </div>
+  </main>
+  <div class="composer">
+    <input placeholder="Message…" />
+    <button class="stop" id="stop" data-testid="stop-button" aria-label="Stop streaming" title="Stop">■</button>
+  </div>
+
+  <script>
+    // ---- Stub the extension APIs so extension/content.js runs on file:// ----
+    let earned = 0, accrued = 0, last = null, idx = 0;
+    const HOUSE = [
+      { id: "house-ramp", brand: "Ramp", text: "Close your books 8x faster — finance built for builders", house: true },
+      { id: "house-jellyfish", brand: "Jellyfish", text: "See how your engineering org really ships", house: true },
+      { id: "house-foundersnetwork", brand: "Founders Network", text: "Peer mentorship for tech founders, since 2011", house: true },
+    ];
+    window.chrome = {
+      storage: { local: { get: async () => ({ sites: [{
+        surface: "chatgpt",
+        hosts: [location.hostname], // "" on file:// — matches this page only
+        busySelectors: ['button[data-testid="stop-button"].on', ".spinner.on"],
+        spinnerSelectors: [".spinner.on"],
+      }] }) } },
+      runtime: {
+        sendMessage: async (msg) => {
+          if (msg.type === "kolex:tick") {
+            const now = Date.now();
+            if (last && now - last <= 4000) accrued += now - last;
+            last = now;
+            if (accrued >= 5000) { accrued -= 5000; idx = (idx + 1) % HOUSE.length; earned += 0.005; }
+            return { serving: true, ad: HOUSE[idx], estEarnedUsd: earned, impressionRecorded: false };
+          }
+          if (msg.type === "kolex:click") { alert("click recorded → would open kolex.ai/r/" + msg.adId); return { ok: true }; }
+          return { ok: true };
+        },
+      },
+    };
+
+    // ---- Fake chat loop: 6s busy, 2s idle ----
+    const spinner = document.getElementById("spinner");
+    const stop = document.getElementById("stop");
+    const answer = document.getElementById("answer");
+    function setBusy(b) {
+      spinner.classList.toggle("on", b);
+      stop.classList.toggle("on", b);
+      answer.style.display = b ? "none" : "block";
+    }
+    setBusy(true);
+    setInterval(() => { setBusy(true); setTimeout(() => setBusy(false), 6000); }, 8000);
+  </script>
+  <script src="../extension/content.js"></script>
+</body>
+</html>
