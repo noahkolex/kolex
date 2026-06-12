@@ -313,6 +313,8 @@ const CLUSTER_BAND_PX = 140;
  */
 export class SpinnerSuppressor {
   private hidden = new Set<StyledElement>();
+  /** Last-seen transform signatures, to detect rAF/JS-driven spinners. */
+  private xform = new WeakMap<Element, string>();
 
   constructor(
     private doc: Document,
@@ -397,24 +399,86 @@ export class SpinnerSuppressor {
     const scope = main ?? this.doc.body ?? this.doc.documentElement;
     let nodes: NodeListOf<Element>;
     try {
-      nodes = scope.querySelectorAll("svg, [class*='spin'], [class*='load'], [class*='think']");
+      nodes = scope.querySelectorAll(
+        "svg, [class*='spin'], [class*='load'], [class*='think'], [class*='dot'], " +
+          "[role='progressbar'], [role='status'], [aria-live='polite'], [aria-live='assertive']",
+      );
     } catch {
       nodes = scope.querySelectorAll("svg");
     }
     for (const node of nodes) {
       const el = node as StyledElement;
-      if (typeof el.style?.setProperty === "function" && this.isAnimating(el)) animated.add(el);
+      if (typeof el.style?.setProperty !== "function") continue;
+      // isAnimating: SMIL or infinite CSS. spinningNow: also catches
+      // requestAnimationFrame / Lottie spinners by sampling the transform.
+      if (this.isAnimating(el) || this.spinningNow(el)) animated.add(el);
     }
 
-    const plausibleAnimated = [...animated].filter((el) => this.isPlausibleIndicator(el));
-    // Prefer in-<main> candidates so page chrome (sidebar dots) never wins.
-    const inMain = plausibleAnimated.filter((el) => main !== null && main.contains(el));
-    for (const el of inMain.length > 0 ? inMain : plausibleAnimated) out.add(el);
+    // Each animated element is the *icon*; climb to the small row that also
+    // holds its label ("✦ Thinking"), so the whole indicator is replaced.
+    const plausible = [...animated].filter((el) => this.isPlausibleIndicator(el));
+    const inMain = plausible.filter((el) => main !== null && main.contains(el));
+    for (const el of inMain.length > 0 ? inMain : plausible) {
+      out.add(this.indicatorContainer(el));
+    }
 
     // Keep already-hidden nodes in the set so the cluster/anchor is stable.
     for (const el of this.hidden) if (el.isConnected) out.add(el);
 
     return [...out];
+  }
+
+  /**
+   * The smallest tidy row that contains the spinner icon AND its label.
+   * Climbs up while the parent stays a small, non-interactive box with short
+   * text. Only climbs when the parent has a real measured size, so it never
+   * over-grabs (and stays a no-op in size-less test DOMs).
+   */
+  private indicatorContainer(el: StyledElement): StyledElement {
+    let best = el;
+    let p = el.parentElement;
+    for (let i = 0; i < 5 && p; i++, p = p.parentElement) {
+      const parent = p as StyledElement;
+      if (!this.isSafe(parent)) break;
+      if (parent.querySelector?.("button, textarea, input, [contenteditable], form, a")) break;
+      const r = parent.getBoundingClientRect();
+      const text = (parent.textContent ?? "").trim();
+      // A loading row is SHORT (one or two lines) with little text — the row
+      // may span the full message width, so height (not width) is the guard.
+      // This is what makes us hide "✦ Thinking", label and all, not just the
+      // icon. Once tokens stream the turn grows tall and is rejected here.
+      if (r.height >= 1 && r.height <= 64 && r.width <= 900 && text.length <= 44) best = parent;
+      else break;
+    }
+    return best;
+  }
+
+  /**
+   * Is this element visibly spinning *right now*? Catches spinners driven by
+   * requestAnimationFrame / Lottie / JS (no CSS animation, no SMIL) by
+   * sampling the computed transform of the element and its descendants and
+   * comparing to the previous tick.
+   */
+  private spinningNow(el: StyledElement): boolean {
+    const win = (el.ownerDocument as Document | null)?.defaultView;
+    if (!win?.getComputedStyle) return false;
+    let sig = "";
+    let n = 0;
+    const sample = (node: Element) => {
+      try {
+        sig += (win.getComputedStyle(node).transform || "") + "|";
+      } catch {
+        /* ignore */
+      }
+    };
+    sample(el);
+    for (const child of el.querySelectorAll("*")) {
+      if (n++ >= 32) break;
+      sample(child);
+    }
+    const prev = this.xform.get(el);
+    this.xform.set(el, sig);
+    return prev !== undefined && prev !== sig && /matrix|rotate|translate|skew/.test(sig);
   }
 
   /** Climb out of SVG internals so we anchor at the drawable root. */

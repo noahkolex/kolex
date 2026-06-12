@@ -28,13 +28,20 @@ async function geometry(page) {
     const adText = line ? line.textContent : "";
     const hasLogo = !!(line && line.querySelector(".mark img"));
 
-    // Any natively-visible spinner left on screen?
-    const spinnerEls = [...document.querySelectorAll("#starburst, .spinner, .placeholder")];
-    const visibleSpinner = spinnerEls.find((el) => {
+    // Any natively-visible spinner OR loading label left on screen?
+    const spinnerEls = [
+      ...document.querySelectorAll("#starburst, #star, .spinner, .placeholder, .loader, .wait"),
+    ];
+    const isVisible = (el) => {
       const cs = getComputedStyle(el);
       const r = el.getBoundingClientRect();
       return cs.visibility !== "hidden" && cs.display !== "none" && r.width > 0 && r.height > 0;
-    });
+    };
+    const visibleSpinner = spinnerEls.find(isVisible);
+    // The literal "Thinking" label must be gone too.
+    const visibleThinking = [...document.querySelectorAll("main *")].some(
+      (el) => (el.textContent || "").trim() === "Thinking" && isVisible(el),
+    );
 
     const input = document.querySelector("textarea, [contenteditable='true']");
     const inputBox = input ? input.getBoundingClientRect() : null;
@@ -48,6 +55,7 @@ async function geometry(page) {
       hasLogo,
       lineBox: lineBox && { left: lineBox.left, top: lineBox.top, right: lineBox.right, bottom: lineBox.bottom, width: lineBox.width, height: lineBox.height },
       visibleSpinnerId: visibleSpinner ? visibleSpinner.id || visibleSpinner.className : null,
+      visibleThinking,
       inputBox: inputBox && { left: inputBox.left, top: inputBox.top, right: inputBox.right, bottom: inputBox.bottom },
       composerBox: composerBox && { top: composerBox.top },
     };
@@ -79,6 +87,7 @@ async function run(name, file) {
   ok("ad shows the brand logo (Notion)", g.hasLogo);
   ok("ad copy present", /Notion/.test(g.adText), JSON.stringify(g.adText).slice(0, 60));
   ok("NO native spinner left visible", g.visibleSpinnerId === null, g.visibleSpinnerId ? `still visible: ${g.visibleSpinnerId}` : "");
+  ok("NO loading label ('Thinking') left visible", g.visibleThinking === false);
 
   if (g.lineBox && g.inputBox) {
     ok(
@@ -109,6 +118,7 @@ async function run(name, file) {
 }
 
 await run("claude", "claude.html");
+await run("claude-thinking", "claude-thinking.html");
 await run("chatgpt", "chatgpt.html");
 
 console.log(`\n${failures === 0 ? "ALL CHECKS PASSED" : failures + " CHECK(S) FAILED"}`);

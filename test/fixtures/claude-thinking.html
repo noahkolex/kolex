@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Claude "Thinking" fixture (real-shape)</title>
+  <style>
+    body { margin: 0; min-height: 100vh; background: #1f1e1d; color: #e9e6e1;
+      font: 16px/1.6 -apple-system, system-ui, sans-serif; }
+    main { max-width: 740px; margin: 0 auto; padding: 56px 24px 160px; }
+    /* The real Claude wait state: a rotating star icon + a "Thinking" label
+       in one small row, near the TOP of the answer. The star is rotated by
+       requestAnimationFrame (no CSS animation, no SMIL) — the case my
+       animation heuristics were missing. */
+    .loader { display: none; align-items: center; gap: 10px; color: #b8b3ab; }
+    .loader.on { display: inline-flex; }
+    .loader svg { display: block; }
+    .composer { position: fixed; bottom: 0; left: 0; right: 0; padding: 18px 24px 30px;
+      display: flex; justify-content: center; background: linear-gradient(transparent, #1f1e1d 40%); }
+    .composer .box { width: min(700px, 86vw); background: #2a2927; border: 1px solid #3a3836;
+      border-radius: 20px; padding: 14px 18px; }
+    .composer [contenteditable] { outline: none; color: #e9e6e1; min-height: 24px; }
+    .stop { display: none; }
+    .stop.on { display: inline-block; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="turn">
+      <div class="answer" style="display:none">Here is the report…</div>
+      <div class="loader on" id="loader">
+        <svg id="star" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#e0936b" stroke-width="2" stroke-linecap="round">
+          <g id="starg">
+            <line x1="11" y1="2" x2="11" y2="6"/><line x1="11" y1="16" x2="11" y2="20"/>
+            <line x1="2" y1="11" x2="6" y2="11"/><line x1="16" y1="11" x2="20" y2="11"/>
+            <line x1="4.5" y1="4.5" x2="7" y2="7"/><line x1="15" y1="15" x2="17.5" y2="17.5"/>
+            <line x1="4.5" y1="17.5" x2="7" y2="15"/><line x1="15" y1="7" x2="17.5" y2="4.5"/>
+          </g>
+        </svg>
+        <span>Thinking</span>
+      </div>
+    </div>
+  </main>
+  <div class="composer">
+    <div class="box">
+      <div contenteditable="true" id="input" data-placeholder="Reply to Claude…"></div>
+      <button class="stop on" id="stop" aria-label="Stop response">stop</button>
+    </div>
+  </div>
+
+  <script>
+    window.__KOLEX_SITE = {
+      surface: "claude",
+      busySelectors: ['button[aria-label="Stop response"].on', '.loader.on'],
+      spinnerSelectors: [],
+    };
+  </script>
+  <script src="./harness.js"></script>
+  <script>
+    // Rotate the star via requestAnimationFrame — no CSS animation, no SMIL.
+    let a = 0;
+    function spin() {
+      a = (a + 4) % 360;
+      const g = document.getElementById("starg");
+      if (g) g.setAttribute("transform", `rotate(${a} 11 11)`);
+      requestAnimationFrame(spin);
+    }
+    requestAnimationFrame(spin);
+    window.__setBusy = (b) => {
+      document.getElementById("loader").classList.toggle("on", b);
+      document.getElementById("stop").classList.toggle("on", b);
+    };
+  </script>
+  <script src="../../extension/content.js"></script>
+</body>
+</html>
