@@ -119,6 +119,35 @@ app.get("/v1/killswitch", (_req, res) => res.json({ disabled: false }));
 // Health check (Railway / uptime probes).
 app.get("/healthz", (_req, res) => res.json({ ok: true, stripe: config.stripe.mode }));
 
+/**
+ * Balance for a device. If it's linked to an account, returns the ACCOUNT's
+ * total across ALL its linked devices — so earnings survive an extension
+ * reinstall / new browser (the dollars belong to you, not to one device id).
+ * Unlinked devices see just their own accruing balance.
+ */
+function balanceForDevice(db, deviceId) {
+  const dev = typeof deviceId === "string" ? db.devices.find((d) => d.deviceId === deviceId) : null;
+  let pendingUsd = 0,
+    settledUsd = 0,
+    linked = false;
+  if (dev?.userId) {
+    linked = true;
+    for (const d of db.devices) {
+      if (d.userId !== dev.userId) continue;
+      const e = db.earnings[d.deviceId];
+      if (e) {
+        pendingUsd += e.pendingUsd || 0;
+        settledUsd += e.paidUsd || 0;
+      }
+    }
+  } else {
+    const e = (typeof deviceId === "string" && db.earnings[deviceId]) || {};
+    pendingUsd = e.pendingUsd || 0;
+    settledUsd = e.paidUsd || 0;
+  }
+  return { pendingUsd, settledUsd, linked, minPayoutUsd: config.minPayoutUsd };
+}
+
 app.post("/v1/events", eventsLimiter, (req, res) => {
   const deviceId = req.headers["x-kolex-device"];
   const events = Array.isArray(req.body?.events) ? req.body.events : [];
@@ -126,28 +155,13 @@ app.post("/v1/events", eventsLimiter, (req, res) => {
     return res.status(400).json({ error: "missing device" });
   }
   const accepted = ingestEvents(events, deviceId);
-  // Return the device's settled balance in the SAME response so the extension
-  // has a single, real-time source of truth (no separate balance round-trip).
-  const db = load();
-  const e = db.earnings[deviceId] || { pendingUsd: 0, paidUsd: 0 };
-  res.json({
-    accepted,
-    pendingUsd: e.pendingUsd,
-    settledUsd: e.paidUsd,
-    minPayoutUsd: config.minPayoutUsd,
-  });
+  // Return the balance in the SAME response so the extension has one real-time
+  // source of truth (no separate round-trip).
+  res.json({ accepted, ...balanceForDevice(load(), deviceId) });
 });
 
 app.get("/v1/balance", (req, res) => {
-  const deviceId = req.headers["x-kolex-device"];
-  const db = load();
-  const e = (typeof deviceId === "string" && db.earnings[deviceId]) || {
-    impressions: 0,
-    clicks: 0,
-    pendingUsd: 0,
-    paidUsd: 0,
-  };
-  res.json({ settledUsd: e.paidUsd, pendingUsd: e.pendingUsd, minPayoutUsd: config.minPayoutUsd });
+  res.json(balanceForDevice(load(), req.headers["x-kolex-device"]));
 });
 
 // Whether this device has been linked to an account (so the popup can show
