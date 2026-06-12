@@ -320,7 +320,7 @@ export class AdView {
     }
 
     this.brandEl.textContent = ad.brand;
-    this.textEl.textContent = `— ${ad.text}`;
+    this.textEl.textContent = ad.text;
     this.line.title = `Sponsored · ${ad.brand}. You earn 50% of this ad's revenue.`;
   }
 

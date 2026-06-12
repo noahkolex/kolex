@@ -62,7 +62,7 @@ export function renderAdline(el, { brand, text, iconDataUrl, accent }) {
     mark +
     '<span class="dot"></span><span class="tag">AD</span>' +
     `<span class="bn">${escapeHtml(brand || "Your brand")}</span>` +
-    `<span class="cp">— ${escapeHtml(text || "Your message here")}</span>` +
+    `<span class="cp">${escapeHtml(text || "Your message here")}</span>` +
     '<span class="ar">↗</span>';
 }
 
@@ -70,7 +70,10 @@ export function renderAdline(el, { brand, text, iconDataUrl, accent }) {
 export function mountNav(active) {
   const el = document.querySelector("[data-nav]");
   if (!el) return;
-  const links = [["/portal", "Cash out"]];
+  const links = [
+    ["/portal", "Cash out"],
+    ["/advertiser", "Advertiser portal"],
+  ];
   el.innerHTML =
     `<div class="wrap"><a class="brandmark" href="/">${bird(24)}<span>kolex</span></a><span class="spacer"></span>` +
     links.map(([h, t]) => `<a class="navlink${h === active ? " on" : ""}" href="${h}">${t}</a>`).join("") +
@@ -78,7 +81,7 @@ export function mountNav(active) {
 }
 
 // ─────────────────────────── Sound (synthesized) ───────────────────────────
-// No audio files — a Web Audio "cha-ching" coin ding. Browsers require a user
+// No audio files: a Web Audio "cha-ching" coin ding. Browsers require a user
 // gesture before audio; we lazily create + resume the context on first click.
 
 let actx = null;
@@ -111,7 +114,7 @@ function tone(freq, start, dur, gain = 0.18, type = "sine") {
   o.stop(c.currentTime + start + dur + 0.02);
 }
 
-/** Coin "ding" — two quick bright notes. */
+/** Coin "ding": two quick bright notes. */
 export function ding() {
   if (!soundOn) return;
   tone(1318, 0, 0.12, 0.14, "triangle"); // E6

@@ -60,3 +60,24 @@ test("house ads are always live", () => {
     assert.ok(h.text.length >= 3 && h.text.length <= 60);
   }
 });
+
+const house = (id: string): Ad => ({ ...ad(id, 0), house: true });
+
+test("a live paid ad always beats house ads (even a $0 paid bid)", () => {
+  // House ads exist only as the blank-inventory fallback; a real campaign
+  // must never lose to one, even when its bid ties the house $0.
+  const ads = [house("kolex-1"), ad("ramp", 0), house("kolex-2")];
+  assert.equal(pickNextAd(ads, {})?.id, "ramp");
+});
+
+test("house ads only serve when there is no live paid ad", () => {
+  const onlyHouse = [house("kolex-1"), house("kolex-2")];
+  const picked = pickNextAd(onlyHouse, {});
+  assert.ok(picked && picked.house, "falls back to a house ad when inventory is blank");
+});
+
+test("a paid ad outranks house ads regardless of round-robin history", () => {
+  // Even if the paid ad was served most recently, it still beats house ads.
+  const ads = [house("kolex-1"), ad("ramp", 0), house("kolex-2")];
+  assert.equal(pickNextAd(ads, { ramp: 999 }, "ramp")?.id, "ramp");
+});

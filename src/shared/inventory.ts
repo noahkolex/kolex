@@ -55,8 +55,13 @@ export function findAd(ads: Ad[], id: string | null | undefined): Ad | undefined
 
 /**
  * English-ascending auction order: the highest live bid serves first.
- * Ties (including the $0 house ads) round-robin by least-recently-served
- * so a long wait does not pin one brand on screen for minutes.
+ * Ties round-robin by least-recently-served so a long wait does not pin one
+ * brand on screen for minutes.
+ *
+ * Paid ads ALWAYS outrank Kolex's own $0 house ads: a house ad only serves
+ * when there is no live paid campaign at all. (House ads exist purely as the
+ * blank-inventory fallback, so a real advertiser must never lose to one,
+ * even at an equal bid.)
  */
 export function pickNextAd(
   ads: Ad[],
@@ -65,8 +70,10 @@ export function pickNextAd(
 ): Ad | undefined {
   const live = ads.filter((a) => a.impressionsRemaining > 0);
   if (live.length === 0) return undefined;
-  const topBid = Math.max(...live.map((a) => a.bidPerBlock));
-  const tier = live.filter((a) => a.bidPerBlock === topBid);
+  const paid = live.filter((a) => !a.house);
+  const eligible = paid.length > 0 ? paid : live;
+  const topBid = Math.max(...eligible.map((a) => a.bidPerBlock));
+  const tier = eligible.filter((a) => a.bidPerBlock === topBid);
   if (tier.length === 1) return tier[0];
   const fresh = tier.filter((a) => a.id !== lastAdId);
   const pool = fresh.length > 0 ? fresh : tier;

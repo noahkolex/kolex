@@ -1,4 +1,4 @@
-/* Kolex — money/casino theme. Dark, loud, alive. */
+/* Kolex: money/casino theme. Dark, loud, alive. */
 @import url("https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600&display=swap");
 
 :root {
@@ -38,6 +38,11 @@ body {
   font: 400 15px/1.6 var(--sans);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  /* Sticky footer: short pages still fill the viewport so the footer sits at
+     the bottom instead of crunching up under the content. */
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 a { color: var(--green); text-decoration: none; }
 a:hover { color: #5cffc8; }
@@ -180,7 +185,7 @@ section { padding: 52px 0; }
   padding: 9px 14px; border-radius: 10px;
   box-shadow: 0 6px 26px rgba(0, 0, 0, 0.4); font: 600 13.5px var(--sans); white-space: nowrap;
   --a: var(--green);
-  /* Card theme — JS toggles .is-dark from the accent's brightness. */
+  /* Card theme: JS toggles .is-dark from the accent's brightness. */
   background: #fff; color: #0f1216; --cp: #6b6f76;
 }
 .adline.is-dark { background: #14181c; color: #f4f4f1; --cp: #a6abb2; }
@@ -224,7 +229,7 @@ section { padding: 52px 0; }
 .sound-toggle:hover { border-color: var(--green); }
 
 /* ── Footer ── */
-footer { border-top: 1px solid var(--rule); padding: 26px 0; color: var(--muted); font-size: 13px; margin-top: 40px; }
+footer { border-top: 1px solid var(--rule); padding: 26px 0; color: var(--muted); font-size: 13px; margin-top: auto; }
 footer .wrap { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; }
 footer .spacer { flex: 1; }
 

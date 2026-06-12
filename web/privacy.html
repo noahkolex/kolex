@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Privacy Policy — Kolex</title>
+  <title>Privacy Policy · Kolex</title>
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/brand.css" />
 </head>
@@ -16,7 +16,7 @@
     <p class="muted" style="margin-top:0">Last updated: June 2026</p>
 
     <p style="margin-top:20px">
-      Kolex is a Chrome extension that replaces the AI loading spinner with a single sponsored line —
+      Kolex is a Chrome extension that replaces the AI loading spinner with a single sponsored line,
       and pays you for it. We built it privacy-first on purpose, because the whole thing only works if
       you trust it. This page explains, in plain English, exactly what we do and do not collect.
     </p>
@@ -28,7 +28,7 @@
         <b>Kolex never reads your prompts, your conversations, your files, or your browsing history.</b>
         None of that ever leaves your device. The extension only checks a few CSS selectors to know
         one thing: <i>is the model still working?</i> The only data we send is an <b>anonymous device
-        id</b> plus <b>impression and click counts</b> — and we don't send anything at all until you opt in.
+        id</b> plus <b>impression and click counts</b>, and we don't send anything at all until you opt in.
       </p>
     </div>
 
@@ -39,13 +39,13 @@
       <p class="muted" style="margin:0 0 16px;font-size:14px">A random identifier generated on your device so we can credit your earnings to the right browser. It is not tied to your name, and it isn't an advertising id.</p>
 
       <h3 style="font-size:16px;font-weight:700;margin:0 0 6px">Impression &amp; click counts</h3>
-      <p class="muted" style="margin:0 0 16px;font-size:14px">When a sponsored line is shown (an impression) or clicked, we count it. That's how advertisers are billed and how you get paid. We count the event — we do not record what you were doing at the time.</p>
+      <p class="muted" style="margin:0 0 16px;font-size:14px">When a sponsored line is shown (an impression) or clicked, we count it. That's how advertisers are billed and how you get paid. We count the event. We do not record what you were doing at the time.</p>
 
       <h3 style="font-size:16px;font-weight:700;margin:0 0 6px">Portal account</h3>
       <p class="muted" style="margin:0 0 16px;font-size:14px">If you create an account to cash out, we store your email and a securely hashed password. That's it. Your password is never stored in plain text.</p>
 
       <h3 style="font-size:16px;font-weight:700;margin:0">Advertiser billing</h3>
-      <p class="muted" style="margin:0;font-size:14px">Advertiser payments are handled by Stripe. We never see or store card numbers — Stripe processes them directly.</p>
+      <p class="muted" style="margin:0;font-size:14px">Advertiser payments are handled by Stripe. We never see or store card numbers. Stripe processes them directly.</p>
     </div>
 
     <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">What we do NOT collect</h2>
@@ -61,14 +61,14 @@
 
     <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">How the extension works technically</h2>
     <p style="margin-top:0">
-      Kolex doesn't need to understand your content to do its job — it only needs to know whether the
+      Kolex doesn't need to understand your content to do its job. It only needs to know whether the
       AI is currently generating a response. To detect that, it queries a small set of <b>CSS selectors</b>
       (the same kind a stylesheet uses) to see if the page is showing its "busy" or "thinking" state.
       That's the full extent of what it inspects: a yes/no answer to "is the model working?"
     </p>
     <p class="muted" style="margin-top:12px;font-size:14px">
       When the model is busy, Kolex swaps the spinner for a sponsored line. Ad creatives are delivered as
-      <b>inline data URLs</b>, which means the extension makes no outbound network requests to render an ad —
+      <b>inline data URLs</b>, which means the extension makes no outbound network requests to render an ad,
       so nothing about what you're looking at could be inferred from a request to a third party.
     </p>
 
@@ -81,7 +81,7 @@
 
     <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Payments</h2>
     <p style="margin-top:0">
-      Payments — both advertiser billing and your payouts — are processed by <b>Stripe</b>. Card details are
+      Payments, both advertiser billing and your payouts, are processed by <b>Stripe</b>. Card details are
       handled entirely by Stripe under their own security and privacy practices; Kolex never stores them.
       Your use of payments is also subject to Stripe's privacy policy.
     </p>
@@ -89,16 +89,16 @@
     <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Third parties</h2>
     <p style="margin-top:0">We keep third parties to a minimum:</p>
     <ul style="line-height:1.8;margin:10px 0 0;padding-left:20px">
-      <li><b>Stripe</b> — processes advertiser billing and your payouts.</li>
-      <li><b>The advertiser's destination</b> — if you choose to click a sponsored line, your browser navigates to that advertiser's site, just like clicking any other link. We don't share your identity with them.</li>
+      <li><b>Stripe</b>: processes advertiser billing and your payouts.</li>
+      <li><b>The advertiser's destination</b>: if you choose to click a sponsored line, your browser navigates to that advertiser's site, just like clicking any other link. We don't share your identity with them.</li>
     </ul>
 
     <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Your choices</h2>
     <p style="margin-top:0">You're in control at every step:</p>
     <ul style="line-height:1.8;margin:10px 0 0;padding-left:20px">
-      <li><b>Consent toggle</b> — Kolex is consent-gated. It serves nothing and sends nothing until you opt in, and you can turn it off instantly at any time.</li>
-      <li><b>Uninstall</b> — remove the extension from Chrome and it stops entirely, immediately.</li>
-      <li><b>Data deletion</b> — request deletion of your account and associated data at any time by emailing us at <a href="mailto:privacy@kolex.ai">privacy@kolex.ai</a>.</li>
+      <li><b>Consent toggle</b>: Kolex is consent-gated. It serves nothing and sends nothing until you opt in, and you can turn it off instantly at any time.</li>
+      <li><b>Uninstall</b>: remove the extension from Chrome and it stops entirely, immediately.</li>
+      <li><b>Data deletion</b>: request deletion of your account and associated data at any time by emailing us at <a href="mailto:privacy@kolex.ai">privacy@kolex.ai</a>.</li>
     </ul>
 
     <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Data retention</h2>

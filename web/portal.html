@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Your earnings — Kolex</title>
+  <title>Your earnings · Kolex</title>
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/brand.css" />
 </head>
@@ -20,7 +20,7 @@
       <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@email.com" /></div>
       <div class="field"><label>Password</label><input type="password" id="password" placeholder="At least 8 characters" autocomplete="current-password" /></div>
       <button class="btn btn-primary btn-lg" id="signin" style="width:100%;justify-content:center">Sign in / Create account</button>
-      <p class="center muted" style="margin-top:14px;font-size:13px">New here? Just pick a password — we'll create your account.</p>
+      <p class="center muted" style="margin-top:14px;font-size:13px">New here? Just pick a password and we'll create your account.</p>
     </div>
 
     <!-- Dashboard -->
@@ -37,7 +37,7 @@
         <span class="eyebrow" style="justify-content:center">Available to withdraw</span>
         <div class="mono" id="pending" style="font-size:44px;font-weight:600;color:var(--positive);margin:8px 0">$0.00</div>
         <button class="btn btn-primary btn-lg" id="payout">Withdraw</button>
-        <div class="muted" id="payout-note" style="font-size:12px;margin-top:10px">Prototype payout — moves your balance to "paid".</div>
+        <div class="muted" id="payout-note" style="font-size:12px;margin-top:10px">Prototype payout. Moves your balance to "paid".</div>
       </div>
 
       <div class="stats-strip" id="usr-stats" style="margin-top:22px"></div>
@@ -62,7 +62,7 @@
     const connect = qp("connect") === "1" || device || code;
 
     if (connect) {
-      $("login-sub").textContent = "One step to connect your extension and claim your earnings. Enter your email — we'll link this browser automatically.";
+      $("login-sub").textContent = "One step to connect your extension and claim your earnings. Enter your email and we'll link this browser automatically.";
     }
 
     async function linkIfNeeded(token) {
@@ -129,7 +129,7 @@
         const amt = r.paidUsd || r.queuedUsd || 0;
         $("payout-note").textContent = r.payout?.status === "paid"
           ? `🎉 Paid out ${money(amt)}! It's on its way.`
-          : `Withdrawal of ${money(amt)} queued — it'll arrive shortly.`;
+          : `Withdrawal of ${money(amt)} queued. It'll arrive shortly.`;
       } catch (e) {
         $("payout-note").textContent = e.message;
       } finally {

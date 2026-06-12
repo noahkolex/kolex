@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kolex — your AI's loading screen now collects checks</title>
+  <title>Kolex · your AI's loading screen now collects checks</title>
   <meta name="description" content="Kolex (yes, like 'collects') turns the loading spinner on ChatGPT, Claude, Gemini & Grok into one sponsored line. You keep 50% of the ad money." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/brand.css" />
@@ -16,7 +16,7 @@
       <div class="wrap center">
         <span class="eyebrow" style="justify-content:center">kolex&nbsp;·&nbsp;/kə&#39;lɛks/&nbsp;·&nbsp;see also: <i>collects</i></span>
         <h1>Your AI's loading screen<br />now <span class="pop">collects</span> checks.</h1>
-        <p class="sub" style="margin-left:auto;margin-right:auto">Kolex (yeah — like <i>collects</i>) turns the "thinking…" spinner on ChatGPT, Claude, Gemini &amp; Grok into one sponsored line. You keep <b>50% of the ad money</b>, automatically.</p>
+        <p class="sub" style="margin-left:auto;margin-right:auto">Say the name out loud and it tells you what it does: <i>collects</i>. Kolex turns the "thinking…" spinner on ChatGPT, Claude, Gemini, and Grok into one sponsored line, and you keep <b>50% of the ad money</b>, automatically.</p>
 
         <div class="ticker" id="ticker">
           <span class="label">💸 paid out to users</span>
@@ -24,7 +24,7 @@
         </div>
 
         <div class="cta-row" style="justify-content:center;margin-top:26px">
-          <a class="btn btn-primary btn-lg" href="#install">Add to Chrome — free 🤑</a>
+          <a class="btn btn-primary btn-lg" href="#install">Add to Chrome, free 🤑</a>
           <a class="btn btn-ghost btn-lg" href="/advertise">Advertise on Kolex</a>
         </div>
       </div>
@@ -36,7 +36,7 @@
           <span class="eyebrow" style="justify-content:center">Live activity</span>
         </div>
         <div class="feed" id="feed">
-          <div class="feed-item" id="feed-empty"><span class="meta">Nothing here yet — this fills up as real people cash out and brands launch. Be the first.</span></div>
+          <div class="feed-item" id="feed-empty"><span class="meta">Nothing here yet. This fills up as real people cash out and brands launch. Be the first.</span></div>
         </div>
       </div>
     </section>
@@ -46,7 +46,7 @@
         <div class="section-head">
           <span class="eyebrow">3 clicks, then you collect</span>
           <h2>Install once. Earn forever.</h2>
-          <p>No account needed to start. Kolex never reads your prompts — it only swaps the loading spinner.</p>
+          <p>No account needed to start. Kolex never reads your prompts. It only swaps the loading spinner.</p>
         </div>
         <div class="steps">
           <div class="step"><div class="num">01</div><h3>Add to Chrome</h3><p>One click from the Chrome Web Store.</p></div>
@@ -61,7 +61,7 @@
         <div class="section-head">
           <span class="eyebrow">The auction</span>
           <h2>Who's paying for the spinner 💰</h2>
-          <p>Advertisers bid <b>in dollars</b> for blocks of 1,000 five-second impressions. Highest bid serves first. This is the live board — until a brand bids, the spinner shows Kolex.</p>
+          <p>Advertisers bid <b>in dollars</b> for blocks of 1,000 five-second impressions. Highest bid serves first. This is the live board. Until a brand bids, the spinner shows Kolex.</p>
         </div>
         <div class="stats-strip" id="stats"></div>
         <table class="board">
@@ -182,7 +182,7 @@
             <td class="num hide-sm mono">${money(c.spendUsd, false)}</td>
             <td class="num"><span class="pill ${c.status === "active" ? "live" : "done"}">${c.status === "active" ? "Live" : "Done"}</span></td>
           </tr>`).join("")
-        : '<tr><td colspan="6" class="muted center" style="padding:28px">No paid campaigns yet — the spinner is showing <b>Kolex</b>. <a href="/advertise">Bid to take the top spot →</a></td></tr>';
+        : '<tr><td colspan="6" class="muted center" style="padding:28px">No paid campaigns yet, so the spinner is showing <b>Kolex</b>. <a href="/advertise">Bid to take the top spot →</a></td></tr>';
     }
     function loadBoard() {
       api("/api/auction").then(({ leaderboard, stats }) => renderBoard(leaderboard, stats))

@@ -94,7 +94,9 @@ async function flushLedger(): Promise<void> {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.alarms.create("kolex:refresh", { periodInMinutes: 30, delayInMinutes: 0 });
+  // 3 min so a freshly-paid campaign appears quickly (the popup also pulls a
+  // fresh copy on open, below).
+  chrome.alarms.create("kolex:refresh", { periodInMinutes: 3, delayInMinutes: 0 });
   chrome.alarms.create("kolex:flush", { periodInMinutes: 5, delayInMinutes: 1 });
 });
 
@@ -144,6 +146,9 @@ async function handle(req: KolexRequest): Promise<unknown> {
     }
 
     case "kolex:status": {
+      // Pull fresh inventory on popup open so a just-activated campaign shows
+      // up right away instead of waiting for the 3-minute refresh alarm.
+      if (s.consent) await refreshRemoteConfig();
       const sum = await rotation.summary();
       const ads = await rotation.getAds();
       return {
@@ -155,7 +160,9 @@ async function handle(req: KolexRequest): Promise<unknown> {
         totalClicks: sum.totalClicks,
         estEarnedUsd: sum.estEarnedUsd,
         pendingEvents: sum.pendingEvents,
-        adCount: ads.length,
+        // "Live ads" means real paid campaigns in rotation — Kolex's own $0
+        // house ads (the blank-inventory fallback) are not counted.
+        adCount: ads.filter((a) => !a.house).length,
       } satisfies StatusResponse;
     }
 

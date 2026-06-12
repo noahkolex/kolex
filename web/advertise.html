@@ -13,11 +13,11 @@
   <main class="wrap narrow" style="padding-top:40px;padding-bottom:60px">
     <span class="eyebrow">Launch an ad</span>
     <h1 style="font-size:34px;letter-spacing:-.02em;font-weight:600;margin:12px 0 6px">Your brand, in the spinner.</h1>
-    <p class="muted" style="margin-top:0">Under a minute. Upload your logo and pick a color — the whole loading indicator wears your brand. Bid for blocks of 1,000 five-second impressions.</p>
+    <p class="muted" style="margin-top:0">Under a minute. Upload your logo and pick a color, and the whole loading indicator wears your brand. Bid for blocks of 1,000 five-second impressions.</p>
 
     <!-- Live preview -->
     <div style="margin:24px 0 28px">
-      <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Live preview — exactly how it appears</div>
+      <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Live preview: exactly how it appears</div>
       <div style="background:var(--elev);border:1px solid var(--rule);border-radius:8px;padding:28px;display:flex;justify-content:center">
         <div class="adline" id="preview"></div>
       </div>
@@ -120,7 +120,7 @@
       const update = () => {
         const bid = Number($("bid").value) || 0;
         const above = leaderboard.filter((c) => c.bidPerBlock > bid).length;
-        $("rankhint").textContent = above === 0 ? "🥇 You'd take the #1 spot — served first." : `You'd rank #${above + 1} of ${leaderboard.length + 1}.`;
+        $("rankhint").textContent = above === 0 ? "🥇 You'd take the #1 spot, served first." : `You'd rank #${above + 1} of ${leaderboard.length + 1}.`;
       };
       $("bid").addEventListener("input", update);
       update();
