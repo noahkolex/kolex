@@ -2,7 +2,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config, publicBase } from "./config.mjs";
-import { load, save, reset } from "./db.mjs";
+import { load, save, reset, dbPath, stats } from "./db.mjs";
 import {
   configAds,
   leaderboard,
@@ -705,10 +705,23 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
     }
   }
   load();
+  // Flush to disk on shutdown (belt-and-suspenders; we already save on every
+  // mutation) so a Ctrl-C can never drop the last write.
+  for (const sig of ["SIGINT", "SIGTERM"]) {
+    process.on(sig, () => {
+      save();
+      process.exit(0);
+    });
+  }
   app.listen(config.port, () => {
     const settled = fmtUsd(leaderboard().reduce((s, c) => s + c.spendUsd, 0));
+    const s = stats();
     console.log(
       `kolex server on http://localhost:${config.port}  ·  Stripe: ${config.stripe.mode.toUpperCase()}  ·  ${settled} settled`,
+    );
+    // So you can SEE where data lives and that it loaded across restarts.
+    console.log(
+      `  data: ${dbPath()}  ·  ${s.advertisers} advertisers, ${s.campaigns} campaigns, ${s.users} users, ${s.earners} earning devices, ${s.payouts} payouts`,
     );
   });
 }

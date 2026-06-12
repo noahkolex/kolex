@@ -8,6 +8,9 @@ import { IMPRESSIONS_PER_BLOCK } from "./economics.mjs";
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = process.env.KOLEX_DB ?? path.join(DIR, "data", "db.json");
 
+/** Absolute path of the data file (for startup diagnostics). */
+export const dbPath = () => path.resolve(DB_PATH);
+
 const EMPTY = {
   advertisers: [], // { id, email, createdAt }
   campaigns: [], // { id, advertiserId, brand, text, url, iconDataUrl, accent,
@@ -29,14 +32,59 @@ let db = null;
 
 export function load() {
   if (db) return db;
+  let raw;
   try {
-    db = { ...EMPTY, ...JSON.parse(fs.readFileSync(DB_PATH, "utf8")) };
-  } catch {
+    raw = fs.readFileSync(DB_PATH, "utf8");
+  } catch (err) {
+    if (err.code !== "ENOENT") {
+      // The file exists but the OS couldn't read it (permissions, etc.). Do NOT
+      // overwrite it — surface the problem instead of silently wiping data.
+      throw new Error(
+        `kolex: cannot read data file ${path.resolve(DB_PATH)}: ${err.message}. ` +
+          `Refusing to start empty so your data isn't clobbered.`,
+      );
+    }
+    // Genuinely first boot — no file yet.
+    db = structuredClone(EMPTY);
+    if (wantSeed()) seed(db);
+    save();
+    return db;
+  }
+  try {
+    db = { ...EMPTY, ...JSON.parse(raw) };
+  } catch (err) {
+    // The file exists but is corrupt. NEVER blindly overwrite it — back it up
+    // first so the data is recoverable, then start fresh.
+    const backup = `${DB_PATH}.corrupt-${Date.now()}`;
+    try {
+      fs.copyFileSync(DB_PATH, backup);
+      console.error(
+        `[kolex] data file is corrupt (${err.message}). Backed up to ${backup} before starting fresh.`,
+      );
+    } catch {
+      throw new Error(
+        `kolex: data file ${path.resolve(DB_PATH)} is corrupt and could not be backed up. ` +
+          `Refusing to overwrite it. Fix or move the file, then restart.`,
+      );
+    }
     db = structuredClone(EMPTY);
     if (wantSeed()) seed(db);
     save();
   }
   return db;
+}
+
+/** Snapshot of record counts, for the startup diagnostic line. */
+export function stats() {
+  const d = load();
+  return {
+    advertisers: d.advertisers.length,
+    campaigns: d.campaigns.length,
+    users: d.users.length,
+    devices: d.devices.length,
+    earners: Object.keys(d.earnings).length,
+    payouts: d.payouts.length,
+  };
 }
 
 export function save() {
