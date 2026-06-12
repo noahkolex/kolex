@@ -222,20 +222,25 @@ app.get("/api/activity", (_req, res) => {
     .filter((p) => p.status === "paid")
     .reduce((s, p) => s + p.amountUsd, 0);
   const pendingUsd = Object.values(db.earnings).reduce((s, e) => s + (e.pendingUsd || 0), 0);
-  const recent = [
-    ...db.payouts.map((p) => ({
+  const byNewest = (a, b) => (b.at || 0) - (a.at || 0);
+  const payoutEvents = db.payouts
+    .map((p) => ({
       type: "payout",
       amountUsd: p.amountUsd,
       status: p.status,
       email: anonEmail(db.users.find((u) => u.id === p.userId)?.email),
       at: p.createdAt,
-    })),
-    ...db.campaigns
-      .filter((c) => c.status === "active")
-      .map((c) => ({ type: "launch", brand: c.brand, bidPerBlock: c.bidPerBlock, at: c.payment?.paidAt || c.createdAt })),
-  ]
-    .sort((a, b) => (b.at || 0) - (a.at || 0))
-    .slice(0, 12);
+    }))
+    .sort(byNewest);
+  const launchEvents = db.campaigns
+    .filter((c) => c.status === "active")
+    .map((c) => ({ type: "launch", brand: c.brand, bidPerBlock: c.bidPerBlock, at: c.payment?.paidAt || c.createdAt }))
+    .sort(byNewest);
+  // Guarantee recent cash-outs always surface — don't let a flood of campaign
+  // launches crowd payments-out off the feed.
+  const recent = [...payoutEvents.slice(0, 10), ...launchEvents.slice(0, 10)]
+    .sort(byNewest)
+    .slice(0, 16);
   res.json({
     totals: {
       paidOutUsd,

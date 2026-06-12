@@ -151,7 +151,8 @@
       const div = document.createElement("div");
       div.className = "feed-item" + (isFresh ? " fresh" : "");
       if (e.type === "payout") {
-        div.innerHTML = `<span class="who">💸 ${escapeHtml(e.email || "someone")}</span><span class="meta">cashed out · ${ago(e.at)}</span><span class="amt">${money(e.amountUsd)}</span>`;
+        const verb = e.status === "paid" ? "cashed out" : "is cashing out";
+        div.innerHTML = `<span class="who">💸 ${escapeHtml(e.email || "someone")}</span><span class="meta">${verb} · ${ago(e.at)}</span><span class="amt">${money(e.amountUsd)}</span>`;
       } else {
         div.innerHTML = `<span class="who">📣 ${e.brand}</span><span class="meta">launched a campaign · ${ago(e.at)}</span><span class="amt click">${money(e.bidPerBlock, false)}/1k</span>`;
       }
