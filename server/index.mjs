@@ -557,11 +557,30 @@ app.post("/api/portal/connect", requireKind("user"), async (req, res) => {
       await save();
     }
     const base = publicBase(req);
-    const link = await createAccountLink({
-      accountId: me.stripeAccountId,
-      returnUrl: `${base}/portal?connected=1`,
-      refreshUrl: `${base}/portal?connect=retry`,
-    });
+    let returnUrl, refreshUrl;
+    try {
+      // new URL validates the base — Stripe rejects a return/refresh URL that
+      // isn't a proper absolute URL (the cause of "Not a valid URL").
+      returnUrl = new URL("/portal?connected=1", base).toString();
+      refreshUrl = new URL("/portal?connect=retry", base).toString();
+    } catch {
+      return res.status(500).json({
+        error:
+          "Payout setup needs a public site URL. Set SITE_BASE to your full https URL " +
+          "(e.g. https://your-app.up.railway.app) and restart.",
+      });
+    }
+    // Stripe Connect onboarding requires a public HTTPS URL (unlike Checkout,
+    // which accepts http://localhost) — give a precise hint instead of Stripe's
+    // opaque "Not a valid URL".
+    if (!isStub() && !returnUrl.startsWith("https://")) {
+      return res.status(500).json({
+        error:
+          "Stripe payout onboarding requires a public HTTPS URL — http://localhost won't work for Connect. " +
+          "Deploy (Railway gives you one) or use a tunnel like ngrok, then set SITE_BASE to that https URL.",
+      });
+    }
+    const link = await createAccountLink({ accountId: me.stripeAccountId, returnUrl, refreshUrl });
     capture("payout_connect_started", { distinctId: me.email });
     res.json({ url: link.url });
   } catch (err) {

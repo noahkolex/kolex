@@ -21,8 +21,12 @@ const isProd = (process.env.NODE_ENV || "").trim().toLowerCase() === "production
 // On Railway, the public domain is exposed as RAILWAY_PUBLIC_DOMAIN — use it
 // so Stripe redirect/webhook URLs are correct without any manual config.
 const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
-const inferredBase =
-  process.env.SITE_BASE || process.env.PUBLIC_URL || (railwayDomain ? `https://${railwayDomain}` : "");
+// Always normalize to an absolute URL with a scheme — Stripe rejects
+// account-link / redirect URLs that lack one (e.g. a bare "kolex.ai").
+const withScheme = (u) => (!u ? "" : /^https?:\/\//i.test(u) ? u : `https://${u}`);
+const inferredBase = withScheme(
+  process.env.SITE_BASE || process.env.PUBLIC_URL || (railwayDomain ? `https://${railwayDomain}` : ""),
+);
 
 export const config = {
   port: Number(process.env.PORT) || 4000,
@@ -62,9 +66,11 @@ export const config = {
   },
 };
 
-/** Resolve the public base URL, falling back to the request's own origin. */
+/** Resolve the public base URL (absolute, with scheme), falling back to the
+ *  request's own origin. Returns "" only if it truly can't be determined. */
 export function publicBase(req) {
   if (config.siteBase) return config.siteBase;
-  const proto = req.headers["x-forwarded-proto"] || req.protocol;
-  return `${proto}://${req.get("host")}`;
+  const proto = (req.headers["x-forwarded-proto"] || req.protocol || "https").toString().split(",")[0];
+  const host = req.get("host");
+  return host ? `${proto}://${host}` : "";
 }
