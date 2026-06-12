@@ -1,12 +1,56 @@
 // Auction + settlement. Highest live bid serves first; impressions and
 // clicks are billed to the advertiser and 50% credited to the viewer.
 import { load, save } from "./db.mjs";
+import { config } from "./config.mjs";
 import {
   IMPRESSIONS_PER_BLOCK,
   USER_REVENUE_SHARE,
   impressionCost,
   clickCost,
 } from "./economics.mjs";
+
+// ─────────────────────────── Abuse controls ───────────────────────────
+
+/** Banned if the device, or the account it's linked to, is on the ban list. */
+export function isBanned(db, deviceId) {
+  if (db.banned[deviceId]) return true;
+  const dev = db.devices.find((d) => d.deviceId === deviceId);
+  return !!(dev?.userId && db.banned[dev.userId]);
+}
+
+/** Add an id (device or account) to the ban list. */
+export function banId(db, id, reason) {
+  if (id && !db.banned[id]) db.banned[id] = { reason: reason || "flagged", at: Date.now() };
+}
+
+/**
+ * Gate a would-be credit through the abuse controls. Returns true to bill the
+ * advertiser + credit the viewer, false to DROP the event entirely ($0, no
+ * advertiser bill). Maintains per-device rolling windows and auto-bans devices
+ * that exceed a physically-impossible impression rate.
+ */
+function allowSettle(db, deviceId, type, userShareUsd) {
+  const ab = config.antiabuse;
+  if (isBanned(db, deviceId)) return false;
+  if (type === "click" && ab.disableClicks) return false;
+  const now = Date.now();
+  const a = (db.abuse[deviceId] ??= { hourStart: now, hourUsd: 0, minStart: now, minImpr: 0, flags: 0 });
+  if (type === "impression") {
+    if (now - a.minStart > 60_000) { a.minStart = now; a.minImpr = 0; }
+    a.minImpr += 1;
+    if (a.minImpr > ab.maxImpressionsPerMin) {
+      a.flags = (a.flags || 0) + 1;
+      if (a.flags >= ab.autoBanFlags) banId(db, deviceId, "impossible impression rate");
+      return false; // fabricated traffic — drop
+    }
+  }
+  if (ab.hourlyCapUsd > 0) {
+    if (now - a.hourStart > 3_600_000) { a.hourStart = now; a.hourUsd = 0; }
+    if (a.hourUsd >= ab.hourlyCapUsd) return false; // hit the hourly cap
+    a.hourUsd += userShareUsd;
+  }
+  return true;
+}
 
 /** Campaigns currently eligible to serve, highest bid first. */
 export function liveCampaigns() {
@@ -93,12 +137,14 @@ function maybeComplete(campaign) {
 export function settleImpression(campaign, deviceId) {
   const cost = impressionCost(campaign.bidPerBlock);
   if (!canBill(campaign, cost)) return 0;
+  const credited = cost * USER_REVENUE_SHARE;
+  // Abuse gate: a dropped event bills nothing and credits nothing.
+  if (!allowSettle(load(), deviceId, "impression", credited)) return 0;
   campaign.impressions += 1;
   campaign.impressionsRemaining = Math.max(0, campaign.impressionsRemaining - 1);
   campaign.spendUsd += cost;
   const e = earningsFor(deviceId);
   e.impressions += 1;
-  const credited = cost * USER_REVENUE_SHARE;
   e.pendingUsd += credited;
   maybeComplete(campaign);
   return credited;
@@ -109,11 +155,13 @@ export function settleImpression(campaign, deviceId) {
 export function settleClick(campaign, deviceId) {
   const cost = clickCost(campaign.bidPerBlock);
   if (!canBill(campaign, cost)) return 0;
+  const credited = cost * USER_REVENUE_SHARE;
+  // Abuse gate: clicks can be suspended entirely, and a dropped click bills nothing.
+  if (!allowSettle(load(), deviceId, "click", credited)) return 0;
   campaign.clicks += 1;
   campaign.spendUsd += cost;
   const e = earningsFor(deviceId);
   e.clicks += 1;
-  const credited = cost * USER_REVENUE_SHARE;
   e.pendingUsd += credited;
   maybeComplete(campaign);
   return credited;

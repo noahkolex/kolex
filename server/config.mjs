@@ -47,6 +47,25 @@ export const config = {
   // Minimum payout the user must accrue before cashing out (USD).
   minPayoutUsd: Number(process.env.KOLEX_MIN_PAYOUT_USD) || 10,
 
+  // ── Abuse / incident controls (all env-toggled, sane defaults) ──
+  antiabuse: {
+    // Stop crediting (and billing) CLICKS — the 50× vector. KOLEX_DISABLE_CLICKS=1.
+    disableClicks: bool(process.env.KOLEX_DISABLE_CLICKS, false),
+    // Max a single device can earn per rolling hour (USD). 0 disables the cap.
+    hourlyCapUsd: process.env.KOLEX_HOURLY_CAP_USD === undefined ? 5 : Number(process.env.KOLEX_HOURLY_CAP_USD),
+    // Physically a device can earn ~12 impressions/min (one per 5s); anything
+    // well above that is fabricated. Over this/minute → drop + flag → auto-ban.
+    maxImpressionsPerMin: Number(process.env.KOLEX_MAX_IMPRESSIONS_PER_MIN) || 20,
+    autoBanFlags: Number(process.env.KOLEX_AUTOBAN_FLAGS) || 3,
+    // Max events accepted in a single /v1/events POST (a legit client sends ≤100).
+    maxEventsPerBatch: Number(process.env.KOLEX_MAX_EVENTS_PER_BATCH) || 200,
+    // Bearer token for the /api/admin/* moderation endpoints.
+    adminToken: process.env.KOLEX_ADMIN_TOKEN?.trim() || "",
+  },
+  // Global payout kill-switch — set KOLEX_PAYOUTS_HALTED=1 to pause all cash-outs
+  // (balances are kept; turn it back off to resume).
+  payoutsHalted: bool(process.env.KOLEX_PAYOUTS_HALTED, false),
+
   // PostHog analytics (optional). The project API key (phc_…) is safe to expose
   // to the browser/extension, so the same key powers server + client capture.
   posthog: {

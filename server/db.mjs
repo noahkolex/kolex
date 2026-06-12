@@ -36,6 +36,8 @@ const EMPTY = {
   processedWebhooks: {}, // stripe event id -> true (idempotency)
   payouts: [], // { id, userId, amountUsd, status, stripeId, createdAt }
   recentEarnings: [], // capped log for the live feed: { deviceId, amountUsd, at }
+  banned: {}, // deviceId|userId -> { reason, at } (no earning, no cash-out)
+  abuse: {}, // deviceId -> { hourStart, hourUsd, minStart, minImpr, flags } (rate/cap state)
 };
 
 let db = null;

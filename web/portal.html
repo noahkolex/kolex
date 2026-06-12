@@ -188,6 +188,18 @@
         : `You need ${money(min)} to cash out. You have ${money(data.pendingUsd)}`;
 
       const po = data.payout || { hasAccount: !!data.payoutMethod, ready: data.payoutsReady, requirements: [] };
+      if (data.suspended) {
+        pm.innerHTML = '<div class="errors" style="text-align:left"><b>Account suspended.</b> This account was flagged for unusual activity. Email <a href="mailto:support@kolex.ai">support@kolex.ai</a> if you think this is a mistake.</div>';
+        $("payout").disabled = true;
+        $("payout-note").textContent = "Withdrawals are disabled for this account.";
+        return;
+      }
+      if (data.payoutsHalted) {
+        pm.innerHTML = '<div class="errors" style="text-align:left;color:#ffd089;border-color:rgba(255,197,61,.5);background:rgba(255,197,61,.1)"><b>⏸ Payouts are paused.</b> We\'ve temporarily halted cash-outs while we review unusual activity. Your balance is safe and will be available when payouts resume.</div>';
+        $("payout").disabled = true;
+        $("payout-note").textContent = "Cash-outs are paused for now. Your balance is safe.";
+        return;
+      }
       if (po.ready) {
         pm.innerHTML = '<span style="color:var(--positive)">✓ Payouts enabled</span> · <a href="#" id="reconnect">Manage</a>';
         $("payout").disabled = !enough;

@@ -8,6 +8,7 @@ import {
   leaderboard,
   ingestEvents,
   liveCampaigns,
+  banId,
 } from "./auction.mjs";
 import { IMPRESSIONS_PER_BLOCK, MIN_BID_PER_BLOCK, fmtUsd } from "./economics.mjs";
 import {
@@ -155,7 +156,9 @@ app.post("/v1/events", eventsLimiter, (req, res) => {
   if (typeof deviceId !== "string" || !deviceId) {
     return res.status(400).json({ error: "missing device" });
   }
-  const accepted = ingestEvents(events, deviceId);
+  // Cap the batch — a legit client sends a handful at a time; a huge batch is
+  // either a bug or an attempt to flood settlement. Ignore the overflow.
+  const accepted = ingestEvents(events.slice(0, config.antiabuse.maxEventsPerBatch), deviceId);
   // Return the balance in the SAME response so the extension has one real-time
   // source of truth (no separate round-trip).
   res.json({ accepted, ...balanceForDevice(load(), deviceId) });
@@ -504,7 +507,7 @@ app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
   };
   if (me?.stripeAccountId) {
     try {
-      const st = await getAccountStatus(me.stripeAccountId);
+      const st = await cachedAccountStatus(me.stripeAccountId);
       payout = {
         hasAccount: true,
         ready: st.payoutsEnabled,
@@ -547,6 +550,8 @@ app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
     payoutMethod: me?.stripeAccountId ? "stripe" : null,
     payoutsReady: payout.ready,
     payout, // { hasAccount, ready, requirements:[…], disabledReason }
+    payoutsHalted: config.payoutsHalted,
+    suspended: !!db.banned[req.session.id],
     payouts: db.payouts.filter((p) => p.userId === req.session.id),
   });
 });
@@ -656,12 +661,35 @@ app.post("/api/portal/link-device", requireKind("user"), (req, res) => {
   res.json({ ok: true, deviceId: dev.deviceId });
 });
 
+// Cache Stripe account-status lookups so the portal summary (polled by every
+// open tab) doesn't call Stripe on every request. 2-min TTL.
+const acctStatusCache = new Map(); // accountId -> { at, value }
+async function cachedAccountStatus(accountId) {
+  const hit = acctStatusCache.get(accountId);
+  if (hit && Date.now() - hit.at < 120_000) return hit.value;
+  const value = await getAccountStatus(accountId);
+  acctStatusCache.set(accountId, { at: Date.now(), value });
+  return value;
+}
+
 // Per-user lock so concurrent payout requests can't double-spend the balance
 // across the `await` to Stripe.
 const payoutsInFlight = new Set();
 
 app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
   const userId = req.session.id;
+  // Global kill-switch: pause all cash-outs during an incident (balances kept).
+  if (config.payoutsHalted) {
+    return res.status(503).json({
+      error:
+        "Payouts are temporarily paused while we review unusual activity. Your balance is safe and will be available when payouts resume.",
+      halted: true,
+    });
+  }
+  // Banned accounts can't cash out.
+  if (load().banned[userId]) {
+    return res.status(403).json({ error: "This account is suspended. Contact support if you believe this is a mistake." });
+  }
   if (payoutsInFlight.has(userId)) {
     return res.status(409).json({ error: "a payout is already in progress" });
   }
@@ -739,6 +767,47 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
   } finally {
     payoutsInFlight.delete(userId);
   }
+});
+
+// ── Moderation / incident endpoints (Bearer KOLEX_ADMIN_TOKEN) ──
+function requireAdmin(req, res, next) {
+  const tok = config.antiabuse.adminToken;
+  const got = req.headers.authorization?.startsWith("Bearer ") ? req.headers.authorization.slice(7) : "";
+  if (!tok || got !== tok) return res.status(404).json({ error: "not found" });
+  next();
+}
+
+// Ban a device id OR an account (user/advertiser) id — stops all earning + cash-out.
+app.post("/api/admin/ban", requireAdmin, async (req, res) => {
+  const id = String(req.body?.id ?? "").trim();
+  if (!id) return res.status(400).json({ error: "id required" });
+  const db = load();
+  banId(db, id, String(req.body?.reason ?? "manual"));
+  await save();
+  res.json({ ok: true, banned: id });
+});
+
+app.post("/api/admin/unban", requireAdmin, async (req, res) => {
+  const id = String(req.body?.id ?? "").trim();
+  const db = load();
+  delete db.banned[id];
+  await save();
+  res.json({ ok: true, unbanned: id });
+});
+
+// Snapshot for triage: banned list, auto-flagged devices, and top earners.
+app.get("/api/admin/suspicious", requireAdmin, (_req, res) => {
+  const db = load();
+  const flagged = Object.entries(db.abuse || {})
+    .filter(([, a]) => (a.flags || 0) > 0)
+    .map(([deviceId, a]) => ({ deviceId, flags: a.flags, hourUsd: Math.round((a.hourUsd || 0) * 100) / 100 }))
+    .sort((a, b) => b.flags - a.flags)
+    .slice(0, 100);
+  const topEarners = Object.entries(db.earnings || {})
+    .map(([deviceId, e]) => ({ deviceId, pendingUsd: e.pendingUsd, paidUsd: e.paidUsd, clicks: e.clicks }))
+    .sort((a, b) => b.pendingUsd + b.paidUsd - (a.pendingUsd + a.paidUsd))
+    .slice(0, 50);
+  res.json({ banned: db.banned, flagged, topEarners, controls: { ...config.antiabuse, adminToken: undefined }, payoutsHalted: config.payoutsHalted });
 });
 
 // Dev/demo helper — reseed the store. Disabled in LIVE mode (real money) so
