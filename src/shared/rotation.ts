@@ -167,6 +167,20 @@ export class Rotation {
     };
   }
 
+  /**
+   * USD accrued into the impression currently on screen but not yet settled —
+   * the live "pending" amount. Returns 0 unless an ad was ticking very
+   * recently (so a stale state doesn't show phantom pending).
+   */
+  async inProgressUsd(): Promise<number> {
+    const state = await this.kv.get<RotationState>(K_STATE, { ...EMPTY_STATE, served: {} });
+    if (state.lastTickTs === null || this.now() - state.lastTickTs > TICK_CONTINUITY_MS) return 0;
+    const ads = await this.getAds();
+    const ad = findAd(ads, state.currentAdId);
+    if (!ad) return 0;
+    return impressionPayout(ad) * Math.min(1, state.accruedMs / IMPRESSION_MS);
+  }
+
   async unsyncedEvents(): Promise<LedgerEvent[]> {
     const ledger = await this.kv.get<LedgerEvent[]>(K_LEDGER, []);
     return ledger.filter((e) => !e.synced);

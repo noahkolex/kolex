@@ -701,7 +701,14 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
       // Restore the balance — the money never moved.
       for (const s of snapshot) db.earnings[s.deviceId].pendingUsd += s.amt;
       await save();
-      return res.status(502).json({ error: `Payout failed: ${err.message}` });
+      let msg = err.message;
+      if (err.code === "balance_insufficient" || /insufficient (available )?funds/i.test(err.message || "")) {
+        msg =
+          "Kolex's own Stripe balance doesn't have enough AVAILABLE funds to send this yet. " +
+          "Advertiser payments sit as 'pending' for ~2 days before they're available to pay out. " +
+          "(Test mode: add available balance instantly with the 4000000000000077 test card.)";
+      }
+      return res.status(502).json({ error: `Payout failed: ${msg}` });
     }
 
     // Only credit paidUsd when the transfer actually settled. A "queued"

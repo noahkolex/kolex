@@ -274,6 +274,9 @@ async function handle(req: KolexRequest): Promise<unknown> {
         serverPendingUsd: bal ? bal.pendingUsd : null,
         serverSettledUsd: bal ? bal.settledUsd : null,
         minPayoutUsd: bal ? bal.minPayoutUsd : null,
+        // Live in-progress impression (not yet settled) so the popup shows the
+        // same "+ pending" as the overlay.
+        pendingNowUsd: await rotation.inProgressUsd(),
       } satisfies StatusResponse;
     }
 

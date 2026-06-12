@@ -47,6 +47,8 @@ export interface StatusResponse {
   serverSettledUsd: number | null;
   /** Minimum balance required to cash out (USD), from the server. */
   minPayoutUsd: number | null;
+  /** Live in-progress impression earnings not yet settled (the "+ pending"). */
+  pendingNowUsd: number;
 }
 
 export interface SetEnabledRequest {

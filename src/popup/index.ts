@@ -60,6 +60,16 @@ function render(s: StatusResponse): void {
     el("usd-sub").textContent = s.linked ? "Syncing…" : "Sign in to track your balance";
   }
 
+  // Live in-progress impression, same "+ pending" the on-page overlay shows.
+  const pendingEl = el("usd-pending");
+  if (s.pendingNowUsd > 0.00005) {
+    pendingEl.classList.remove("hidden");
+    pendingEl.textContent = `+$${s.pendingNowUsd.toFixed(4)} earning now`;
+  } else {
+    pendingEl.classList.add("hidden");
+    pendingEl.textContent = "";
+  }
+
   el("impressions").textContent = String(s.totalImpressions);
   el("clicks").textContent = String(s.totalClicks);
   el("adCount").textContent = String(s.adCount);
