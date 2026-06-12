@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing:border-box; margin:0; }
+  body { width:1280px; height:800px; overflow:hidden;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(1100px 600px at 78% -8%, rgba(22,224,163,.16), transparent 60%),
+      radial-gradient(900px 520px at 8% 12%, rgba(155,107,255,.10), transparent 55%),
+      #0a0e0c;
+    color:#eaf6ef; display:flex; align-items:center; }
+  .wrap { display:flex; align-items:center; gap:72px; width:100%; padding:0 90px; }
+  .pitch { flex:1; }
+  .pitch .ey { font:600 12px/1 ui-monospace,monospace; letter-spacing:2px; text-transform:uppercase; color:#16e0a3; }
+  .pitch h1 { font-size:54px; line-height:1.05; letter-spacing:-.03em; font-weight:800; margin:16px 0 18px; }
+  .pitch h1 .g { background:linear-gradient(120deg,#1cf2b1,#ffd96b 60%,#9b6bff); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .pitch p { font-size:19px; color:#8a9a91; max-width:430px; line-height:1.5; }
+  .pitch .chips { display:flex; gap:10px; margin-top:24px; }
+  .chip { background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:999px; padding:8px 15px; font-size:13px; color:#cfe8dd; font-weight:600; }
+  /* the extension popup */
+  .popup { width:360px; background:#0d1310; border:1px solid rgba(255,255,255,.09); border-radius:16px; overflow:hidden; box-shadow:0 30px 80px rgba(0,0,0,.5); }
+  .ph { display:flex; align-items:center; gap:9px; padding:14px 16px; border-bottom:1px solid rgba(255,255,255,.08); }
+  .ph .nm { font-weight:800; font-size:15px; }
+  .ph .sw { margin-left:auto; width:36px;height:20px;border-radius:999px;background:#16e0a3; position:relative; }
+  .ph .sw::after { content:""; position:absolute; top:2px; right:2px; width:16px;height:16px;border-radius:50%; background:#0d1310; }
+  .pb { padding:18px 16px 16px; text-align:center; }
+  .pb .lbl { font:600 11px/1 ui-monospace,monospace; letter-spacing:1.5px; text-transform:uppercase; color:#8a9a91; }
+  .pb .usd { font:800 40px/1 ui-monospace,monospace; color:#16e0a3; text-shadow:0 0 24px rgba(22,224,163,.35); margin:8px 0 2px; }
+  .pb .pend { font:600 12px ui-monospace,monospace; color:#16e0a3; }
+  .pb .sub { color:#8a9a91; font-size:12px; margin-top:6px; }
+  .stats { display:flex; gap:8px; padding:0 16px 8px; }
+  .stat { flex:1; background:#131a16; border:1px solid rgba(255,255,255,.07); border-radius:10px; padding:11px 8px; }
+  .stat b { display:block; font:800 18px ui-monospace,monospace; }
+  .stat span { font:600 9px ui-monospace,monospace; letter-spacing:.6px; text-transform:uppercase; color:#8a9a91; }
+  .cta { margin:8px 16px 6px; padding:12px; border-radius:6px; background:#16e0a3; color:#052016; font:700 13px ui-sans-serif; text-align:center; }
+  .acct { text-align:center; font-size:12px; color:#16e0a3; padding:2px 0 16px; }
+  .acct b { color:#eaf6ef; }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="pitch">
+      <div class="ey">kolex · /kə'lɛks/</div>
+      <h1>Your AI's loading<br/>screen now <span class="g">collects</span> checks.</h1>
+      <p>One sponsored line replaces the spinner on ChatGPT, Claude, Gemini &amp; Grok. You keep 50% of the ad money, automatically.</p>
+      <div class="chips"><span class="chip">⚡ 50% revenue share</span><span class="chip">🔒 Never reads your chats</span><span class="chip">💸 Cash out anytime</span></div>
+    </div>
+    <div class="popup">
+      <div class="ph">
+        <svg width="22" height="22" viewBox="59 49 139 160"><path fill="#16E0A3" fill-rule="evenodd" d="M66.616 51.836 L67.015 51.703 L125.47 110.157 L129.997 116.016 L133.193 121.076 L135.59 125.603 L137.987 131.995 L139.851 141.582 L139.851 150.636 L139.318 154.897 L137.72 161.821 L135.856 167.147 L131.595 175.936 L123.872 189.517 L118.812 199.637 L114.818 206.561 L114.152 207.227 L70.078 207.094 L113.353 173.406 L114.285 172.207 L114.551 170.876 L114.551 166.881 L112.954 162.62 L109.625 158.759 L100.038 153.699 L92.581 150.503 L86.19 146.508 L83.526 144.378 L79.132 139.984 L77.268 137.587 L74.339 133.06 L71.942 128.266 L70.344 123.739 L70.344 122.94 L71.01 122.807 L73.14 124.405 L77.934 127.068 L99.771 136.655 L106.163 140.117 L106.562 139.984 L102.168 135.856 L96.309 131.329 L78.2 118.812 L74.206 115.35 L70.344 111.223 L66.083 105.097 L62.621 97.907 L60.757 90.983 L60.224 85.923 L60.358 82.861 L61.689 83.393 L67.814 89.518 L73.407 94.046 L96.842 110.557 L106.163 117.747 L106.695 118.013 L106.828 117.614 L102.301 112.554 L78.6 89.385 L71.409 80.597 L68.214 74.472 L65.817 66.216 L65.284 59.292 L65.551 59.026 L65.551 55.83 L66.483 51.969Z M167.014 89.385 L170.077 89.252 L174.87 90.584 L178.066 92.448 L180.995 95.643 L186.588 95.91 L189.784 96.709 L192.713 98.307 L195.509 101.369 L188.985 103.1 L183.659 106.03 L179.797 109.891 L177.4 114.152 L175.802 119.478 L175.802 137.054 L175.27 141.848 L174.205 146.642 L172.607 151.701 L169.145 159.424 L165.683 164.751 L162.487 168.745 L155.163 175.536 L148.239 180.063 L141.848 183.259 L135.989 185.656 L132.794 186.721 L131.728 186.721 L131.595 186.055 L134.791 180.729 L140.117 170.077 L141.715 166.082 L143.845 159.158 L145.177 150.37 L145.177 142.114 L144.378 136.256 L142.248 128.533 L140.916 125.071 L138.519 120.543 L138.519 119.478 L148.106 104.299 L145.044 103.366 L141.582 101.236 L139.584 98.972 L138.519 96.842 L144.511 96.709 L147.707 96.176 L151.968 94.845 L161.022 90.85 L164.218 89.785 L166.881 89.518Z"/></svg>
+        <span class="nm">kolex</span><span class="sw"></span>
+      </div>
+      <div class="pb">
+        <div class="lbl">Your earnings</div>
+        <div class="usd">$12.84</div>
+        <div class="pend">+$0.0180 earning now</div>
+        <div class="sub">$12.84 ready to cash out · $10.00 minimum</div>
+      </div>
+      <div class="stats">
+        <div class="stat"><b>1,204</b><span>Impressions</span></div>
+        <div class="stat"><b>37</b><span>Clicks</span></div>
+        <div class="stat"><b>6</b><span>Live ads</span></div>
+      </div>
+      <div class="cta">Cash out →</div>
+      <div class="acct">✓ Linked to <b>you@email.com</b></div>
+    </div>
+  </div>
+</body>
+</html>

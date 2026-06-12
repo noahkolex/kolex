@@ -134,11 +134,11 @@
     async function awaitPayoutsReady() {
       for (let i = 0; i < 6; i++) {
         const data = await loadDash();
-        if (data?.payoutsReady) { $("payout-note").textContent = "🎉 Payouts enabled — you're all set."; return; }
+        if (data?.payoutsReady) { $("payout-note").textContent = "🎉 Payouts enabled. You're all set."; return; }
         $("payout-note").textContent = "Finishing payout setup… Stripe is verifying your account (this can take a moment).";
         await new Promise((r) => setTimeout(r, 2500));
       }
-      $("payout-note").textContent = "Stripe is still verifying your account. This can take a minute — refresh to check.";
+      $("payout-note").textContent = "Stripe is still verifying your account. This can take a minute. Refresh to check.";
     }
 
     function showLogin() { $("dash").classList.add("hide"); $("login").classList.remove("hide"); }
@@ -153,7 +153,7 @@
         ? '<span class="pill live">Paid</span>'
         : s === "queued"
           ? '<span class="pill" style="background:rgba(255,197,61,.15);color:var(--gold)">Processing</span>'
-          : `<span class="pill done">${escapeHtml(s || "—")}</span>`;
+          : `<span class="pill done">${escapeHtml(s || "-")}</span>`;
       const ref = (p) => p.stripeId ? `Stripe ····${escapeHtml(String(p.stripeId).slice(-4))}` : "Connected account";
       $("payouts-body").innerHTML = payouts
         .slice().sort((a, b) => b.createdAt - a.createdAt)
@@ -168,7 +168,7 @@
       const queued = payouts.some((p) => p.status === "queued");
       note.classList.toggle("hide", !queued);
       if (queued) {
-        note.innerHTML = "<b>Processing</b> means the payout is recorded and owed to you, but the transfer hasn't been sent yet — so it won't show in Stripe until it settles. This happens while your payout account is still being verified.";
+        note.innerHTML = "<b>Processing</b> means the payout is recorded and owed to you, but the transfer hasn't been sent yet, so it won't show in Stripe until it settles. This happens while your payout account is still being verified.";
       }
     }
 
@@ -181,11 +181,11 @@
       // Always make the minimum crystal clear: a persistent line + a hover
       // tooltip on the Withdraw button.
       $("min-hint").textContent = enough
-        ? `Minimum cash out: ${money(min)} — you're over it ✓`
+        ? `Minimum cash out: ${money(min)}, you're over it ✓`
         : `Minimum cash out: ${money(min)} · ${money(remaining)} to go`;
       $("payout").title = enough
         ? `Cash out ${money(data.pendingUsd)}`
-        : `You need ${money(min)} to cash out — you have ${money(data.pendingUsd)}`;
+        : `You need ${money(min)} to cash out. You have ${money(data.pendingUsd)}`;
 
       const po = data.payout || { hasAccount: !!data.payoutMethod, ready: data.payoutsReady, requirements: [] };
       if (po.ready) {

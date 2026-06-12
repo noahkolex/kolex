@@ -82,7 +82,7 @@
       const b = $("stripe-banner");
       let msg = "";
       if (s.mode === "stub") {
-        msg = "<b>⚠️ Test mode.</b> Payments run in stub mode — no real card is charged and campaigns activate via a mock checkout. Set <code>STRIPE_SECRET_KEY</code> to take real payments.";
+        msg = "<b>⚠️ Test mode.</b> Payments run in stub mode. No real card is charged and campaigns activate via a mock checkout. Set <code>STRIPE_SECRET_KEY</code> to take real payments.";
       } else if (!s.webhookConfigured) {
         msg = "<b>⚠️ Stripe webhook not configured.</b> Paid campaigns won't activate automatically. Set <code>STRIPE_WEBHOOK_SECRET</code> and point a webhook at <code>/webhooks/stripe</code>.";
       }

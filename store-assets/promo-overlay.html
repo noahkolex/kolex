@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<style>
+  * { box-sizing: border-box; margin: 0; }
+  body { width: 1280px; height: 800px; overflow: hidden;
+    font-family: ui-sans-serif, -apple-system, "Segoe UI", sans-serif;
+    background: #1a1915; color: #ECE9E2; }
+  .app { display: flex; height: 100%; }
+  .side { width: 250px; background: #1f1e1a; border-right: 1px solid #34322c; padding: 18px 14px; }
+  .side .logo { font-weight: 700; font-size: 17px; color: #E8E6DF; }
+  .side .new { margin-top: 18px; background:#2a2823; border:1px solid #3a382f; border-radius:10px; padding:10px 12px; font-size:13px; color:#bdb9ad; }
+  .side .item { margin-top: 7px; padding:9px 12px; border-radius:8px; font-size:13px; color:#a8a499; }
+  .side .item.on { background:#2a2823; color:#ECE9E2; }
+  .main { flex: 1; display:flex; flex-direction:column; position:relative; }
+  .bar { height:54px; border-bottom:1px solid #2a2823; display:flex; align-items:center; justify-content:center;
+    font:600 14px ui-sans-serif; color:#16E0A3; background:rgba(22,224,163,.06); }
+  .conv { flex:1; display:flex; flex-direction:column; justify-content:center; }
+  .row { max-width: 760px; margin: 0 auto 22px; padding: 0 24px; width:100%; }
+  .who { font-size: 12px; letter-spacing:.4px; text-transform:uppercase; color:#8d8a7f; margin-bottom:8px; font-weight:700; }
+  .msg { font-size: 17px; line-height: 1.6; color:#E8E6DF; }
+  .ai .msg { color:#cfccc2; }
+  .kolex-line {
+    display:inline-flex; align-items:center; gap:9px;
+    padding:9px 14px; border-radius:7px; white-space:nowrap;
+    background:#14181C; color:#F4F4F1; font:500 14px/1.4 ui-sans-serif, -apple-system, sans-serif;
+    box-shadow: 0 8px 30px rgba(0,0,0,.5); border:1px solid rgba(255,255,255,.05);
+  }
+  .kolex-line .bird { width:16px; height:16px; }
+  .kolex-line .dot { width:7px;height:7px;border-radius:50%;background:#16E0A3; box-shadow:0 0 8px #16E0A3; }
+  .kolex-line .tag { font:600 10px/1 ui-monospace, monospace; letter-spacing:1.2px; text-transform:uppercase; color:#16E0A3; }
+  .kolex-line .brand { font-weight:700; }
+  .kolex-line .copy { color:#A6ABB2; }
+  .kolex-line .arrow { color:#16E0A3; font-weight:700; }
+  .kolex-line .earned { font:600 12px/1 ui-monospace, monospace; color:#39d98a; padding-left:11px; border-left:1px solid rgba(255,255,255,.14); }
+  .kolex-line .pending { font:600 12px/1 ui-monospace, monospace; color:#16E0A3; padding-left:7px; }
+  .callout { max-width:760px; margin:0 auto; padding:0 24px; }
+  .callout .b { display:inline-flex; align-items:center; gap:8px; margin-left:30px; margin-top:10px;
+    color:#9c988c; font-size:13.5px; }
+  .callout .b .k { color:#16E0A3; font-weight:700; }
+  .composer { max-width: 760px; margin: 0 auto; width:100%; padding: 0 24px 34px; }
+  .box { border:1px solid #3a382f; background:#23211c; border-radius:14px; padding:14px 16px; color:#8d8a7f; font-size:15px; display:flex; align-items:center; justify-content:space-between; }
+  .send { width:30px;height:30px;border-radius:8px;background:#16E0A3; display:flex;align-items:center;justify-content:center;color:#052016;font-weight:800; }
+  .bird-svg { }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="side">
+      <div class="logo">✦ Claude</div>
+      <div class="new">+ New chat</div>
+      <div class="item on">Quarterly report draft</div>
+      <div class="item">Trip itinerary for Japan</div>
+      <div class="item">Refactor auth module</div>
+      <div class="item">Explain transformers</div>
+    </div>
+    <div class="main">
+      <div class="bar">💸 Kolex replaces the “thinking…” spinner with one sponsored line — and pays you 50%</div>
+      <div class="conv">
+        <div class="row">
+          <div class="who">You</div>
+          <div class="msg">Write me a detailed launch plan for our new product.</div>
+        </div>
+        <div class="row ai">
+          <div class="who">Claude</div>
+          <div class="kolex-line">
+            <svg class="bird" viewBox="59 49 139 160"><path fill="#16E0A3" fill-rule="evenodd" d="M66.616 51.836 L67.015 51.703 L125.47 110.157 L129.997 116.016 L133.193 121.076 L135.59 125.603 L137.987 131.995 L139.851 141.582 L139.851 150.636 L139.318 154.897 L137.72 161.821 L135.856 167.147 L131.595 175.936 L123.872 189.517 L118.812 199.637 L114.818 206.561 L114.152 207.227 L70.078 207.094 L113.353 173.406 L114.285 172.207 L114.551 170.876 L114.551 166.881 L112.954 162.62 L109.625 158.759 L100.038 153.699 L92.581 150.503 L86.19 146.508 L83.526 144.378 L79.132 139.984 L77.268 137.587 L74.339 133.06 L71.942 128.266 L70.344 123.739 L70.344 122.94 L71.01 122.807 L73.14 124.405 L77.934 127.068 L99.771 136.655 L106.163 140.117 L106.562 139.984 L102.168 135.856 L96.309 131.329 L78.2 118.812 L74.206 115.35 L70.344 111.223 L66.083 105.097 L62.621 97.907 L60.757 90.983 L60.224 85.923 L60.358 82.861 L61.689 83.393 L67.814 89.518 L73.407 94.046 L96.842 110.557 L106.163 117.747 L106.695 118.013 L106.828 117.614 L102.301 112.554 L78.6 89.385 L71.409 80.597 L68.214 74.472 L65.817 66.216 L65.284 59.292 L65.551 59.026 L65.551 55.83 L66.483 51.969Z M167.014 89.385 L170.077 89.252 L174.87 90.584 L178.066 92.448 L180.995 95.643 L186.588 95.91 L189.784 96.709 L192.713 98.307 L195.509 101.369 L188.985 103.1 L183.659 106.03 L179.797 109.891 L177.4 114.152 L175.802 119.478 L175.802 137.054 L175.27 141.848 L174.205 146.642 L172.607 151.701 L169.145 159.424 L165.683 164.751 L162.487 168.745 L155.163 175.536 L148.239 180.063 L141.848 183.259 L135.989 185.656 L132.794 186.721 L131.728 186.721 L131.595 186.055 L134.791 180.729 L140.117 170.077 L141.715 166.082 L143.845 159.158 L145.177 150.37 L145.177 142.114 L144.378 136.256 L142.248 128.533 L140.916 125.071 L138.519 120.543 L138.519 119.478 L148.106 104.299 L145.044 103.366 L141.582 101.236 L139.584 98.972 L138.519 96.842 L144.511 96.709 L147.707 96.176 L151.968 94.845 L161.022 90.85 L164.218 89.785 L166.881 89.518Z"/></svg>
+            <span class="dot"></span>
+            <span class="tag">Ad</span>
+            <span class="brand">Linear</span>
+            <span class="copy">The issue tracker teams actually enjoy</span>
+            <span class="arrow">↗</span>
+            <span class="earned">$2.41 earned</span>
+            <span class="pending">+$0.0180 pending</span>
+          </div>
+        </div>
+        <div class="callout"><div class="b">↑ <span>The loading spinner became this. You just earned <span class="k">$2.41</span> — and it's still counting up.</span></div></div>
+      </div>
+      <div class="composer">
+        <div class="box"><span>Reply to Claude…</span><span class="send">↑</span></div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
