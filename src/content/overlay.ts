@@ -24,11 +24,34 @@ const SEFRA = {
   mono: '"Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace',
 };
 
+/**
+ * Perceived brightness (YIQ) of a #rrggbb color. > 145 reads as a "light"
+ * accent that needs a dark backing; darker accents keep the white card.
+ */
+function isBright(hex: string): boolean {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex);
+  if (!m) return false;
+  const n = parseInt(m[1] as string, 16);
+  const r = (n >> 16) & 0xff;
+  const g = (n >> 8) & 0xff;
+  const b = n & 0xff;
+  return (r * 299 + g * 587 + b * 114) / 1000 > 145;
+}
+
 const SEFRA_BIRD_PATH =
   "M66.616 51.836 L67.015 51.703 L125.47 110.157 L129.997 116.016 L133.193 121.076 L135.59 125.603 L137.987 131.995 L139.851 141.582 L139.851 150.636 L139.318 154.897 L137.72 161.821 L135.856 167.147 L131.595 175.936 L123.872 189.517 L118.812 199.637 L114.818 206.561 L114.152 207.227 L70.078 207.094 L113.353 173.406 L114.285 172.207 L114.551 170.876 L114.551 166.881 L112.954 162.62 L109.625 158.759 L100.038 153.699 L92.581 150.503 L86.19 146.508 L83.526 144.378 L79.132 139.984 L77.268 137.587 L74.339 133.06 L71.942 128.266 L70.344 123.739 L70.344 122.94 L71.01 122.807 L73.14 124.405 L77.934 127.068 L99.771 136.655 L106.163 140.117 L106.562 139.984 L102.168 135.856 L96.309 131.329 L78.2 118.812 L74.206 115.35 L70.344 111.223 L66.083 105.097 L62.621 97.907 L60.757 90.983 L60.224 85.923 L60.358 82.861 L61.689 83.393 L67.814 89.518 L73.407 94.046 L96.842 110.557 L106.163 117.747 L106.695 118.013 L106.828 117.614 L102.301 112.554 L78.6 89.385 L71.409 80.597 L68.214 74.472 L65.817 66.216 L65.284 59.292 L65.551 59.026 L65.551 55.83 L66.483 51.969Z M167.014 89.385 L170.077 89.252 L174.87 90.584 L178.066 92.448 L180.995 95.643 L186.588 95.91 L189.784 96.709 L192.713 98.307 L195.509 101.369 L188.985 103.1 L183.659 106.03 L179.797 109.891 L177.4 114.152 L175.802 119.478 L175.802 137.054 L175.27 141.848 L174.205 146.642 L172.607 151.701 L169.145 159.424 L165.683 164.751 L162.487 168.745 L155.163 175.536 L148.239 180.063 L141.848 183.259 L135.989 185.656 L132.794 186.721 L131.728 186.721 L131.595 186.055 L134.791 180.729 L140.117 170.077 L141.715 166.082 L143.845 159.158 L145.177 150.37 L145.177 142.114 L144.378 136.256 L142.248 128.533 L140.916 125.071 L138.519 120.543 L138.519 119.478 L148.106 104.299 L145.044 103.366 L141.582 101.236 L139.584 98.972 L138.519 96.842 L144.511 96.709 L147.707 96.176 L151.968 94.845 L161.022 90.85 L164.218 89.785 L166.881 89.518Z";
 
 const STYLE = `
-  :host { all: initial; --kx-accent: ${SEFRA.accent}; }
+  :host {
+    all: initial;
+    --kx-accent: ${SEFRA.accent};
+    /* Card theme — overridden per-ad from the accent's brightness. */
+    --kx-surface: ${SEFRA.surface};
+    --kx-ink: ${SEFRA.ink};
+    --kx-muted: ${SEFRA.muted};
+    --kx-rule: ${SEFRA.rule};
+    --kx-shadow: rgba(15, 18, 22, 0.12);
+  }
   .line {
     position: fixed;
     z-index: 2147483646;
@@ -37,12 +60,12 @@ const STYLE = `
     gap: 9px;
     max-width: min(560px, calc(100vw - 48px));
     padding: 7px 12px;
-    background: ${SEFRA.surface};
-    border: 1px solid ${SEFRA.rule};
+    background: var(--kx-surface);
+    border: 1px solid var(--kx-rule);
     border-radius: 6px;
-    box-shadow: 0 2px 10px rgba(15, 18, 22, 0.12);
+    box-shadow: 0 2px 10px var(--kx-shadow);
     font: 500 13px/1.4 ${SEFRA.sans};
-    color: ${SEFRA.ink};
+    color: var(--kx-ink);
     cursor: pointer;
     white-space: nowrap;
     opacity: 0;
@@ -73,7 +96,7 @@ const STYLE = `
     color: var(--kx-accent);
   }
   .brand { flex: none; font-weight: 600; }
-  .copy { overflow: hidden; text-overflow: ellipsis; color: ${SEFRA.muted}; font-weight: 400; }
+  .copy { overflow: hidden; text-overflow: ellipsis; color: var(--kx-muted); font-weight: 400; }
   .arrow { flex: none; color: var(--kx-accent); }
   .earned {
     flex: none;
@@ -81,7 +104,7 @@ const STYLE = `
     color: ${SEFRA.positive};
     font-variant-numeric: tabular-nums;
     padding-left: 9px;
-    border-left: 1px solid ${SEFRA.rule};
+    border-left: 1px solid var(--kx-rule);
   }
 `;
 
@@ -237,6 +260,29 @@ export class AdView {
     if (!this.host.isConnected) this.doc.documentElement.appendChild(this.host);
   }
 
+  /**
+   * Pick a dark or white card from the accent's perceived brightness, so the
+   * accent (dot, tag, arrow, brand) always reads against the card. A bright
+   * accent (neon green, yellow) lands on a dark card; a dark accent (navy,
+   * maroon) lands on the default white card.
+   */
+  private applyTheme(accent: string): void {
+    const s = this.host.style;
+    if (isBright(accent)) {
+      s.setProperty("--kx-surface", "#14181C");
+      s.setProperty("--kx-ink", "#F4F4F1");
+      s.setProperty("--kx-muted", "#A6ABB2");
+      s.setProperty("--kx-rule", "rgba(255,255,255,0.14)");
+      s.setProperty("--kx-shadow", "rgba(0,0,0,0.45)");
+    } else {
+      s.setProperty("--kx-surface", SEFRA.surface);
+      s.setProperty("--kx-ink", SEFRA.ink);
+      s.setProperty("--kx-muted", SEFRA.muted);
+      s.setProperty("--kx-rule", SEFRA.rule);
+      s.setProperty("--kx-shadow", "rgba(15, 18, 22, 0.12)");
+    }
+  }
+
   /** Default Kolex/Sefra bird mark, in the active accent color. */
   private birdMark(color: string): SVGElement {
     const ns = "http://www.w3.org/2000/svg";
@@ -260,6 +306,7 @@ export class AdView {
     const hasLogo = !!ad.iconDataUrl && ad.iconDataUrl.startsWith("data:image/");
     const accent = ad.accent && /^#[0-9a-fA-F]{6}$/.test(ad.accent) ? ad.accent : SEFRA.accent;
     this.host.style.setProperty("--kx-accent", accent);
+    this.applyTheme(accent);
 
     this.markEl.replaceChildren();
     if (hasLogo) {

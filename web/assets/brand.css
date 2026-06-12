@@ -177,17 +177,20 @@ section { padding: 52px 0; }
 /* ── Ad preview line ── */
 .adline {
   display: inline-flex; align-items: center; gap: 9px;
-  padding: 9px 14px; background: #fff; border-radius: 10px;
-  box-shadow: 0 6px 26px rgba(0, 0, 0, 0.4); font: 600 13.5px var(--sans); color: #0f1216; white-space: nowrap;
+  padding: 9px 14px; border-radius: 10px;
+  box-shadow: 0 6px 26px rgba(0, 0, 0, 0.4); font: 600 13.5px var(--sans); white-space: nowrap;
   --a: var(--green);
+  /* Card theme — JS toggles .is-dark from the accent's brightness. */
+  background: #fff; color: #0f1216; --cp: #6b6f76;
 }
+.adline.is-dark { background: #14181c; color: #f4f4f1; --cp: #a6abb2; }
 .adline .mk { width: 20px; height: 20px; flex: none; display: inline-flex; align-items: center; justify-content: center; overflow: hidden; }
 .adline .mk svg, .adline .mk img { width: 20px !important; height: 20px !important; display: block; object-fit: contain; }
 .adline .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--a); flex: none; animation: pulse 1.1s ease-in-out infinite; }
 @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; transform: scale(0.8); } }
 .adline .tag { font: 700 10px var(--mono); letter-spacing: 1px; color: var(--a); }
 .adline .bn { font-weight: 800; }
-.adline .cp { color: #6b6f76; font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+.adline .cp { color: var(--cp); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
 .adline .ar { color: var(--a); font-weight: 700; }
 
 /* ── Live activity feed ── */

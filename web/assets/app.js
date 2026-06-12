@@ -41,6 +41,14 @@ export function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }
 
+/** Perceived brightness (YIQ) of a #rrggbb color. > 145 reads as "light". */
+export function isBright(hex) {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex || "");
+  if (!m) return false;
+  const n = parseInt(m[1], 16);
+  return (((n >> 16) & 0xff) * 299 + ((n >> 8) & 0xff) * 587 + (n & 0xff) * 114) / 1000 > 145;
+}
+
 /** Render an ad preview line. The mark is always pixel-sized (no giant bird). */
 export function renderAdline(el, { brand, text, iconDataUrl, accent }) {
   const a = /^#[0-9a-fA-F]{6}$/.test(accent || "") ? accent : "#16E0A3";
@@ -48,6 +56,8 @@ export function renderAdline(el, { brand, text, iconDataUrl, accent }) {
     ? `<span class="mk"><img src="${iconDataUrl}" alt="" width="20" height="20"></span>`
     : `<span class="mk">${bird(18, a)}</span>`;
   el.style.setProperty("--a", a);
+  // Bright accent → dark card, dark accent → white card (so the accent reads).
+  el.classList.toggle("is-dark", isBright(a));
   el.innerHTML =
     mark +
     '<span class="dot"></span><span class="tag">AD</span>' +
