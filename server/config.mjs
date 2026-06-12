@@ -42,6 +42,17 @@ export const config = {
 
   // Minimum payout the user must accrue before cashing out (USD).
   minPayoutUsd: Number(process.env.KOLEX_MIN_PAYOUT_USD) || 10,
+
+  // Transactional email (password resets). With a Resend API key, resets are
+  // actually emailed; without one, the link is logged + (in dev) returned in
+  // the API response so the flow is still testable.
+  email: {
+    provider: (process.env.KOLEX_EMAIL_PROVIDER || (process.env.RESEND_API_KEY ? "resend" : "none"))
+      .trim()
+      .toLowerCase(),
+    resendApiKey: process.env.RESEND_API_KEY?.trim() || "",
+    from: process.env.KOLEX_EMAIL_FROM?.trim() || "Kolex <onboarding@resend.dev>",
+  },
 };
 
 /** Resolve the public base URL, falling back to the request's own origin. */

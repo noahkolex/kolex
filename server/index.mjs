@@ -21,6 +21,7 @@ import {
   changePassword,
   newId,
 } from "./auth.mjs";
+import { sendEmail, passwordResetEmail } from "./mailer.mjs";
 import {
   createCheckout,
   verifyWebhook,
@@ -309,7 +310,7 @@ app.post("/api/auth", loginLimiter, (req, res) => {
 // registered). The reset link is logged server-side; outside production it is
 // also returned in the response so the flow is testable without an email
 // provider wired up.
-app.post("/api/auth/forgot", loginLimiter, (req, res) => {
+app.post("/api/auth/forgot", loginLimiter, async (req, res) => {
   const email = String(req.body?.email ?? "").toLowerCase().trim();
   const kind = req.body?.kind === "advertiser" ? "advertiser" : "user";
   const generic = { ok: true, message: "If that account exists, a reset link is on its way." };
@@ -317,9 +318,20 @@ app.post("/api/auth/forgot", loginLimiter, (req, res) => {
   const reset = createPasswordReset(kind, email);
   if (!reset) return res.json(generic); // unknown email: identical response
   const resetUrl = `${publicBase(req)}/reset?token=${reset.token}&kind=${kind}`;
-  // Server-side delivery point. Replace this log with a real email send.
-  console.log(`[kolex] password reset for ${email} (${kind}): ${resetUrl}`);
-  res.json(config.isProd ? generic : { ...generic, resetUrl });
+
+  // Actually email the link when a provider is configured; otherwise log it.
+  let delivered = false;
+  try {
+    const msg = passwordResetEmail(resetUrl);
+    ({ delivered } = await sendEmail({ to: email, ...msg }));
+  } catch (err) {
+    console.error(`[kolex] reset email failed for ${email}: ${err.message}`);
+  }
+  if (!delivered) console.log(`[kolex] password reset for ${email} (${kind}): ${resetUrl}`);
+
+  // Only surface the link in the response when it was NOT emailed and we're not
+  // in production — i.e. local/stub testing without an email provider.
+  res.json(!delivered && !config.isProd ? { ...generic, resetUrl } : generic);
 });
 
 // Complete a password reset with the token from the link. Logs the user in.

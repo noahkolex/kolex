@@ -165,6 +165,7 @@ keys to go live:
 | `STRIPE_CURRENCY`, `STRIPE_MODE` | `usd…`; `auto`/`stub`/`live` |
 | `STRIPE_ENABLE_PAYOUTS` | real user payouts (needs Stripe Connect) |
 | `KOLEX_MIN_PAYOUT_USD` | minimum balance before cash-out |
+| `RESEND_API_KEY`, `KOLEX_EMAIL_FROM` | send password-reset emails (Resend). Without a key, the link is logged + returned in dev |
 | `KOLEX_RATE_LIMIT` | force the per-IP limiter on/off (on by default in prod) |
 | `KOLEX_API_BASE`, `KOLEX_SITE_BASE` | **extension** build targets (see below) |
 
