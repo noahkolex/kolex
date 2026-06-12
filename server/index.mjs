@@ -757,6 +757,25 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
       process.exit(1);
     }
   }
+
+  // The #1 way to lose ALL data: deploy without a database. The JSON-file
+  // fallback lives on the platform's EPHEMERAL disk, which Railway wipes on
+  // every redeploy/restart — so advertisers, campaigns, earnings and payouts
+  // vanish. Scream about it instead of failing silently.
+  const onRailway = !!process.env.RAILWAY_PUBLIC_DOMAIN || !!process.env.RAILWAY_ENVIRONMENT;
+  if ((config.isProd || onRailway) && !process.env.DATABASE_URL?.trim()) {
+    console.warn(
+      "\n🛑  NO DATABASE_URL — storing data in an EPHEMERAL JSON file.\n" +
+        "   On Railway/production this file is WIPED on every redeploy and restart,\n" +
+        "   so your advertisers, campaigns, earnings and payouts WILL DISAPPEAR.\n" +
+        "   Fix: add a PostgreSQL database (Railway → New → Database → PostgreSQL).\n" +
+        "   DATABASE_URL is then injected automatically — nothing else to configure.\n",
+    );
+    if (/^(1|true|yes|on)$/i.test(process.env.KOLEX_REQUIRE_DB || "")) {
+      console.error("KOLEX_REQUIRE_DB is set but DATABASE_URL is missing. Exiting.");
+      process.exit(1);
+    }
+  }
   (async () => {
     await init(); // connect to Postgres (or load the file) before serving
     // Flush + close the store on shutdown so a redeploy/Ctrl-C never drops the
@@ -773,9 +792,13 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
       console.log(
         `kolex server on http://localhost:${config.port}  ·  Stripe: ${config.stripe.mode.toUpperCase()}  ·  ${settled} settled`,
       );
-      // So you can SEE where data lives and that it loaded across restarts.
+      // So you can SEE where data lives and whether it's durable.
+      const durable = !!process.env.DATABASE_URL?.trim();
       console.log(
-        `  data: ${dbPath()}  ·  ${s.advertisers} advertisers, ${s.campaigns} campaigns, ${s.users} users, ${s.earners} earning devices, ${s.payouts} payouts`,
+        `  data: ${dbPath()} ${durable ? "(durable)" : "(⚠️ ephemeral — set DATABASE_URL to persist across restarts)"}`,
+      );
+      console.log(
+        `        ${s.advertisers} advertisers, ${s.campaigns} campaigns, ${s.users} users, ${s.earners} earning devices, ${s.payouts} payouts`,
       );
     });
   })().catch((err) => {
