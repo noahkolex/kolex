@@ -132,17 +132,19 @@ function placementTick(): void {
     return;
   }
 
-  const anchor = suppressor.findAnchor();
-  if (anchor) {
-    // Capture the rect ONCE per indicator, before hiding it, so the line
-    // stays put instead of drifting as the response streams.
-    if (anchor !== pinnedAnchor) {
-      const r = anchor.getBoundingClientRect();
+  // Hide the entire live indicator cluster (so no native spinner shows) and
+  // anchor to its left-most element.
+  const cluster = suppressor.hideCluster();
+  const lead = cluster[0] ?? null;
+  if (lead) {
+    // Capture the rect ONCE per indicator, so the line stays put instead of
+    // drifting as the response streams.
+    if (lead !== pinnedAnchor) {
+      const r = lead.getBoundingClientRect();
       pinnedRect = { left: r.left, top: r.top, width: r.width, height: r.height };
-      pinnedAnchor = anchor;
+      pinnedAnchor = lead;
     }
-    suppressor.hide(anchor);
-  } else {
+  } else if (!pinnedAnchor || !pinnedAnchor.isConnected) {
     pinnedAnchor = null;
     pinnedRect = null;
   }

@@ -117,9 +117,9 @@ export function placeLine(
   composerTop: number,
 ): { left: number; top: number } {
   const margin = 12;
-  const gap = 14;
-  const floor = composerTop > 0 && composerTop <= vh ? composerTop : vh;
-  const maxTop = floor - gap - lineH; // bottom stays gap above the composer
+  const gap = 28; // clearance kept above the composer / input
+  const floor = composerTop > 0 && composerTop <= vh ? composerTop : vh - 32;
+  const maxTop = floor - gap - lineH; // bottom stays a clear gap above the composer
 
   let left = anchor ? anchor.left : (vw - lineW) / 2;
   let top = anchor ? anchor.top + anchor.height / 2 - lineH / 2 : maxTop;
@@ -288,23 +288,28 @@ type StyledElement = Element & ElementCSSInlineStyle;
 /** Indicators are small; anything bigger is content, not a spinner. */
 const MAX_INDICATOR_PX = 160;
 
+/** Indicators in the same wait cluster sit within this band vertically. */
+const CLUSTER_BAND_PX = 140;
+
 /**
- * Finds the native loading indicator and hides it (visibility:hidden, so its
- * box is preserved and the page doesn't reflow), then the sponsored line is
- * pinned over its rect. Restored exactly when serving stops. Pure inline
- * styles — the page's DOM is never mutated structurally.
+ * Finds the native loading indicator(s) and hides them (visibility:hidden,
+ * so the box and page layout are preserved), then the sponsored line is
+ * placed at the cluster's left edge. Restored exactly when serving stops.
+ * Pure inline styles — the page's DOM is never mutated structurally.
  *
- * Anchor discovery, in order:
- * 1. Configured spinner selectors (remotely updatable).
- * 2. Animation heuristic gathering candidates from three sources:
- *    - CSS / Web Animations targets (`getAnimations()`)
- *    - SVG SMIL spinners (`<animate*>` children) — invisible to
- *      getAnimations(); this is the bare rotating starburst on claude.ai
- *    - infinite-CSS small elements in <main>
- *    filtered to small, square-ish, visible elements outside the composer
- *    and toolbar buttons; last-in-document-order, in-<main> wins.
+ * The key correctness point: a wait state can render *several* animated
+ * nodes next to each other (a starburst SVG plus an empty streaming-text
+ * placeholder). Picking one and hiding it leaves the visible spinner on
+ * screen. So we gather the whole cluster near the newest indicator and hide
+ * all of it, anchoring the ad to the cluster's left edge.
  *
- * Once hidden, an anchor stays the anchor while it remains in the DOM.
+ * Candidates come from three sources so any spinner implementation is found:
+ *  - CSS / Web Animations targets (`getAnimations()`)
+ *  - SVG SMIL spinners (`<animate*>` children) — invisible to
+ *    getAnimations(); the bare rotating starburst on claude.ai
+ *  - infinite-CSS small elements in <main>
+ * filtered to small, square-ish, visible elements outside the composer and
+ * toolbar buttons.
  */
 export class SpinnerSuppressor {
   private hidden = new Set<StyledElement>();
@@ -314,27 +319,66 @@ export class SpinnerSuppressor {
     private selectors: string[],
   ) {}
 
-  /** The element the sponsored line should replace, if one is on screen. */
+  /** Left-most element of the live indicator cluster — where the ad sits. */
   findAnchor(): StyledElement | null {
-    for (const el of this.hidden) if (el.isConnected) return el;
+    const cluster = this.cluster();
+    if (cluster.length === 0) {
+      for (const el of this.hidden) if (el.isConnected) return el;
+      return null;
+    }
+    return cluster[0] ?? null;
+  }
 
+  /**
+   * Hide the whole live indicator cluster (so no native spinner shows) and
+   * return it, left-most first. Idempotent; safe to call every tick.
+   */
+  hideCluster(): StyledElement[] {
+    const cluster = this.cluster();
+    for (const el of cluster) this.hide(el);
+    // Re-assert on anything we hid earlier that's still around (React may
+    // re-render the node; keep the previous one hidden too).
+    for (const el of this.hidden) {
+      if (el.isConnected) el.style.setProperty("visibility", "hidden", "important");
+    }
+    return cluster;
+  }
+
+  /**
+   * The live indicator cluster: candidates within a vertical band of the
+   * newest (lowest) one, sorted left-most first.
+   */
+  private cluster(): StyledElement[] {
+    const all = this.candidates();
+    if (all.length === 0) return [];
+    const rect = (el: StyledElement) => el.getBoundingClientRect();
+    const newestTop = Math.max(...all.map((el) => rect(el).top));
+    return all
+      .filter((el) => Math.abs(rect(el).top - newestTop) <= CLUSTER_BAND_PX)
+      .sort((a, b) => rect(a).left - rect(b).left);
+  }
+
+  /** All plausible indicator elements right now (configured + heuristic). */
+  private candidates(): StyledElement[] {
+    const out = new Set<StyledElement>();
+
+    // Configured selectors are trusted (author/remote-curated): include them
+    // without the size/shape filter, but never the composer or our own ad.
     for (const sel of this.selectors) {
-      let node: Element | null;
+      let nodes: NodeListOf<Element>;
       try {
-        node = this.doc.querySelector(sel);
+        nodes = this.doc.querySelectorAll(sel);
       } catch {
         continue;
       }
-      const el = node as StyledElement | null;
-      if (el && typeof el.style?.setProperty === "function") return el;
+      for (const node of nodes) {
+        const el = node as StyledElement;
+        if (typeof el.style?.setProperty === "function" && this.isSafe(el)) out.add(el);
+      }
     }
 
-    return this.findAnimatedIndicator();
-  }
-
-  private findAnimatedIndicator(): StyledElement | null {
     const main = this.doc.querySelector("main");
-    const candidates = new Set<StyledElement>();
+    const animated = new Set<StyledElement>();
 
     const doc = this.doc as Document & { getAnimations?: () => Animation[] };
     if (typeof doc.getAnimations === "function") {
@@ -343,7 +387,7 @@ export class SpinnerSuppressor {
           const effect = anim.effect as KeyframeEffect | null;
           if (effect?.getTiming?.()?.iterations !== Infinity) continue;
           const el = this.drawableRoot(effect.target as Element | null);
-          if (el) candidates.add(el);
+          if (el) animated.add(el);
         }
       } catch {
         // fall through to structural scan
@@ -359,26 +403,18 @@ export class SpinnerSuppressor {
     }
     for (const node of nodes) {
       const el = node as StyledElement;
-      if (typeof el.style?.setProperty !== "function") continue;
-      if (this.isAnimating(el)) candidates.add(el);
+      if (typeof el.style?.setProperty === "function" && this.isAnimating(el)) animated.add(el);
     }
 
-    let best: StyledElement | null = null;
-    let bestInMain = false;
-    for (const el of candidates) {
-      if (!this.isPlausibleIndicator(el)) continue;
-      const inMain = main !== null && main.contains(el);
-      if (bestInMain && !inMain) continue;
-      if (
-        !best ||
-        (inMain && !bestInMain) ||
-        !!(best.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING)
-      ) {
-        best = el;
-        bestInMain = inMain;
-      }
-    }
-    return best;
+    const plausibleAnimated = [...animated].filter((el) => this.isPlausibleIndicator(el));
+    // Prefer in-<main> candidates so page chrome (sidebar dots) never wins.
+    const inMain = plausibleAnimated.filter((el) => main !== null && main.contains(el));
+    for (const el of inMain.length > 0 ? inMain : plausibleAnimated) out.add(el);
+
+    // Keep already-hidden nodes in the set so the cluster/anchor is stable.
+    for (const el of this.hidden) if (el.isConnected) out.add(el);
+
+    return [...out];
   }
 
   /** Climb out of SVG internals so we anchor at the drawable root. */
@@ -414,12 +450,19 @@ export class SpinnerSuppressor {
     return false;
   }
 
-  private isPlausibleIndicator(el: StyledElement): boolean {
+  /** Never hide our own ad, the composer, or an interactive control. */
+  private isSafe(el: StyledElement): boolean {
     if (el.localName === "kolex-ad") return false;
     if ((el.getRootNode() as ShadowRoot).host?.localName === "kolex-ad") return false;
     if (el.closest?.("form, textarea, [contenteditable], button, [role='button'], a, kolex-ad")) {
       return false;
     }
+    return true;
+  }
+
+  /** A small, square-ish, visible element that reads as a spinner. */
+  private isPlausibleIndicator(el: StyledElement): boolean {
+    if (!this.isSafe(el)) return false;
     const rect = el.getBoundingClientRect();
     if (rect.width <= 0 || rect.height <= 0) return false;
     if (rect.width > MAX_INDICATOR_PX || rect.height > MAX_INDICATOR_PX) return false;

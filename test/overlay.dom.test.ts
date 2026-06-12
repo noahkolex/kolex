@@ -35,7 +35,7 @@ test("placeLine never lets the line cross into the composer/input", () => {
 test("placeLine docks just above the composer when there is no anchor", () => {
   const p = placeLine(null, 300, 40, 1024, 768, 600);
   assert.equal(p.left, (1024 - 300) / 2, "centered horizontally");
-  assert.equal(p.top, 600 - 14 - 40, "sits a gap above the composer");
+  assert.equal(p.top, 600 - 28 - 40, "sits a clear gap above the composer");
 });
 
 test("placeLine clamps a wide line inside the viewport", () => {
@@ -220,6 +220,36 @@ test("standalone SMIL starburst is found with no animation API and no text", () 
   const anchor = suppressor.findAnchor();
   assert.equal(anchor, star, "the SMIL-animated starburst is the anchor");
   assert.notEqual(anchor, toolbarIcon, "the toolbar button icon is never picked");
+});
+
+test("hideCluster hides EVERY live indicator, not just one, and anchors left", () => {
+  // The claude.ai bug: a visible starburst plus an empty streaming-text
+  // placeholder animate side by side. Hiding one leaves the other on screen.
+  const dom = new JSDOM(
+    `<!doctype html><html><body><main>
+      <div class="msg">previous answer</div>
+      <div id="star"></div>
+      <div id="placeholder"></div>
+    </main></body></html>`,
+  );
+  const doc = dom.window.document;
+  const star = doc.querySelector<HTMLElement>("#star")!;
+  const ph = doc.querySelector<HTMLElement>("#placeholder")!;
+  star.getBoundingClientRect = () => ({ left: 200, top: 300, width: 34, height: 34, right: 234, bottom: 334, x: 200, y: 300 }) as DOMRect;
+  ph.getBoundingClientRect = () => ({ left: 260, top: 304, width: 20, height: 20, right: 280, bottom: 324, x: 260, y: 304 }) as DOMRect;
+  (doc as unknown as { getAnimations: () => Animation[] }).getAnimations = () => [
+    loopingAnim(star),
+    loopingAnim(ph),
+  ];
+
+  const suppressor = new SpinnerSuppressor(doc, []);
+  const cluster = suppressor.hideCluster();
+
+  assert.equal(cluster.length, 2, "both nodes in the cluster");
+  assert.equal(cluster[0], star, "anchor is the left-most (the visible starburst)");
+  assert.equal(star.style.getPropertyValue("visibility"), "hidden", "starburst hidden");
+  assert.equal(ph.style.getPropertyValue("visibility"), "hidden", "placeholder hidden too");
+  assert.equal(suppressor.findAnchor(), star);
 });
 
 test("collapsed anchor stays the anchor even after its animation stops", () => {

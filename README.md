@@ -29,13 +29,16 @@ Geist + Geist Mono, square 4px corners, and the Sefra bird mark.
    (model streaming or thinking), using a remotely updatable selector set.
 2. While a wait state is on screen **and the tab is visible**, it pings the
    service worker once a second. Five contiguous seconds = one impression.
-3. A separate 250ms placement loop hides the native loading indicator
-   (`visibility:hidden`, so its box and the page layout are preserved, fully
-   restored the moment serving stops) and shows the sponsored line where it
-   was. The indicator's position is **captured once** (so the line stays put
-   instead of crawling as text streams) and the line is **always clamped a
+3. A separate 250ms placement loop hides the native loading indicator and
+   shows the sponsored line where it was. A wait state can render several
+   animated nodes next to each other (a starburst plus an empty
+   streaming-text placeholder), so it hides the **whole cluster** of live
+   indicators near the newest one (`visibility:hidden`, box and layout
+   preserved, fully restored when serving stops) and anchors the line to the
+   cluster's left edge. The position is **captured once** (so the line stays
+   put instead of crawling as text streams) and is **always clamped a clear
    gap above the composer**, so it can never cover the input box or any text
-   being typed. The indicator is found by configured selectors
+   being typed. The cluster is found by configured selectors
    first, then by a **selector-free animation heuristic** that catches it
    regardless of markup: CSS/Web-Animation targets, **SVG SMIL spinners**
    (`<animateTransform>`, which `getAnimations()` can't see — this is the
