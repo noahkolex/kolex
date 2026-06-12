@@ -22,6 +22,7 @@ import {
   newId,
 } from "./auth.mjs";
 import { sendEmail, passwordResetEmail } from "./mailer.mjs";
+import { capture, publicAnalyticsConfig } from "./analytics.mjs";
 import {
   createCheckout,
   verifyWebhook,
@@ -215,6 +216,10 @@ function anonEmail(email) {
 
 app.get("/api/stripe-config", (_req, res) => res.json(stripeStatus()));
 
+// Public PostHog config so the website + extension can capture to the same
+// project. Null key → analytics disabled everywhere.
+app.get("/api/analytics-config", (_req, res) => res.json(publicAnalyticsConfig()));
+
 // Real activity + totals (no fabricated data). Empty on a fresh deployment.
 app.get("/api/activity", (_req, res) => {
   const db = load();
@@ -321,6 +326,10 @@ app.post("/api/ads", adsLimiter, async (req, res) => {
   }
   campaign.payment.checkoutId = checkout.id;
   await save();
+  capture("campaign_created", {
+    distinctId: advertiser.email,
+    properties: { brand: campaign.brand, amountUsd, bidPerBlock, blocks, campaignId: campaign.id },
+  });
 
   res.json({
     campaign,
@@ -361,6 +370,7 @@ app.post("/api/auth", loginLimiter, (req, res) => {
   } catch (e) {
     return res.status(e.status || 400).json({ error: e.error || "Authentication failed." });
   }
+  capture(result.created ? "account_created" : "signed_in", { distinctId: email, properties: { kind } });
   res.json({ token: createSession(kind, result.account), email, kind, created: result.created });
 });
 
@@ -494,6 +504,12 @@ app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
         me.payoutsReady = st.payoutsEnabled;
         await save();
       }
+      if (!st.payoutsEnabled && (st.requirements?.length || st.disabledReason)) {
+        capture("payouts_restricted", {
+          distinctId: me.email,
+          properties: { requirements: st.requirements, disabledReason: st.disabledReason },
+        });
+      }
     } catch {
       /* Stripe unreachable: keep the stored flag, no requirement detail. */
     }
@@ -546,6 +562,7 @@ app.post("/api/portal/connect", requireKind("user"), async (req, res) => {
       returnUrl: `${base}/portal?connected=1`,
       refreshUrl: `${base}/portal?connect=retry`,
     });
+    capture("payout_connect_started", { distinctId: me.email });
     res.json({ url: link.url });
   } catch (err) {
     res.status(502).json({ error: `Couldn't start payout setup: ${err.message}` });
@@ -672,6 +689,10 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
     };
     db.payouts.push(payout);
     await save();
+    capture("payout", {
+      distinctId: req.session.email,
+      properties: { amountUsd: total, status: result.status, payoutId: payout.id },
+    });
     res.json({
       ok: true,
       paidUsd: result.status === "paid" ? total : 0,
@@ -716,6 +737,11 @@ function applyStripeEvent(event) {
           checkoutId: obj.id ?? campaign.payment?.checkoutId ?? null,
           paidAt: Date.now(),
         };
+        const adv = db.advertisers.find((a) => a.id === campaign.advertiserId);
+        capture("campaign_activated", {
+          distinctId: adv?.email,
+          properties: { brand: campaign.brand, amountUsd: campaign.payment?.amountUsd, campaignId: campaign.id },
+        });
       }
     }
   }

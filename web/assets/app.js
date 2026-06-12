@@ -37,6 +37,54 @@ export const store = {
 
 export const qp = (name) => new URLSearchParams(location.search).get(name);
 
+// ─────────────────────────── Analytics (PostHog) ───────────────────────────
+// Thin, env-gated capture. Fetches the public config once; with no key it's a
+// no-op. distinct_id is a stable anonymous id in localStorage. Never throws.
+let _phCfg; // undefined = unknown, null = disabled, {key,host} = enabled
+async function phCfg() {
+  if (_phCfg !== undefined) return _phCfg;
+  try {
+    const c = await api("/api/analytics-config");
+    _phCfg = c && c.key ? c : null;
+  } catch {
+    _phCfg = null;
+  }
+  return _phCfg;
+}
+function anonId() {
+  let id = store.get("anon");
+  if (!id) {
+    id = (crypto.randomUUID && crypto.randomUUID()) || `a-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+    store.set("anon", id);
+  }
+  return id;
+}
+export async function track(event, properties = {}) {
+  const cfg = await phCfg();
+  if (!cfg) return;
+  try {
+    await fetch(`${cfg.host}/capture/`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      keepalive: true,
+      body: JSON.stringify({
+        api_key: cfg.key,
+        event,
+        distinct_id: anonId(),
+        properties: { source: "web", $current_url: location.href, path: location.pathname, ...properties },
+      }),
+    });
+  } catch {
+    /* analytics must never break the page */
+  }
+}
+/** Tie the anonymous id to a known person (e.g. after login). */
+export async function identify(email) {
+  if (email) await track("$identify", { $set: { email } });
+}
+// Auto pageview on every page load.
+track("$pageview");
+
 export function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 }

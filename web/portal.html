@@ -65,7 +65,7 @@
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, store, qp, chaching, coinBurst, ding, animateCount, escapeHtml } from "/assets/app.js";
+    import { api, money, num, mountNav, store, qp, chaching, coinBurst, ding, animateCount, escapeHtml, track } from "/assets/app.js";
     mountNav("/portal");
 
     const $ = (id) => document.getElementById(id);
@@ -178,6 +178,7 @@
     }
 
     async function startConnect() {
+      track("payout_setup_click");
       try {
         const r = await api("/api/portal/connect", { method: "POST", token: store.get("usrToken") });
         location.href = r.url; // Stripe Connect onboarding (or the mock page in stub mode)
@@ -202,6 +203,7 @@
 
     $("payout").addEventListener("click", async () => {
       const token = store.get("usrToken");
+      track("withdraw_click");
       $("payout").disabled = true;
       let resultNote = null;
       try {

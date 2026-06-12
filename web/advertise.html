@@ -96,7 +96,7 @@
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertiser">Advertiser login</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, renderAdline, store } from "/assets/app.js";
+    import { api, money, num, mountNav, renderAdline, store, track } from "/assets/app.js";
     mountNav("/advertise");
 
     const $ = (id) => document.getElementById(id);
@@ -152,6 +152,7 @@
         store.set("advToken", res.token);
         store.set("advEmail", $("email").value.toLowerCase().trim());
         if (!res.checkoutUrl) throw new Error("Could not start checkout. Please try again.");
+        track("advertise_checkout_started", { brand: $("brand").value, bidPerBlock: Number($("bid").value) });
         // Off to Stripe Checkout (or the mock checkout in test mode). The
         // campaign goes live once payment completes.
         location.href = res.checkoutUrl;

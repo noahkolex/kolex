@@ -150,6 +150,41 @@ async function flushLedger(): Promise<Balance | null> {
 /** Total earned on this device, server-truth: $pending + $already-paid. */
 const earnedUsd = (b: Balance | null) => (b ? b.pendingUsd + b.settledUsd : 0);
 
+// ─── Analytics (PostHog) — env-gated, fetched from the site; no-op without a key ───
+type PhCfg = { key: string | null; host: string };
+let phCfg: PhCfg | null | undefined;
+async function analyticsCfg(): Promise<PhCfg | null> {
+  if (phCfg !== undefined) return phCfg;
+  try {
+    const { site } = await bases();
+    const r = await fetch(`${site}/api/analytics-config`, { signal: AbortSignal.timeout(4_000) });
+    const c = (await r.json()) as PhCfg;
+    phCfg = c && c.key ? c : null;
+  } catch {
+    phCfg = null;
+  }
+  return phCfg;
+}
+async function track(event: string, properties: Record<string, unknown> = {}): Promise<void> {
+  const cfg = await analyticsCfg();
+  if (!cfg) return;
+  try {
+    const s = await settings();
+    await fetch(`${cfg.host}/capture/`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        api_key: cfg.key,
+        event,
+        distinct_id: s.deviceId,
+        properties: { source: "extension", ...properties },
+      }),
+    });
+  } catch {
+    /* analytics must never break the worker */
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   // 3 min so a freshly-paid campaign appears quickly (the popup also pulls a
   // fresh copy on open, below).
@@ -203,6 +238,7 @@ async function handle(req: KolexRequest): Promise<unknown> {
         : `${site}/r/${encodeURIComponent(req.adId)}?d=${encodeURIComponent(s.deviceId)}`;
       await chrome.tabs.create({ url, active: true });
       void flushLedger();
+      void track("ad_clicked", { adId: req.adId, surface: req.surface, house: !!ad?.house });
       return { ok: true };
     }
 
@@ -246,6 +282,7 @@ async function handle(req: KolexRequest): Promise<unknown> {
     case "kolex:grant-consent":
       await saveSettings({ consent: true });
       void refreshRemoteConfig();
+      void track("extension_consent_granted");
       return { ok: true };
 
     case "kolex:open-page": {
@@ -255,6 +292,7 @@ async function handle(req: KolexRequest): Promise<unknown> {
       const path = req.page === "home" ? "/" : `/${req.page}`;
       const url = `${site}${path}?device=${encodeURIComponent(s.deviceId)}&connect=1`;
       await chrome.tabs.create({ url, active: true });
+      void track("extension_open_portal", { page: req.page });
       return { ok: true };
     }
 

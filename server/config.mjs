@@ -43,6 +43,13 @@ export const config = {
   // Minimum payout the user must accrue before cashing out (USD).
   minPayoutUsd: Number(process.env.KOLEX_MIN_PAYOUT_USD) || 10,
 
+  // PostHog analytics (optional). The project API key (phc_…) is safe to expose
+  // to the browser/extension, so the same key powers server + client capture.
+  posthog: {
+    key: process.env.POSTHOG_KEY?.trim() || "",
+    host: (process.env.POSTHOG_HOST?.trim() || "https://us.i.posthog.com").replace(/\/$/, ""),
+  },
+
   // Transactional email (password resets). With a Resend API key, resets are
   // actually emailed; without one, the link is logged + (in dev) returned in
   // the API response so the flow is still testable.
