@@ -139,13 +139,15 @@
         return;
       }
       if (empty) empty.style.display = "none";
-      const fresh = recent.filter((e) => !seen.has(keyOf(e)));
+      // Show only the 3 newest — newest on top, the oldest falls off the bottom.
+      const shown = recent.slice(0, 3);
+      const fresh = shown.filter((e) => !seen.has(keyOf(e)));
       // Only touch the DOM when something actually changed — re-rendering
       // identical (stale) data every poll is what caused the flicker.
       if (!firstLoad && fresh.length === 0) return;
-      for (const e of recent) seen.add(keyOf(e));
+      for (const e of shown) seen.add(keyOf(e));
       feed.querySelectorAll(".feed-item:not(#feed-empty)").forEach((n) => n.remove());
-      for (const e of recent) feed.appendChild(itemEl(e, fresh.includes(e)));
+      for (const e of shown) feed.appendChild(itemEl(e, fresh.includes(e)));
       if (!firstLoad && fresh.length) ding();
     }
     const keyOf = (e) => `${e.type}:${e.brand || ""}:${e.amountUsd || ""}:${e.at}`;
