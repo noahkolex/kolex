@@ -165,11 +165,12 @@ section { padding: 52px 0; }
 /* ── Forms ── */
 .field { margin-bottom: 16px; }
 .field label { display: block; font: 600 12px var(--mono); letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); margin-bottom: 7px; }
-.field input, .field textarea {
+.field input, .field textarea, .field select {
   width: 100%; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px;
   background: var(--bg2); color: var(--ink); font: 500 15px var(--sans);
 }
-.field input:focus, .field textarea:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(22, 224, 163, 0.15); }
+.field select { appearance: none; cursor: pointer; }
+.field input:focus, .field textarea:focus, .field select:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(22, 224, 163, 0.15); }
 .field .hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .input-money { position: relative; }
 .input-money::before { content: "$"; position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--green); font: 700 15px var(--mono); pointer-events: none; }

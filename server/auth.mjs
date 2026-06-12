@@ -85,6 +85,75 @@ export function sessionFromReq(req) {
   return s;
 }
 
+// ── Password reset (token-based, no email dependency) ──
+const RESET_TTL_MS = 60 * 60 * 1000; // 1 hour
+const sha256 = (s) => crypto.createHash("sha256").update(String(s)).digest("hex");
+
+function accountById(kind, accountId) {
+  const db = load();
+  return db[collection(kind)].find((x) => x.id === accountId) || null;
+}
+
+/** Invalidate every active session for an account (used after a reset). */
+function dropSessionsFor(kind, accountId) {
+  const db = load();
+  for (const [t, s] of Object.entries(db.sessions)) {
+    if (s.kind === kind && s.id === accountId) delete db.sessions[t];
+  }
+}
+
+/**
+ * Begin a reset. Returns the RAW token (deliver it out of band) if the account
+ * exists, else null. The token is stored hashed, so a DB leak can't be replayed.
+ * Callers must respond identically whether or not an account was found, so the
+ * endpoint never reveals which emails are registered.
+ */
+export function createPasswordReset(kind, email) {
+  const account = findAccount(kind, email);
+  if (!account) return null;
+  const db = load();
+  const raw = token();
+  // One outstanding reset per account: clear any older ones first.
+  for (const [h, r] of Object.entries(db.passwordResets)) {
+    if (r.kind === kind && r.accountId === account.id) delete db.passwordResets[h];
+  }
+  db.passwordResets[sha256(raw)] = {
+    kind,
+    accountId: account.id,
+    email: account.email,
+    createdAt: Date.now(),
+  };
+  save();
+  return { token: raw, account };
+}
+
+/**
+ * Finish a reset: set the new password, consume the token (single use),
+ * invalidate old sessions, and return the account. Throws { status, error }.
+ */
+export function consumePasswordReset(rawToken, newPassword) {
+  const db = load();
+  const h = sha256(rawToken);
+  const record = db.passwordResets[h];
+  if (!record) throw { status: 400, error: "This reset link is invalid or has already been used." };
+  if (Date.now() - record.createdAt > RESET_TTL_MS) {
+    delete db.passwordResets[h];
+    save();
+    throw { status: 400, error: "This reset link has expired. Request a new one." };
+  }
+  const account = accountById(record.kind, record.accountId);
+  if (!account) {
+    delete db.passwordResets[h];
+    save();
+    throw { status: 400, error: "Account no longer exists." };
+  }
+  account.passwordHash = hashPassword(newPassword);
+  delete db.passwordResets[h];
+  dropSessionsFor(record.kind, record.accountId);
+  save();
+  return { account, kind: record.kind };
+}
+
 export function requireKind(kind) {
   return (req, res, next) => {
     const s = sessionFromReq(req);

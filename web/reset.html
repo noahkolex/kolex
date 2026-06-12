@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reset your password · Kolex</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+</head>
+<body>
+  <header class="nav" data-nav></header>
+
+  <main class="wrap narrow" style="padding-top:40px;padding-bottom:60px">
+    <div style="max-width:420px;margin:30px auto">
+      <span class="eyebrow">Account recovery</span>
+
+      <!-- STEP 1: request a reset link (no token in the URL) -->
+      <div id="request">
+        <h1 style="font-size:28px;font-weight:600;letter-spacing:-.02em;margin:12px 0 6px">Forgot your password?</h1>
+        <p class="muted" style="margin-top:0">Enter your email and we'll send a link to set a new one.</p>
+        <div id="req-err" class="errors hide"></div>
+        <div class="field">
+          <label>I'm a</label>
+          <select id="kind">
+            <option value="user">Earner (cashing out)</option>
+            <option value="advertiser">Advertiser</option>
+          </select>
+        </div>
+        <div class="field"><label>Email</label><input type="email" id="req-email" placeholder="you@email.com" /></div>
+        <button class="btn btn-primary btn-lg" id="req-send" style="width:100%;justify-content:center">Send reset link</button>
+        <p class="center muted" style="margin-top:14px;font-size:13px">Remembered it? <a href="/portal">Back to sign in</a></p>
+
+        <div id="req-done" class="success hide" style="margin-top:18px;padding:14px 16px;font-size:14px">
+          If that account exists, a reset link is on its way. Check your inbox.
+          <div id="dev-link" class="hide" style="margin-top:10px;font-size:13px"></div>
+        </div>
+      </div>
+
+      <!-- STEP 2: set a new password (token present in the URL) -->
+      <div id="set" class="hide">
+        <h1 style="font-size:28px;font-weight:600;letter-spacing:-.02em;margin:12px 0 6px">Set a new password.</h1>
+        <p class="muted" style="margin-top:0">Pick something at least 8 characters long.</p>
+        <div id="set-err" class="errors hide"></div>
+        <div class="field"><label>New password</label><input type="password" id="pw1" placeholder="At least 8 characters" autocomplete="new-password" /></div>
+        <div class="field"><label>Confirm password</label><input type="password" id="pw2" placeholder="Type it again" autocomplete="new-password" /></div>
+        <button class="btn btn-primary btn-lg" id="set-save" style="width:100%;justify-content:center">Save & sign in</button>
+      </div>
+    </div>
+  </main>
+
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/privacy">Privacy</a></div></footer>
+
+  <script type="module">
+    import { api, mountNav, store, qp, escapeHtml } from "/assets/app.js";
+    mountNav();
+
+    const $ = (id) => document.getElementById(id);
+    const token = qp("token");
+    const kindParam = qp("kind") === "advertiser" ? "advertiser" : "user";
+
+    const storeKey = (kind) => (kind === "advertiser" ? "advToken" : "usrToken");
+    const homeFor = (kind) => (kind === "advertiser" ? "/advertiser" : "/portal");
+
+    if (token) {
+      // STEP 2 — the user clicked a reset link.
+      $("request").classList.add("hide");
+      $("set").classList.remove("hide");
+
+      async function save() {
+        $("set-err").classList.add("hide");
+        const pw1 = $("pw1").value, pw2 = $("pw2").value;
+        if (pw1 !== pw2) { showErr("set-err", "Those passwords don't match."); return; }
+        try {
+          const res = await api("/api/auth/reset", { method: "POST", body: { token, password: pw1 } });
+          store.set(storeKey(res.kind), res.token);
+          location.href = homeFor(res.kind);
+        } catch (e) {
+          showErr("set-err", e.message);
+        }
+      }
+      $("set-save").addEventListener("click", save);
+      $("pw2").addEventListener("keydown", (e) => { if (e.key === "Enter") save(); });
+    } else {
+      // STEP 1 — request a reset link.
+      $("kind").value = kindParam;
+      const presetEmail = qp("email");
+      if (presetEmail) $("req-email").value = presetEmail;
+
+      async function send() {
+        $("req-err").classList.add("hide");
+        const email = $("req-email").value.trim();
+        const kind = $("kind").value;
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { showErr("req-err", "Enter a valid email."); return; }
+        try {
+          const res = await api("/api/auth/forgot", { method: "POST", body: { email, kind } });
+          $("req-done").classList.remove("hide");
+          // Dev/stub convenience: the server returns the link when not in production.
+          if (res.resetUrl) {
+            $("dev-link").classList.remove("hide");
+            $("dev-link").innerHTML = `<b>Test mode:</b> <a href="${escapeHtml(res.resetUrl)}">open your reset link →</a>`;
+          }
+        } catch (e) {
+          showErr("req-err", e.message);
+        }
+      }
+      $("req-send").addEventListener("click", send);
+      $("req-email").addEventListener("keydown", (e) => { if (e.key === "Enter") send(); });
+    }
+
+    function showErr(id, msg) { const e = $(id); e.textContent = msg; e.classList.remove("hide"); }
+  </script>
+</body>
+</html>

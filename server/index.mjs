@@ -16,6 +16,8 @@ import {
   createSession,
   sessionFromReq,
   requireKind,
+  createPasswordReset,
+  consumePasswordReset,
   newId,
 } from "./auth.mjs";
 import {
@@ -287,6 +289,41 @@ app.post("/api/auth", loginLimiter, (req, res) => {
   res.json({ token: createSession(kind, result.account), email, kind, created: result.created });
 });
 
+// Request a password reset. Always 200 (never reveals whether the email is
+// registered). The reset link is logged server-side; outside production it is
+// also returned in the response so the flow is testable without an email
+// provider wired up.
+app.post("/api/auth/forgot", loginLimiter, (req, res) => {
+  const email = String(req.body?.email ?? "").toLowerCase().trim();
+  const kind = req.body?.kind === "advertiser" ? "advertiser" : "user";
+  const generic = { ok: true, message: "If that account exists, a reset link is on its way." };
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.json(generic);
+  const reset = createPasswordReset(kind, email);
+  if (!reset) return res.json(generic); // unknown email: identical response
+  const resetUrl = `${publicBase(req)}/reset?token=${reset.token}&kind=${kind}`;
+  // Server-side delivery point. Replace this log with a real email send.
+  console.log(`[kolex] password reset for ${email} (${kind}): ${resetUrl}`);
+  res.json(config.isProd ? generic : { ...generic, resetUrl });
+});
+
+// Complete a password reset with the token from the link. Logs the user in.
+app.post("/api/auth/reset", loginLimiter, (req, res) => {
+  const tokenStr = String(req.body?.token ?? "");
+  const password = String(req.body?.password ?? "");
+  if (!tokenStr) return res.status(400).json({ error: "Missing reset token." });
+  const pwErr = validatePassword(password);
+  if (pwErr) return res.status(400).json({ error: pwErr });
+  let out;
+  try {
+    out = consumePasswordReset(tokenStr, password);
+  } catch (e) {
+    return res.status(e.status || 400).json({ error: e.error || "Reset failed." });
+  }
+  // Auto-login with a fresh session so the user lands signed in.
+  const token = createSession(out.kind, out.account);
+  res.json({ token, email: out.account.email, kind: out.kind });
+});
+
 // Validate a session (frontend uses this to know who is logged in).
 app.get("/api/me", (req, res) => {
   const s = sessionFromReq(req);
@@ -493,6 +530,7 @@ const PAGES = {
   "/advertise": "advertise.html",
   "/advertiser": "advertiser.html",
   "/portal": "portal.html",
+  "/reset": "reset.html",
   "/mock-checkout": "mock-checkout.html",
   "/terms": "terms.html",
   "/privacy": "privacy.html",

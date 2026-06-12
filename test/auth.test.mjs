@@ -74,6 +74,48 @@ test("/api/me validates a session token and rejects a bad one", async () => {
   assert.equal((await get("/api/me")).status, 401);
 });
 
+test("forgot → reset: new password works, old one is rejected", async () => {
+  await post("/api/auth", { email: "reset@x.com", password: "originalpass", kind: "user" });
+  const forgot = await post("/api/auth/forgot", { email: "reset@x.com", kind: "user" });
+  assert.equal(forgot.status, 200);
+  assert.ok(forgot.body.resetUrl, "stub mode returns the reset link so it's testable");
+  const token = new URL(forgot.body.resetUrl).searchParams.get("token");
+  assert.ok(token);
+
+  const done = await post("/api/auth/reset", { token, password: "brandnewpass" });
+  assert.equal(done.status, 200);
+  assert.ok(done.body.token, "reset signs the user back in");
+
+  // Old password no longer works; new one does.
+  const old = await post("/api/auth", { email: "reset@x.com", password: "originalpass", kind: "user" });
+  assert.equal(old.status, 401);
+  const fresh = await post("/api/auth", { email: "reset@x.com", password: "brandnewpass", kind: "user" });
+  assert.equal(fresh.status, 200);
+});
+
+test("a reset token is single-use", async () => {
+  await post("/api/auth", { email: "single@x.com", password: "firstpassword", kind: "user" });
+  const forgot = await post("/api/auth/forgot", { email: "single@x.com", kind: "user" });
+  const token = new URL(forgot.body.resetUrl).searchParams.get("token");
+  assert.equal((await post("/api/auth/reset", { token, password: "secondpassword" })).status, 200);
+  const replay = await post("/api/auth/reset", { token, password: "thirdpassword00" });
+  assert.equal(replay.status, 400, "the same token can't be reused");
+});
+
+test("forgot for an unknown email still returns 200 (no account enumeration)", async () => {
+  const r = await post("/api/auth/forgot", { email: "ghost@x.com", kind: "user" });
+  assert.equal(r.status, 200);
+  assert.equal(r.body.resetUrl, undefined, "no link generated for a non-existent account");
+});
+
+test("reset rejects a bogus token and a too-short password", async () => {
+  assert.equal((await post("/api/auth/reset", { token: "deadbeef", password: "longenough12" })).status, 400);
+  await post("/api/auth", { email: "shortpw@x.com", password: "originalpass", kind: "user" });
+  const forgot = await post("/api/auth/forgot", { email: "shortpw@x.com", kind: "user" });
+  const token = new URL(forgot.body.resetUrl).searchParams.get("token");
+  assert.equal((await post("/api/auth/reset", { token, password: "short" })).status, 400);
+});
+
 test("submitting an ad requires the advertiser's correct password", async () => {
   const adBody = (pw) => ({
     email: "advco@x.com", password: pw, brand: "AdCo", text: "hello world",

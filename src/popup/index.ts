@@ -45,6 +45,13 @@ async function main(): Promise<void> {
     window.close();
   });
 
+  // Same destination as Cash out (the portal links this browser to your account
+  // after sign-in), framed for re-logging in on a new computer.
+  el("connect").addEventListener("click", async () => {
+    await chrome.runtime.sendMessage({ type: "kolex:open-page", page: "portal" });
+    window.close();
+  });
+
   // Live-refresh while the popup is open so earnings tick in real time.
   setInterval(async () => render(await status()), 1_000);
 }
