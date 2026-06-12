@@ -424,7 +424,10 @@ app.post("/api/portal/connect", requireKind("user"), async (req, res) => {
   const me = db.users.find((u) => u.id === req.session.id);
   if (!me) return res.status(404).json({ error: "account not found" });
   try {
-    if (!me.stripeAccountId) {
+    // Reuse the account only once payouts are actually enabled. While still
+    // onboarding, always mint a fresh account so the latest (minimal recipient)
+    // config applies instead of resuming a half-finished old one.
+    if (!me.stripeAccountId || !me.payoutsReady) {
       const acct = await createConnectAccount({ email: me.email });
       me.stripeAccountId = acct.id;
       me.payoutsReady = false;

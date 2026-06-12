@@ -120,7 +120,11 @@ export async function createConnectAccount({ email }) {
     capabilities: { transfers: { requested: true } },
     // Receive-only: no charges, lighter KYC than a full merchant.
     tos_acceptance: { service_agreement: "recipient" },
+    // Pre-fill EVERYTHING about "the business" so the earner is never asked:
+    // url + product description + an industry code (mcc). Without the mcc,
+    // Stripe still shows a "what do you sell?" step.
     business_profile: {
+      mcc: "7311", // advertising services
       url: config.siteBase || "https://kolex.ai",
       product_description: "Ad revenue share payouts from Kolex.",
     },
