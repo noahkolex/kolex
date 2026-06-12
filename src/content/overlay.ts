@@ -388,11 +388,10 @@ export class SpinnerSuppressor {
         for (const anim of doc.getAnimations()) {
           const effect = anim.effect as KeyframeEffect | null;
           if (effect?.getTiming?.()?.iterations !== Infinity) continue;
-          // Only MOTION animations are spinners. A blinking streaming cursor
-          // animates opacity, not transform — skip it, or the ad would chase
-          // the cursor into the answer text. (Lenient when we can't
-          // introspect keyframes, e.g. SMIL or test stubs.)
-          if (!this.animatesTransform(effect)) continue;
+          // Any infinite animation is a candidate — Claude's "Thinking" star
+          // shimmers its rays via OPACITY, not transform, so we can't require
+          // motion here. The streaming cursor (also opacity) is filtered out
+          // separately by isInBodyText().
           const el = this.drawableRoot(effect.target as Element | null);
           if (el) animated.add(el);
         }
@@ -421,7 +420,10 @@ export class SpinnerSuppressor {
 
     // Each animated element is the *icon*; climb to the small row that also
     // holds its label ("✦ Thinking"), so the whole indicator is replaced.
-    const plausible = [...animated].filter((el) => this.isPlausibleIndicator(el));
+    // Drop cursors embedded in streaming body text.
+    const plausible = [...animated].filter(
+      (el) => this.isPlausibleIndicator(el) && !this.isInBodyText(el),
+    );
     const inMain = plausible.filter((el) => main !== null && main.contains(el));
     for (const el of inMain.length > 0 ? inMain : plausible) {
       out.add(this.indicatorContainer(el));
@@ -491,26 +493,6 @@ export class SpinnerSuppressor {
     return prev !== undefined && prev !== sig && /matrix|rotate|translate|skew/.test(sig);
   }
 
-  /**
-   * Does this animation move the element (transform), vs only blink/fade
-   * (opacity/color)? Lenient: if the keyframes can't be read, assume motion.
-   */
-  private animatesTransform(effect: KeyframeEffect): boolean {
-    const getKeyframes = (effect as { getKeyframes?: () => Keyframe[] }).getKeyframes;
-    if (typeof getKeyframes !== "function") return true;
-    let frames: Keyframe[];
-    try {
-      frames = getKeyframes.call(effect);
-    } catch {
-      return true;
-    }
-    if (!Array.isArray(frames) || frames.length === 0) return true;
-    // NB: `offset` is the keyframe's timing offset, present on every frame —
-    // not a motion property. Only these mean the element actually moves.
-    const motion = ["transform", "translate", "rotate", "scale"];
-    return frames.some((kf) => motion.some((k) => (kf as Record<string, unknown>)[k] !== undefined));
-  }
-
   /** Climb out of SVG internals so we anchor at the drawable root. */
   private drawableRoot(el: Element | null): StyledElement | null {
     if (!el) return null;
@@ -529,10 +511,49 @@ export class SpinnerSuppressor {
    */
   private isAnimating(el: StyledElement): boolean {
     try {
-      // SMIL that moves the element. `animate` of opacity is excluded.
-      if (el.querySelector?.("animateTransform, animateMotion")) return true;
+      if (el.querySelector?.("animate, animateTransform, animateMotion, set")) return true;
     } catch {
       // some elements reject querySelector for these names
+    }
+    const win = (el.ownerDocument as Document | null)?.defaultView;
+    if (win?.getComputedStyle) {
+      try {
+        const cs = win.getComputedStyle(el);
+        if (
+          cs.animationName &&
+          cs.animationName !== "none" &&
+          (cs.animationIterationCount || "").split(",").some((v) => v.trim() === "infinite")
+        ) {
+          return true;
+        }
+      } catch {
+        // jsdom and some realms throw — treat as not-animating
+      }
+    }
+    return false;
+  }
+
+  /**
+   * Is this animated element embedded in a run of body text (i.e. the
+   * model's streaming CURSOR), rather than a standalone loading indicator?
+   * The "Thinking" star sits alone with a short label; a cursor sits after a
+   * paragraph of streamed text. We detect the latter by substantial text
+   * preceding the element, or a long-text parent block — and exclude it, so
+   * the ad never chases the cursor into the answer.
+   */
+  private isInBodyText(el: StyledElement): boolean {
+    let pre = 0;
+    let sib = el.previousSibling as (Node & { textContent?: string }) | null;
+    while (sib) {
+      // Skip comment nodes (nodeType 8) — they aren't visible text.
+      if (sib.nodeType !== 8) pre += (sib.textContent ?? "").trim().length;
+      if (pre > 40) return true;
+      sib = sib.previousSibling as (Node & { textContent?: string }) | null;
+    }
+    const parent = el.parentElement;
+    if (parent) {
+      const own = (el.textContent ?? "").trim().length;
+      if ((parent.textContent ?? "").trim().length - own > 100) return true;
     }
     return false;
   }

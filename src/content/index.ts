@@ -43,6 +43,13 @@ let lingerUntil = 0;
 /** Anchor pinned once so the line is stable, not re-read every tick. */
 let pinnedAnchor: Element | null = null;
 let pinnedRect: Box | null = null;
+/**
+ * Once the indicator we pinned disappears, the model is streaming its answer.
+ * From then until this response ends we dock above the composer and never
+ * re-anchor into the content, so the ad can't land on the answer text (or
+ * chase the blinking cursor). Reset when serving stops.
+ */
+let streaming = false;
 
 function visibleMatch(selector: string): boolean {
   const el = document.querySelector(selector);
@@ -129,6 +136,20 @@ function placementTick(): void {
     suppressor.restore();
     pinnedAnchor = null;
     pinnedRect = null;
+    streaming = false;
+    return;
+  }
+
+  // Thinking → answer transition: the indicator we pinned has been removed,
+  // so the model is now streaming text. Dock above the composer for the rest
+  // of this response and stop touching the content.
+  if (pinnedAnchor && !pinnedAnchor.isConnected) streaming = true;
+
+  if (streaming) {
+    suppressor.restore();
+    pinnedAnchor = null;
+    pinnedRect = null;
+    adView.show(currentAd, currentEarnedUsd, { anchor: null, composerTop: composerTop() });
     return;
   }
 

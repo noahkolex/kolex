@@ -37,9 +37,10 @@ async function geometry(page) {
       return cs.visibility !== "hidden" && cs.display !== "none" && r.width > 0 && r.height > 0;
     };
     const visibleSpinner = spinnerEls.find(isVisible);
-    // The literal "Thinking" label must be gone too.
+    // The literal "Thinking" label must be gone too — check leaf elements
+    // only (an ancestor's textContent includes hidden descendants).
     const visibleThinking = [...document.querySelectorAll("main *")].some(
-      (el) => (el.textContent || "").trim() === "Thinking" && isVisible(el),
+      (el) => el.children.length === 0 && (el.textContent || "").trim() === "Thinking" && isVisible(el),
     );
 
     const input = document.querySelector("textarea, [contenteditable='true']");
@@ -134,6 +135,7 @@ async function run(name, file) {
 
 await run("claude", "claude.html");
 await run("claude-thinking", "claude-thinking.html");
+await run("claude-shimmer", "claude-shimmer.html");
 await run("claude-streaming", "claude-streaming.html");
 await run("chatgpt", "chatgpt.html");
 

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Claude "Thinking" — opacity-shimmer star (real shape)</title>
+  <style>
+    body { margin: 0; min-height: 100vh; background: #1f1e1d; color: #e9e6e1;
+      font: 16px/1.7 -apple-system, system-ui, sans-serif; }
+    main { max-width: 740px; margin: 0 auto; padding: 56px 24px 200px; }
+    /* The real Claude star: rays animate OPACITY (shimmer), NOT transform.
+       This is the case motion-only detection missed. */
+    .loader { display: inline-flex; align-items: center; gap: 10px; color: #b8b3ab; }
+    .loader svg line { animation: shimmer 1.2s ease-in-out infinite; }
+    .loader svg line:nth-child(2) { animation-delay: 0.15s; }
+    .loader svg line:nth-child(3) { animation-delay: 0.3s; }
+    .loader svg line:nth-child(4) { animation-delay: 0.45s; }
+    .loader svg line:nth-child(5) { animation-delay: 0.6s; }
+    .loader svg line:nth-child(6) { animation-delay: 0.75s; }
+    .loader svg line:nth-child(7) { animation-delay: 0.9s; }
+    .loader svg line:nth-child(8) { animation-delay: 1.05s; }
+    @keyframes shimmer { 0%, 100% { opacity: 1; } 50% { opacity: 0.2; } }
+    .composer { position: fixed; bottom: 0; left: 0; right: 0; padding: 18px 24px 30px;
+      display: flex; justify-content: center; background: linear-gradient(transparent, #1f1e1d 45%); }
+    .composer .box { width: min(700px, 86vw); background: #2a2927; border: 1px solid #3a3836;
+      border-radius: 20px; padding: 14px 18px; }
+    .composer [contenteditable] { outline: none; color: #e9e6e1; min-height: 24px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="turn">
+      <div class="loader" id="loader">
+        <svg id="star" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#e0936b" stroke-width="2" stroke-linecap="round">
+          <line x1="11" y1="1" x2="11" y2="6"/><line x1="11" y1="16" x2="11" y2="21"/>
+          <line x1="1" y1="11" x2="6" y2="11"/><line x1="16" y1="11" x2="21" y2="11"/>
+          <line x1="4" y1="4" x2="7.5" y2="7.5"/><line x1="14.5" y1="14.5" x2="18" y2="18"/>
+          <line x1="4" y1="18" x2="7.5" y2="14.5"/><line x1="14.5" y1="7.5" x2="18" y2="4"/>
+        </svg>
+        <span>Thinking</span>
+      </div>
+    </div>
+  </main>
+  <div class="composer">
+    <div class="box">
+      <div contenteditable="true" id="input" data-placeholder="Reply to Claude…"></div>
+      <button class="stop" id="stop" aria-label="Stop response" style="display:inline-block">stop</button>
+    </div>
+  </div>
+
+  <script>
+    window.__KOLEX_SITE = {
+      surface: "claude",
+      busySelectors: ['button[aria-label="Stop response"]', '.loader'],
+      spinnerSelectors: [],
+    };
+  </script>
+  <script src="./harness.js"></script>
+  <script src="../../extension/content.js"></script>
+</body>
+</html>
