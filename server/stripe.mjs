@@ -154,11 +154,19 @@ export async function createAccountLink({ accountId, returnUrl, refreshUrl }) {
   return { url: link.url };
 }
 
-/** Whether a connected account can receive transfers yet (live only). */
+/**
+ * Whether a connected account can receive money yet (live only). Ready as soon
+ * as it can receive transfers OR payouts — we don't require BOTH, so a freshly
+ * onboarded account isn't stuck on "Set up payouts" while one capability lags.
+ */
 export async function getAccountStatus(accountId) {
   if (isStub()) return { payoutsEnabled: true };
   const a = await stripe().accounts.retrieve(accountId);
-  return { payoutsEnabled: !!a.payouts_enabled && a.capabilities?.transfers === "active" };
+  const transfersActive = a.capabilities?.transfers === "active";
+  return {
+    payoutsEnabled: !!a.payouts_enabled || transfersActive,
+    detailsSubmitted: !!a.details_submitted,
+  };
 }
 
 export function stripeStatus() {

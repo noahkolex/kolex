@@ -107,10 +107,25 @@
           ["Your share", "50%"],
         ].map(([l, v]) => `<div class="stat-chip"><b>${v}</b><span>${l}</span></div>`).join("");
         $("devices").textContent = data.devices.length ? data.devices.map((d) => d.slice(0, 12) + "…").join(", ") : "None yet.";
+        return data;
       } catch {
         store.del("usrToken");
         showLogin();
+        return null;
       }
+    }
+
+    // Returning from Stripe Connect onboarding: the account can take a few
+    // seconds to be marked ready. Poll briefly with clear status instead of
+    // silently showing "Set up payouts" again.
+    async function awaitPayoutsReady() {
+      for (let i = 0; i < 6; i++) {
+        const data = await loadDash();
+        if (data?.payoutsReady) { $("payout-note").textContent = "🎉 Payouts enabled — you're all set."; return; }
+        $("payout-note").textContent = "Finishing payout setup… Stripe is verifying your account (this can take a moment).";
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+      $("payout-note").textContent = "Stripe is still verifying your account. This can take a minute — refresh to check.";
     }
 
     function showLogin() { $("dash").classList.add("hide"); $("login").classList.remove("hide"); }
@@ -214,7 +229,8 @@
       }
     });
 
-    loadDash();
+    if (qp("connected") === "1") awaitPayoutsReady();
+    else loadDash();
   </script>
 </body>
 </html>

@@ -176,6 +176,9 @@ export class AdView {
   private textEl: HTMLElement;
   private earnedEl: HTMLElement;
   private currentAdId: string | null = null;
+  /** Smoothly animated earnings figure, so you can watch it tick up. */
+  private shownEarned = 0;
+  private earnRaf = 0;
 
   constructor(doc: Document, onClick: (adId: string) => void) {
     this.doc = doc;
@@ -248,6 +251,10 @@ export class AdView {
 
   hide(): void {
     this.currentAdId = null;
+    if (this.earnRaf) {
+      this.doc.defaultView?.cancelAnimationFrame(this.earnRaf);
+      this.earnRaf = 0;
+    }
     this.line.classList.remove("visible");
     this.host.remove();
   }
@@ -325,8 +332,43 @@ export class AdView {
   }
 
   private updateEarned(earnedUsd: number): void {
-    this.earnedEl.textContent = earnedUsd > 0 ? `${formatUsd(earnedUsd)} earned` : "";
-    this.earnedEl.style.display = earnedUsd > 0 ? "" : "none";
+    if (!(earnedUsd > 0)) {
+      this.earnedEl.style.display = "none";
+      this.earnedEl.textContent = "";
+      this.shownEarned = 0;
+      return;
+    }
+    this.earnedEl.style.display = "";
+    const from = this.shownEarned;
+    const to = earnedUsd;
+    const win = this.doc.defaultView;
+    // Animate only an upward increment from an existing figure. First
+    // appearance (from 0) and any reset snap so the number is always correct
+    // immediately; subsequent settles tween so you can watch it tick up.
+    if (
+      !win ||
+      typeof win.requestAnimationFrame !== "function" ||
+      from <= 0 ||
+      to <= from ||
+      Math.abs(to - from) < 0.00005
+    ) {
+      this.shownEarned = to;
+      this.earnedEl.textContent = `${formatUsd(to)} earned`;
+      return;
+    }
+    // Tween from the last shown value to the new server balance so the number
+    // visibly counts up as impressions settle.
+    if (this.earnRaf) win.cancelAnimationFrame(this.earnRaf);
+    const start = win.performance.now();
+    const dur = 600;
+    const frame = (t: number): void => {
+      const k = Math.min(1, (t - start) / dur);
+      const eased = 1 - Math.pow(1 - k, 3);
+      this.shownEarned = from + (to - from) * eased;
+      this.earnedEl.textContent = `${formatUsd(this.shownEarned)} earned`;
+      if (k < 1) this.earnRaf = win.requestAnimationFrame(frame);
+    };
+    this.earnRaf = win.requestAnimationFrame(frame);
   }
 }
 

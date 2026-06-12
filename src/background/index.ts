@@ -113,20 +113,42 @@ async function refreshRemoteConfig(): Promise<void> {
   }
 }
 
-/** Upload unsynced ledger events. Idempotent on event id. */
-async function flushLedger(): Promise<void> {
+type Balance = { pendingUsd: number; settledUsd: number; minPayoutUsd: number };
+
+/**
+ * Upload unsynced ledger events and return the device's server-settled balance
+ * (the single source of truth shown everywhere). Idempotent on event id. When
+ * there's nothing to flush, returns the last cached balance so reads are cheap
+ * and never block on the network.
+ */
+async function flushLedger(): Promise<Balance | null> {
   const pending = await rotation.unsyncedEvents();
-  if (pending.length === 0) return;
+  if (pending.length === 0) return kv.get<Balance | null>("balance", null);
+  let bal: Balance | null = null;
   try {
     for (let i = 0; i < pending.length; i += 100) {
       const batch = pending.slice(i, i + 100);
-      await api("/events", { method: "POST", body: JSON.stringify({ events: batch }) });
+      const r = await api<Partial<Balance>>("/events", {
+        method: "POST",
+        body: JSON.stringify({ events: batch }),
+      });
       await rotation.markSynced(batch.map((e) => e.id));
+      bal = {
+        pendingUsd: Number(r.pendingUsd) || 0,
+        settledUsd: Number(r.settledUsd) || 0,
+        minPayoutUsd: Number(r.minPayoutUsd) || 0,
+      };
     }
+    if (bal) await kv.set("balance", bal);
+    return bal;
   } catch {
-    // Stays queued; the backend dedupes on event id.
+    // Offline: keep the queue, return the last known server balance.
+    return kv.get<Balance | null>("balance", null);
   }
 }
+
+/** Total earned on this device, server-truth: $pending + $already-paid. */
+const earnedUsd = (b: Balance | null) => (b ? b.pendingUsd + b.settledUsd : 0);
 
 chrome.runtime.onInstalled.addListener(() => {
   // 3 min so a freshly-paid campaign appears quickly (the popup also pulls a
@@ -146,9 +168,13 @@ async function handle(req: KolexRequest): Promise<unknown> {
   switch (req.type) {
     case "kolex:tick": {
       if (!s.consent || !s.enabled || s.killswitch) {
-        return { serving: false, estEarnedUsd: 0, impressionRecorded: false } satisfies TickResponse;
+        return { serving: false, balanceUsd: 0, impressionRecorded: false } satisfies TickResponse;
       }
       const out = await rotation.tick(req.surface);
+      // Push the new impression to the server immediately (real-time) and read
+      // back the authoritative balance. When no event was recorded this beat,
+      // flushLedger returns the cached balance without a network call.
+      const bal = await flushLedger();
       return {
         serving: !!out.ad,
         ad: out.ad
@@ -161,7 +187,7 @@ async function handle(req: KolexRequest): Promise<unknown> {
               accent: out.ad.accent,
             }
           : undefined,
-        estEarnedUsd: out.estEarnedUsd,
+        balanceUsd: earnedUsd(bal),
         impressionRecorded: out.impressionRecorded,
       } satisfies TickResponse;
     }
@@ -185,11 +211,12 @@ async function handle(req: KolexRequest): Promise<unknown> {
       // campaign (and a just-linked account) show up right away instead of
       // waiting for the 3-minute refresh alarm.
       let link: LinkState = { linked: false, email: null };
-      let bal: ServerBalance | null = null;
+      let bal: Balance | null = null;
       if (s.consent) {
         await refreshRemoteConfig();
         link = await refreshLinkStatus();
-        bal = await fetchServerBalance();
+        await flushLedger(); // push pending events so the balance is current
+        bal = await fetchServerBalance(); // authoritative read (same source as the portal)
       }
       const sum = await rotation.summary();
       const ads = await rotation.getAds();
@@ -200,15 +227,12 @@ async function handle(req: KolexRequest): Promise<unknown> {
         deviceId: s.deviceId,
         totalImpressions: sum.totalImpressions,
         totalClicks: sum.totalClicks,
-        estEarnedUsd: sum.estEarnedUsd,
-        pendingEvents: sum.pendingEvents,
         // "Live ads" means real paid campaigns in rotation — Kolex's own $0
         // house ads (the blank-inventory fallback) are not counted.
         adCount: ads.filter((a) => !a.house).length,
         linked: link.linked,
         accountEmail: link.email,
-        // Server-truth balance for this device (null when offline → popup
-        // falls back to the local estimate).
+        // The ONE balance: server-settled, identical to the cash-out portal.
         serverPendingUsd: bal ? bal.pendingUsd : null,
         serverSettledUsd: bal ? bal.settledUsd : null,
         minPayoutUsd: bal ? bal.minPayoutUsd : null,

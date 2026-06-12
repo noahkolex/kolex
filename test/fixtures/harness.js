@@ -44,7 +44,7 @@
             accrued -= 5000;
             earned += 0.005;
           }
-          return { serving: true, ad: ADS[0], estEarnedUsd: earned, impressionRecorded: false };
+          return { serving: true, ad: ADS[0], balanceUsd: earned, impressionRecorded: false };
         }
         return { ok: true };
       },

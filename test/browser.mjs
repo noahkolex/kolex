@@ -66,7 +66,7 @@ function intersects(a, b) {
   return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
 }
 
-async function run(name, file) {
+async function run(name, file, opts = {}) {
   console.log(`\n▶ ${name}  (${file})`);
   const browser = await chromium.launch({ args: ["--no-sandbox"] });
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -82,6 +82,18 @@ async function run(name, file) {
   await page.screenshot({ path: path.join(OUT, `kolex-${name}.png`) });
 
   ok("no page errors", errors.length === 0, errors[0] || "");
+
+  // Once the model's answer streams in, the ad must get OUT OF THE WAY entirely
+  // (not dock, not linger) — it only sponsors the wait, never the answer.
+  if (opts.streamingHides) {
+    ok("ad is hidden once the answer streams in", !g.hasHost || !g.adVisible, `hasHost=${g.hasHost} visible=${g.adVisible}`);
+    const paras = await page.$$("p.para");
+    ok("answer text is showing unobstructed", paras.length > 0, `${paras.length} paragraphs`);
+    console.log(`  📸 ${path.join(OUT, `kolex-${name}.png`)}`);
+    await browser.close();
+    return;
+  }
+
   ok("kolex ad host mounted", g.hasHost);
   ok("ad line is visible", g.adVisible);
   ok("ad shows the brand logo (Notion)", g.hasLogo);
@@ -139,7 +151,7 @@ await run("claude", "claude.html");
 await run("claude-thinking", "claude-thinking.html");
 await run("claude-shimmer", "claude-shimmer.html");
 await run("claude-filmstrip", "claude-filmstrip.html");
-await run("claude-streaming", "claude-streaming.html");
+await run("claude-streaming", "claude-streaming.html", { streamingHides: true });
 await run("chatgpt", "chatgpt.html");
 
 // Image-loader exception: the ad must NOT cover a big image-generation

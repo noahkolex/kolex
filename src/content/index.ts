@@ -23,6 +23,12 @@ import { AdView, SpinnerSuppressor, type Box, type OverlayAd } from "./overlay.j
 const PLACEMENT_INTERVAL_MS = 250;
 /** Serve a beat past the busy state so 4.9s waits still feel sponsored. */
 const LINGER_MS = 1_500;
+/**
+ * If the pinned loading row GROWS past its captured height by this much, the
+ * answer is streaming into it — hide the ad immediately. (Growth, not absolute
+ * height, so an inherently-tall spinner doesn't false-trigger.)
+ */
+const ANSWER_GROWTH_PX = 48;
 
 /** Composer / input selectors — the line is always kept above the topmost. */
 const COMPOSER_SELECTORS = [
@@ -89,6 +95,11 @@ async function accountingTick(): Promise<void> {
     return;
   }
 
+  // The answer is streaming (ad hidden) — don't accrue or change the ad. We
+  // still kept lingerUntil fresh above so the hidden latch holds until the
+  // model finishes, at which point linger expires and state resets.
+  if (streaming) return;
+
   try {
     const res = (await chrome.runtime.sendMessage({
       type: "kolex:tick",
@@ -96,7 +107,7 @@ async function accountingTick(): Promise<void> {
     })) as TickResponse;
     if (res?.serving && res.ad) {
       currentAd = res.ad;
-      currentEarnedUsd = res.estEarnedUsd;
+      currentEarnedUsd = res.balanceUsd; // server-truth balance, same as the popup/portal
     } else {
       currentAd = null;
     }
@@ -140,16 +151,20 @@ function placementTick(): void {
     return;
   }
 
-  // Thinking → answer transition: the indicator we pinned has been removed,
-  // so the model is now streaming text. Dock above the composer for the rest
-  // of this response and stop touching the content.
-  if (pinnedAnchor && !pinnedAnchor.isConnected) streaming = true;
+  // Thinking → answer transition: the indicator we pinned has been removed, or
+  // it grew tall because the answer is now streaming into it. Either way the
+  // answer is on screen, so HIDE the ad immediately and keep it hidden for the
+  // rest of this response (no docking, no covering the text).
+  if (pinnedAnchor) {
+    const r = pinnedAnchor.isConnected ? pinnedAnchor.getBoundingClientRect?.() : null;
+    if (!r || (pinnedRect && r.height > pinnedRect.height + ANSWER_GROWTH_PX)) streaming = true;
+  }
 
   if (streaming) {
+    adView.hide();
     suppressor.restore();
     pinnedAnchor = null;
     pinnedRect = null;
-    adView.show(currentAd, currentEarnedUsd, { anchor: null, composerTop: composerTop() });
     return;
   }
 

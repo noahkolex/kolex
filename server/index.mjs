@@ -126,7 +126,16 @@ app.post("/v1/events", eventsLimiter, (req, res) => {
     return res.status(400).json({ error: "missing device" });
   }
   const accepted = ingestEvents(events, deviceId);
-  res.json({ accepted });
+  // Return the device's settled balance in the SAME response so the extension
+  // has a single, real-time source of truth (no separate balance round-trip).
+  const db = load();
+  const e = db.earnings[deviceId] || { pendingUsd: 0, paidUsd: 0 };
+  res.json({
+    accepted,
+    pendingUsd: e.pendingUsd,
+    settledUsd: e.paidUsd,
+    minPayoutUsd: config.minPayoutUsd,
+  });
 });
 
 app.get("/v1/balance", (req, res) => {
@@ -471,14 +480,14 @@ app.post("/api/portal/connect", requireKind("user"), async (req, res) => {
   const me = db.users.find((u) => u.id === req.session.id);
   if (!me) return res.status(404).json({ error: "account not found" });
   try {
-    // Reuse the account only once payouts are actually enabled. While still
-    // onboarding, always mint a fresh account so the latest (minimal recipient)
-    // config applies instead of resuming a half-finished old one.
-    if (!me.stripeAccountId || !me.payoutsReady) {
+    // Reuse the existing connected account and RESUME its onboarding. (Never
+    // mint a new one on retry — that would discard an account the user already
+    // finished onboarding and leave them stuck on "Set up payouts".)
+    if (!me.stripeAccountId) {
       const acct = await createConnectAccount({ email: me.email });
       me.stripeAccountId = acct.id;
       me.payoutsReady = false;
-      save();
+      await save();
     }
     const base = publicBase(req);
     const link = await createAccountLink({

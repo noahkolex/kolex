@@ -11,7 +11,8 @@ export interface TickRequest {
 export interface TickResponse {
   serving: boolean;
   ad?: Pick<Ad, "id" | "brand" | "text" | "house" | "iconDataUrl" | "accent">;
-  estEarnedUsd: number;
+  /** Server-settled total earned on this device (the single source of truth). */
+  balanceUsd: number;
   impressionRecorded: boolean;
 }
 
@@ -32,8 +33,6 @@ export interface StatusResponse {
   deviceId: string;
   totalImpressions: number;
   totalClicks: number;
-  estEarnedUsd: number;
-  pendingEvents: number;
   adCount: number;
   /** True once this device has been linked to an account (cash-out ready). */
   linked: boolean;

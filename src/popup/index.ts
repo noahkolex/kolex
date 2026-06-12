@@ -11,6 +11,31 @@ async function status(): Promise<StatusResponse> {
   return (await chrome.runtime.sendMessage({ type: "kolex:status" })) as StatusResponse;
 }
 
+// The last balance we showed, so an offline blip keeps the number instead of
+// snapping to $0, and so we can animate the count-up between updates.
+let shownUsd = 0;
+let lastEarned: number | null = null;
+
+/** Smoothly tween the displayed earnings so you can watch it tick up. */
+function setEarned(to: number): void {
+  const from = shownUsd;
+  if (Math.abs(to - from) < 0.00005) {
+    shownUsd = to;
+    el("usd").textContent = formatUsd(to);
+    return;
+  }
+  const start = performance.now();
+  const dur = 700;
+  function frame(t: number): void {
+    const k = Math.min(1, (t - start) / dur);
+    const eased = 1 - Math.pow(1 - k, 3);
+    shownUsd = from + (to - from) * eased;
+    el("usd").textContent = formatUsd(shownUsd);
+    if (k < 1) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+}
+
 function render(s: StatusResponse): void {
   el("consent").classList.toggle("hidden", s.consent);
   el("dash").classList.toggle("hidden", !s.consent);
@@ -18,26 +43,26 @@ function render(s: StatusResponse): void {
 
   el<HTMLInputElement>("toggle").checked = s.enabled;
 
-  // Prefer the SERVER balance (what the cash-out portal uses) so the popup and
-  // portal never disagree. Fall back to the local estimate only when offline.
-  if (s.serverPendingUsd != null) {
-    const earned = s.serverPendingUsd + (s.serverSettledUsd ?? 0);
+  // ONE balance, server-settled — identical to the cash-out portal. On an
+  // offline blip (null) we keep the last known number rather than diverge.
+  const earned =
+    s.serverPendingUsd != null ? s.serverPendingUsd + (s.serverSettledUsd ?? 0) : lastEarned;
+  if (earned != null) {
+    lastEarned = earned;
     el("usd-label").textContent = "Your earnings";
-    el("usd").textContent = formatUsd(earned);
+    setEarned(earned);
     const min = s.minPayoutUsd ?? 0;
-    const sub = el("usd-sub");
-    sub.textContent =
-      `${formatUsd(s.serverPendingUsd)} ready to cash out` + (min > 0 ? ` · ${formatUsd(min)} minimum` : "");
+    const pend = s.serverPendingUsd ?? earned;
+    el("usd-sub").textContent =
+      `${formatUsd(pend)} ready to cash out` + (min > 0 ? ` · ${formatUsd(min)} minimum` : "");
   } else {
-    el("usd-label").textContent = "Estimated earnings";
-    el("usd").textContent = formatUsd(s.estEarnedUsd);
-    el("usd-sub").textContent = s.linked ? "" : "Estimate — sign in to confirm your balance";
+    el("usd-label").textContent = "Your earnings";
+    el("usd-sub").textContent = s.linked ? "Syncing…" : "Sign in to track your balance";
   }
 
   el("impressions").textContent = String(s.totalImpressions);
   el("clicks").textContent = String(s.totalClicks);
   el("adCount").textContent = String(s.adCount);
-  el("pending").textContent = `${s.pendingEvents} events`;
   el("kill").classList.toggle("hidden", !s.killswitch);
   el("device").textContent = `device ${s.deviceId.slice(0, 8)}`;
 
