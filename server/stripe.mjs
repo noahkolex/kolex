@@ -43,7 +43,7 @@ export async function createCheckout({ campaign, amountUsd, successUrl, cancelUr
         price_data: {
           currency: config.stripe.currency,
           product_data: {
-            name: `Kolex ad — ${campaign.brand}`,
+            name: `Kolex ad: ${campaign.brand}`,
             description: `${campaign.blocks} block(s) × $${campaign.bidPerBlock}/1,000 impressions`,
           },
           unit_amount: amountCents,
