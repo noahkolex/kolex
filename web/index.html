@@ -58,6 +58,18 @@
 
     <section>
       <div class="wrap">
+        <div class="section-head center">
+          <span class="eyebrow" style="justify-content:center">What your wait is worth</span>
+          <h2>Expected pay per minute of waiting 💵</h2>
+          <p id="rate-sub" style="margin:0 auto">You keep <b>50%</b> of whatever the winning advertiser bids. An impression is 5&nbsp;seconds of waiting, so a minute of waiting is 12 of them.</p>
+        </div>
+        <div class="rate-grid" id="rate-grid"></div>
+        <p class="muted center" id="rate-foot" style="margin-top:16px;font-size:13px"></p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">The auction</span>
           <h2>Who's paying for the spinner 💰</h2>
@@ -172,7 +184,31 @@
     }
     poll();
 
+    // Expected pay per minute of waiting, from the LIVE top bid. You earn 50%
+    // of the winning bid; a bid is priced per 1,000 five-second impressions, so
+    // one minute of waiting = 12 impressions.
+    function renderRate(topBid) {
+      const SHARE = 0.5, IMPR_PER_MIN = 12; // 60s / 5s
+      const live = topBid > 0;
+      const bid = live ? topBid : 25; // fall back to a sample bid when nobody's live
+      const perMin = (bid / 1000) * SHARE * IMPR_PER_MIN;
+      const fmt = (n) => "$" + (n < 1 ? n.toFixed(2).replace(/0$/, "") : n.toFixed(2));
+      const cards = [
+        ["1 minute", perMin, true],
+        ["10 minutes", perMin * 10, false],
+        ["30 minutes", perMin * 30, false],
+        ["1 hour", perMin * 60, false],
+      ];
+      document.getElementById("rate-grid").innerHTML = cards
+        .map(([label, val, hi]) => `<div class="rate-card ${hi ? "hi" : ""}"><b>${fmt(val)}</b><span>${label} of waiting</span></div>`)
+        .join("");
+      document.getElementById("rate-foot").innerHTML = live
+        ? `Based on the current top bid of <b>${money(bid, false)}/1,000 impressions</b>. The rate rises as advertisers bid higher.`
+        : `No brands are bidding right now, so this uses a sample <b>${money(bid, false)}/1,000</b> bid. When the auction is live you earn 50% of the real top bid.`;
+    }
+
     function renderBoard(leaderboard, stats) {
+      renderRate(stats.topBid || 0);
       document.getElementById("stats").innerHTML = [
         ["Top bid / 1k", money(stats.topBid, false), "green"],
         ["Live campaigns", num(stats.liveCampaigns), ""],
