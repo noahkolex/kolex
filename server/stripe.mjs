@@ -102,7 +102,15 @@ export async function createPayout({ amountUsd, email, destination }) {
 
 // ── Stripe Connect (Express) onboarding so earners can actually receive money ──
 
-/** Create an Express connected account for an earner. Stub returns a fake id. */
+/**
+ * Create a connected account for an earner. Earners only *receive* their ad
+ * revenue share — they're not merchants — so we use the lightweight Stripe
+ * **recipient** service agreement and an `individual` profile. That strips the
+ * onboarding down to the identity check Stripe legally needs to pay someone
+ * (name, DOB, address, bank), with no "business website / what do you sell?"
+ * questions. We also pre-fill the business profile to Kolex so even the
+ * minimal flow never prompts the earner for a website.
+ */
 export async function createConnectAccount({ email }) {
   if (isStub()) return { id: id("acct_stub") };
   const account = await stripe().accounts.create({
@@ -110,6 +118,12 @@ export async function createConnectAccount({ email }) {
     email,
     business_type: "individual",
     capabilities: { transfers: { requested: true } },
+    // Receive-only: no charges, lighter KYC than a full merchant.
+    tos_acceptance: { service_agreement: "recipient" },
+    business_profile: {
+      url: config.siteBase || "https://kolex.ai",
+      product_description: "Ad revenue share payouts from Kolex.",
+    },
     metadata: { kolex: "earner" },
   });
   return { id: account.id };
@@ -128,6 +142,9 @@ export async function createAccountLink({ accountId, returnUrl, refreshUrl }) {
     type: "account_onboarding",
     return_url: returnUrl,
     refresh_url: refreshUrl,
+    // Only ask for what's needed to enable payouts right now — don't front-load
+    // "eventually due" fields the earner doesn't need yet.
+    collection_options: { fields: "currently_due", future_requirements: "omit" },
   });
   return { url: link.url };
 }
