@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Claude "Thinking" — sprite filmstrip star (real DOM)</title>
+  <style>
+    body { margin: 0; min-height: 100vh; background: #1f1e1d; color: #e9e6e1;
+      font: 16px/1.7 -apple-system, system-ui, sans-serif; }
+    main { max-width: 740px; margin: 0 auto; padding: 56px 24px 200px; }
+    /* Mirrors the real Claude markup: a 100x800 svg filmstrip clipped to a
+       32x32 overflow-hidden window, scrolled by a stepped translateY. */
+    .status-row { display: inline-flex; align-items: center; gap: 8px; color: #b8b3ab; }
+    .clip { width: 32px; height: 32px; overflow: hidden; aspect-ratio: 1 / 1;
+      color: #e0936b; display: inline-block; }
+    .clip > .strip > svg { display: block; width: 100%; fill: currentColor; }
+    .strip { animation: roll 1s steps(8) infinite; }
+    @keyframes roll { from { transform: translateY(0); } to { transform: translateY(-87.5%); } }
+    .composer { position: fixed; bottom: 0; left: 0; right: 0; padding: 18px 24px 30px;
+      display: flex; justify-content: center; background: linear-gradient(transparent, #1f1e1d 45%); }
+    .composer .box { width: min(700px, 86vw); background: #2a2927; border: 1px solid #3a3836;
+      border-radius: 20px; padding: 14px 18px; }
+    .composer [contenteditable] { outline: none; color: #e9e6e1; min-height: 24px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="turn">
+      <div class="status-row" data-state="closed">
+        <div class="p-1 -translate-x-px">
+          <div aria-hidden="true">
+            <div class="clip">
+              <div class="strip">
+                <svg viewBox="0 0 100 800"><path d="M50 10 L60 40 L90 40 L65 60 L75 90 L50 70 L25 90 L35 60 L10 40 L40 40 Z M50 110 L60 140 L90 140 L65 160 L75 190 L50 170 L25 190 L35 160 L10 140 L40 140 Z M50 210 L60 240 L90 240 L65 260 L75 290 L50 270 L25 290 L35 260 L10 240 L40 240 Z"></path></svg>
+              </div>
+            </div>
+          </div>
+        </div>
+        <span>Thinking</span>
+      </div>
+    </div>
+  </main>
+  <div class="composer">
+    <div class="box">
+      <div contenteditable="true" id="input" data-placeholder="Reply to Claude…"></div>
+      <button id="stop" aria-label="Stop response" style="display:inline-block">stop</button>
+    </div>
+  </div>
+
+  <script>
+    window.__KOLEX_SITE = {
+      surface: "claude",
+      busySelectors: ['button[aria-label="Stop response"]', '.status-row'],
+      spinnerSelectors: [],
+    };
+  </script>
+  <script src="./harness.js"></script>
+  <script src="../../extension/content.js"></script>
+</body>
+</html>

@@ -418,10 +418,12 @@ export class SpinnerSuppressor {
       if (this.isAnimating(el) || this.spinningNow(el)) animated.add(el);
     }
 
-    // Each animated element is the *icon*; climb to the small row that also
-    // holds its label ("✦ Thinking"), so the whole indicator is replaced.
-    // Drop cursors embedded in streaming body text.
-    const plausible = [...animated].filter(
+    // An animated element may be a tall sprite FILMSTRIP (Claude's "Thinking"
+    // star is a 100×800 svg clipped to 32×32 by an overflow-hidden box and
+    // scrolled with a stepped translateY). Resolve each to its small visible
+    // clip box BEFORE the size check, then climb to the label row.
+    const resolved = new Set([...animated].map((el) => this.resolveIndicatorBox(el)));
+    const plausible = [...resolved].filter(
       (el) => this.isPlausibleIndicator(el) && !this.isInBodyText(el),
     );
     const inMain = plausible.filter((el) => main !== null && main.contains(el));
@@ -488,9 +490,34 @@ export class SpinnerSuppressor {
       if (n++ >= 32) break;
       sample(child);
     }
+    // Also sample ancestors: a sprite filmstrip is scrolled by a transform on
+    // a WRAPPER, not the svg itself, so sampling only downward would miss it.
+    let anc = el.parentElement;
+    for (let i = 0; i < 4 && anc; i++, anc = anc.parentElement) {
+      if (!this.isSafe(anc)) break;
+      sample(anc);
+    }
     const prev = this.xform.get(el);
     this.xform.set(el, sig);
     return prev !== undefined && prev !== sig && /matrix|rotate|translate|skew/.test(sig);
+  }
+
+  /**
+   * Resolve an animated element to its small, visible "display box". Claude's
+   * star is a tall sprite filmstrip clipped to a 32×32 overflow-hidden window;
+   * the animated strip is hundreds of px tall, but the window is small and
+   * square. Climb up to the nearest small box so the size filter accepts it.
+   */
+  private resolveIndicatorBox(el: StyledElement): StyledElement {
+    let node: StyledElement | null = el;
+    for (let i = 0; i < 5 && node; i++) {
+      const r = node.getBoundingClientRect?.();
+      if (r && r.width > 0 && r.height > 0 && r.width <= 80 && r.height <= 80) return node;
+      const parent = node.parentElement as StyledElement | null;
+      if (!parent || !this.isSafe(parent)) break;
+      node = parent;
+    }
+    return el;
   }
 
   /** Climb out of SVG internals so we anchor at the drawable root. */

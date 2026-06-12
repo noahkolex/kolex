@@ -120,9 +120,11 @@ async function run(name, file) {
     ok("ad does NOT overlap streaming answer text", overlapText === 0, `${overlapText} paragraph(s) overlapped`);
   }
 
-  // Stability: capture position, wait, capture again — must not drift.
+  // Stability: settle past any thinking→streaming transition, then sample
+  // the steady state twice — it must not drift (no crawl).
+  await page.waitForTimeout(1200);
   const first = (await geometry(page)).lineBox;
-  await page.waitForTimeout(1500);
+  await page.waitForTimeout(1200);
   const second = (await geometry(page)).lineBox;
   if (first && second) {
     const drift = Math.abs(first.left - second.left) + Math.abs(first.top - second.top);
@@ -136,6 +138,7 @@ async function run(name, file) {
 await run("claude", "claude.html");
 await run("claude-thinking", "claude-thinking.html");
 await run("claude-shimmer", "claude-shimmer.html");
+await run("claude-filmstrip", "claude-filmstrip.html");
 await run("claude-streaming", "claude-streaming.html");
 await run("chatgpt", "chatgpt.html");
 
