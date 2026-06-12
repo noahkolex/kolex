@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Claude</title>
+<style>
+  * { box-sizing:border-box; margin:0; }
+  body { background:#262624; color:#e9e6e1; font:16px/1.7 ui-serif, Georgia, "Times New Roman", serif; height:100vh; overflow:hidden; }
+  .ui { font-family:-apple-system,"Segoe UI",system-ui,sans-serif; }
+  .app { display:flex; height:100%; }
+  .side { width:250px; background:#1f1e1d; border-right:1px solid #36342f; padding:16px 12px; flex:none; }
+  .side .top { font-weight:700; font-size:16px; color:#e9e6e1; display:flex; align-items:center; gap:8px; }
+  .side .new { margin-top:14px; background:#cd7f56; color:#1f1e1d; border-radius:9px; padding:9px 12px; font-size:13.5px; font-weight:600; }
+  .side .h { margin:18px 8px 6px; font-size:11px; color:#8c8880; text-transform:uppercase; letter-spacing:.5px; }
+  .side .c { padding:8px 10px; border-radius:8px; font-size:13.5px; color:#c2bdb4; }
+  .side .c.on { background:#302e2b; }
+  .main { flex:1; display:flex; flex-direction:column; }
+  .hdr { height:54px; display:flex; align-items:center; padding:0 24px; font-weight:600; gap:8px; color:#e9e6e1; }
+  .scroll { flex:1; overflow:hidden; }
+  .thread { max-width:720px; margin:0 auto; padding:14px 24px 30px; }
+  .msg { padding:14px 0; }
+  .who { font:600 12px/1 -apple-system,sans-serif; text-transform:uppercase; letter-spacing:.5px; color:#8c8880; margin-bottom:8px; }
+  .user .bubble { background:#302e2b; border-radius:14px; padding:12px 16px; display:inline-block; }
+  .turn { min-height:24px; }
+  .wait { display:none; align-items:center; gap:12px; }
+  .wait.on { display:inline-flex; }
+  .ph { width:20px;height:20px;border-radius:50%;background:conic-gradient(#cd7f56,transparent);animation:spin 1s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .composer { padding:10px 24px 24px; }
+  .box { max-width:720px; margin:0 auto; background:#302e2b; border:1px solid #46433d; border-radius:18px; padding:14px 18px; display:flex; align-items:center; gap:12px; font-family:-apple-system,sans-serif; }
+  .box .ph2 { flex:1; color:#a39e94; font-size:15px; }
+  .box .txt { flex:1; color:#e9e6e1; font-size:15px; }
+  .stop { display:none; }
+  .stop.on { display:inline-flex; }
+  .send { width:34px;height:34px;border-radius:9px; background:#cd7f56; color:#1f1e1d; display:flex; align-items:center; justify-content:center; font-weight:800; }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="side ui">
+      <div class="top">✳ Claude</div>
+      <div class="new">＋ New chat</div>
+      <div class="h">Recents</div>
+      <div class="c on">Q3 launch strategy</div>
+      <div class="c">Summarize this contract</div>
+      <div class="c">Debug the webhook handler</div>
+      <div class="c">Draft investor update</div>
+    </div>
+    <div class="main">
+      <div class="hdr ui">Claude Opus 4.8 ▾</div>
+      <div class="scroll"><div class="thread" id="thread"></div></div>
+      <div class="composer">
+        <div class="box">
+          <span class="ph2" id="ph">Reply to Claude…</span>
+          <span class="txt" id="txt" style="display:none"></span>
+          <button class="stop" id="stop" aria-label="Stop response">■</button>
+          <span class="send" id="send">↑</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.__KOLEX_SITE = {
+      surface: "claude",
+      busySelectors: ['button[aria-label="Stop response"].on', '.wait.on'],
+      spinnerSelectors: ['.wait.on'],
+    };
+  </script>
+  <script src="./harness-demo.js"></script>
+  <script src="../extension/content.js"></script>
+  <script>
+    const thread = document.getElementById("thread");
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const STAR = `<svg width="32" height="32" viewBox="0 0 34 34" fill="none" stroke="#cd7f56" stroke-width="2" stroke-linecap="round"><g><animateTransform attributeName="transform" type="rotate" from="0 17 17" to="360 17 17" dur="1.1s" repeatCount="indefinite"/><line x1="17" y1="3" x2="17" y2="9"/><line x1="17" y1="25" x2="17" y2="31"/><line x1="3" y1="17" x2="9" y2="17"/><line x1="25" y1="17" x2="31" y2="17"/><line x1="7" y1="7" x2="11" y2="11"/><line x1="23" y1="23" x2="27" y2="27"/><line x1="7" y1="27" x2="11" y2="23"/><line x1="23" y1="11" x2="27" y2="7"/></g></svg>`;
+    function userMsg(text) {
+      const m = document.createElement("div"); m.className = "msg user";
+      m.innerHTML = `<div class="who">You</div><div class="bubble">${text}</div>`; thread.appendChild(m);
+    }
+    function aiTurn() {
+      const m = document.createElement("div"); m.className = "msg";
+      m.innerHTML = `<div class="who">Claude</div><div class="turn"></div>`; thread.appendChild(m);
+      return m.querySelector(".turn");
+    }
+    function setBusy(b) {
+      document.getElementById("stop").classList.toggle("on", b);
+      document.getElementById("send").style.display = b ? "none" : "flex";
+    }
+    window.__ask = async (prompt, answer, thinkMs = 6500) => {
+      const ph = document.getElementById("ph"), txt = document.getElementById("txt");
+      ph.style.display = "none"; txt.style.display = "block"; txt.textContent = "";
+      for (const ch of prompt) { txt.textContent += ch; await sleep(22); }
+      await sleep(350);
+      txt.style.display = "none"; ph.style.display = "block";
+      userMsg(prompt);
+      const turn = aiTurn();
+      const wait = document.createElement("span"); wait.className = "wait on";
+      wait.innerHTML = STAR + '<span class="ph"></span>'; turn.appendChild(wait);
+      setBusy(true);
+      await sleep(thinkMs);     // thinking — Kolex shows the sponsored line here
+      wait.remove(); setBusy(false);
+      for (const w of answer.split(" ")) { turn.textContent += (turn.textContent ? " " : "") + w; await sleep(34); }
+      await sleep(900);
+    };
+  </script>
+</body>
+</html>

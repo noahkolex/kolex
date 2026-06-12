@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>ChatGPT</title>
+<style>
+  * { box-sizing:border-box; margin:0; }
+  body { background:#212121; color:#ececec; font:16px/1.65 -apple-system, "Segoe UI", system-ui, sans-serif; height:100vh; overflow:hidden; }
+  .app { display:flex; height:100%; }
+  .side { width:260px; background:#171717; padding:14px 12px; flex:none; }
+  .side .top { display:flex; align-items:center; gap:8px; font-weight:600; padding:8px; }
+  .side .new { margin-top:10px; padding:9px 10px; border:1px solid #2f2f2f; border-radius:9px; font-size:13.5px; color:#cfcfcf; }
+  .side .h { margin:18px 8px 6px; font-size:11px; color:#8e8e8e; text-transform:uppercase; letter-spacing:.5px; }
+  .side .c { padding:8px 10px; border-radius:8px; font-size:13.5px; color:#c7c7c7; }
+  .side .c.on { background:#2a2a2a; }
+  .main { flex:1; display:flex; flex-direction:column; }
+  .hdr { height:52px; display:flex; align-items:center; padding:0 20px; font-weight:600; gap:8px; color:#ececec; }
+  .scroll { flex:1; overflow:hidden; }
+  .thread { max-width:768px; margin:0 auto; padding:14px 24px 30px; }
+  .msg { display:flex; gap:16px; padding:16px 0; }
+  .av { width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700; }
+  .av.u { background:#5436DA; color:#fff; }
+  .av.a { background:#10a37f; color:#fff; }
+  .body { flex:1; padding-top:3px; }
+  .name { font-weight:600; margin-bottom:3px; font-size:14px; }
+  .turn { min-height:24px; }
+  .spinner { display:none; }
+  .spinner.on { display:inline-block; width:16px; height:16px; border-radius:50%; background:#ececec; animation:pulse 1s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity:.25; transform:scale(.75); } }
+  .composer { padding:10px 24px 22px; }
+  .box { max-width:768px; margin:0 auto; background:#2f2f2f; border:1px solid #424242; border-radius:26px; padding:13px 18px; display:flex; align-items:center; gap:12px; }
+  .box .ph { flex:1; color:#b4b4b4; font-size:15px; }
+  .box .txt { flex:1; color:#ececec; font-size:15px; }
+  .stop { display:none; }
+  .stop.on { display:inline-flex; width:34px;height:34px;border-radius:50%; background:#ececec; color:#212121; align-items:center; justify-content:center; font-weight:800; }
+  .send { width:34px;height:34px;border-radius:50%; background:#ececec; color:#212121; display:flex; align-items:center; justify-content:center; font-weight:800; }
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="side">
+      <div class="top">⬡ ChatGPT</div>
+      <div class="new">＋ New chat</div>
+      <div class="h">Today</div>
+      <div class="c on">Product launch plan</div>
+      <div class="c">Refactor the auth module</div>
+      <div class="c">Explain transformers simply</div>
+      <div class="c">Trip itinerary: Japan</div>
+    </div>
+    <div class="main">
+      <div class="hdr">ChatGPT 4o ▾</div>
+      <div class="scroll"><div class="thread" id="thread"></div></div>
+      <div class="composer">
+        <div class="box">
+          <span class="ph" id="ph">Message ChatGPT…</span>
+          <span class="txt" id="txt" style="display:none"></span>
+          <button class="stop" id="stop" data-testid="stop-button" aria-label="Stop streaming">■</button>
+          <span class="send" id="send">↑</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    window.__KOLEX_SITE = {
+      surface: "chatgpt",
+      busySelectors: ['button[data-testid="stop-button"].on', '.spinner.on'],
+      spinnerSelectors: ['.spinner.on'],
+    };
+  </script>
+  <script src="./harness-demo.js"></script>
+  <script src="../extension/content.js"></script>
+  <script>
+    const thread = document.getElementById("thread");
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    function msg(role, who) {
+      const m = document.createElement("div"); m.className = "msg";
+      m.innerHTML = `<div class="av ${role==='user'?'u':'a'}">${role==='user'?'You':'AI'}</div><div class="body"><div class="name">${who}</div><div class="turn"></div></div>`;
+      thread.appendChild(m); return m.querySelector(".turn");
+    }
+    function setBusy(b) {
+      document.getElementById("stop").classList.toggle("on", b);
+      document.getElementById("send").style.display = b ? "none" : "flex";
+    }
+    // Type the prompt into the composer (visible), then send.
+    window.__ask = async (prompt, answer, thinkMs = 6500) => {
+      const ph = document.getElementById("ph"), txt = document.getElementById("txt");
+      ph.style.display = "none"; txt.style.display = "block"; txt.textContent = "";
+      for (const ch of prompt) { txt.textContent += ch; await sleep(22); }
+      await sleep(350);
+      txt.style.display = "none"; ph.style.display = "block";
+      msg("user", "You").textContent = prompt;
+      const turn = msg("assistant", "ChatGPT");
+      const sp = document.createElement("span"); sp.className = "spinner on"; turn.appendChild(sp);
+      setBusy(true);
+      await sleep(thinkMs);          // thinking — Kolex shows the sponsored line here
+      sp.remove(); setBusy(false);
+      for (const w of answer.split(" ")) { turn.textContent += (turn.textContent ? " " : "") + w; await sleep(34); }
+      await sleep(900);
+    };
+  </script>
+</body>
+</html>
