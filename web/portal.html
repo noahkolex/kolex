@@ -50,6 +50,15 @@
         <div id="devices" class="muted" style="font-size:13px">None yet.</div>
         <p class="muted" style="font-size:12px;margin:12px 0 0">Open the Kolex extension and click <b>Cash out →</b> to link this browser.</p>
       </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Change password</div>
+        <div id="pw-err" class="errors hide"></div>
+        <div id="pw-ok" class="success hide" style="padding:10px 14px;font-size:13px;margin-bottom:10px">✓ Password updated.</div>
+        <div class="field"><label>Current password</label><input type="password" id="pw-current" autocomplete="current-password" /></div>
+        <div class="field"><label>New password</label><input type="password" id="pw-new" placeholder="At least 8 characters" autocomplete="new-password" /></div>
+        <button class="btn btn-ghost" id="pw-save">Update password</button>
+      </div>
     </div>
   </main>
 
@@ -184,6 +193,24 @@
         // (which runs inside loadDash) can't overwrite the confirmation.
         await loadDash();
         if (resultNote) $("payout-note").textContent = resultNote;
+      }
+    });
+
+    $("pw-save").addEventListener("click", async () => {
+      $("pw-err").classList.add("hide");
+      $("pw-ok").classList.add("hide");
+      try {
+        await api("/api/auth/change-password", {
+          method: "POST",
+          token: store.get("usrToken"),
+          body: { currentPassword: $("pw-current").value, newPassword: $("pw-new").value },
+        });
+        $("pw-ok").classList.remove("hide");
+        $("pw-current").value = "";
+        $("pw-new").value = "";
+      } catch (e) {
+        $("pw-err").textContent = e.message;
+        $("pw-err").classList.remove("hide");
       }
     });
 

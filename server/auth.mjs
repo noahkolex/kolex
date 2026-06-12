@@ -154,6 +154,21 @@ export function consumePasswordReset(rawToken, newPassword) {
   return { account, kind: record.kind };
 }
 
+/**
+ * Change a signed-in account's password. Verifies the current password first.
+ * Throws { status, error } on a mismatch. The caller's session stays valid.
+ */
+export function changePassword(kind, accountId, currentPassword, newPassword) {
+  const account = accountById(kind, accountId);
+  if (!account) throw { status: 404, error: "Account not found." };
+  if (!verifyPassword(currentPassword, account.passwordHash)) {
+    throw { status: 401, error: "Your current password is incorrect." };
+  }
+  account.passwordHash = hashPassword(newPassword);
+  save();
+  return account;
+}
+
 export function requireKind(kind) {
   return (req, res, next) => {
     const s = sessionFromReq(req);

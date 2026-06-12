@@ -116,6 +116,26 @@ test("reset rejects a bogus token and a too-short password", async () => {
   assert.equal((await post("/api/auth/reset", { token, password: "short" })).status, 400);
 });
 
+test("change-password: correct current password rotates it; old one stops working", async () => {
+  const { body } = await post("/api/auth", { email: "chpw@x.com", password: "originalpass", kind: "user" });
+  const auth = { authorization: `Bearer ${body.token}` };
+  const change = await post("/api/auth/change-password", { currentPassword: "originalpass", newPassword: "a-new-password" }, auth);
+  assert.equal(change.status, 200);
+  // Old password rejected, new one works.
+  assert.equal((await post("/api/auth", { email: "chpw@x.com", password: "originalpass", kind: "user" })).status, 401);
+  assert.equal((await post("/api/auth", { email: "chpw@x.com", password: "a-new-password", kind: "user" })).status, 200);
+  // The existing session still works after the change.
+  assert.equal((await get("/api/me", auth)).status, 200);
+});
+
+test("change-password rejects a wrong current password, a short new one, and no session", async () => {
+  const { body } = await post("/api/auth", { email: "chpw2@x.com", password: "originalpass", kind: "user" });
+  const auth = { authorization: `Bearer ${body.token}` };
+  assert.equal((await post("/api/auth/change-password", { currentPassword: "wrongwrong", newPassword: "a-new-password" }, auth)).status, 401);
+  assert.equal((await post("/api/auth/change-password", { currentPassword: "originalpass", newPassword: "short" }, auth)).status, 400);
+  assert.equal((await post("/api/auth/change-password", { currentPassword: "originalpass", newPassword: "a-new-password" })).status, 401);
+});
+
 test("submitting an ad requires the advertiser's correct password", async () => {
   const adBody = (pw) => ({
     email: "advco@x.com", password: pw, brand: "AdCo", text: "hello world",

@@ -18,6 +18,7 @@ import {
   requireKind,
   createPasswordReset,
   consumePasswordReset,
+  changePassword,
   newId,
 } from "./auth.mjs";
 import {
@@ -337,6 +338,23 @@ app.post("/api/auth/reset", loginLimiter, (req, res) => {
   // Auto-login with a fresh session so the user lands signed in.
   const token = createSession(out.kind, out.account);
   res.json({ token, email: out.account.email, kind: out.kind });
+});
+
+// Change password while signed in (advertiser or earner). Verifies the current
+// password; the active session stays valid.
+app.post("/api/auth/change-password", loginLimiter, (req, res) => {
+  const s = sessionFromReq(req);
+  if (!s) return res.status(401).json({ error: "not signed in" });
+  const current = String(req.body?.currentPassword ?? "");
+  const next = String(req.body?.newPassword ?? "");
+  const pwErr = validatePassword(next);
+  if (pwErr) return res.status(400).json({ error: pwErr });
+  try {
+    changePassword(s.kind, s.id, current, next);
+  } catch (e) {
+    return res.status(e.status || 400).json({ error: e.error || "Couldn't change password." });
+  }
+  res.json({ ok: true });
 });
 
 // Validate a session (frontend uses this to know who is logged in).
