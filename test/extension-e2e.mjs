@@ -116,6 +116,32 @@ try {
   }
   ok("server settled the extension's event (write path)", bal.pendingUsd > 0, `pending=${bal.pendingUsd}`);
 
+  // ── Account linking: the popup must reflect that this device is now linked,
+  // instead of forever asking the user to sign in (the reported bug). ──
+  ok("device starts unlinked", status.linked === false);
+  const auth = await fetch(`${base}/api/auth`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ email: "ext-earner@x.com", password: "pw-test-12345", kind: "user" }),
+  }).then((r) => r.json());
+  await fetch(`${base}/api/portal/link-device`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${auth.token}` },
+    body: JSON.stringify({ deviceId }),
+  });
+  // Re-query status (the popup does this on open / every second).
+  let linkedStatus = status;
+  for (let i = 0; i < 10; i++) {
+    linkedStatus = await popup.evaluate(() => chrome.runtime.sendMessage({ type: "kolex:status" }));
+    if (linkedStatus.linked) break;
+    await sleep(300);
+  }
+  ok(
+    "extension reflects the linked account (no more sign-in nag)",
+    linkedStatus.linked === true && linkedStatus.accountEmail === "ext-earner@x.com",
+    linkedStatus.accountEmail || "(none)",
+  );
+
   // The click should have opened the advertiser destination in a new tab
   // (the extension routes clicks through {siteBase}/r/{adId} → 302 to the ad).
   await sleep(800);

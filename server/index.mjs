@@ -122,6 +122,18 @@ app.get("/v1/balance", (req, res) => {
   res.json({ settledUsd: e.paidUsd, pendingUsd: e.pendingUsd });
 });
 
+// Whether this device has been linked to an account (so the popup can show
+// "connected as …" instead of nagging the user to sign in again).
+app.get("/v1/link-status", (req, res) => {
+  const deviceId = req.headers["x-kolex-device"];
+  const db = load();
+  const dev = typeof deviceId === "string"
+    ? db.devices.find((d) => d.deviceId === deviceId && d.userId)
+    : null;
+  const email = dev ? db.users.find((u) => u.id === dev.userId)?.email ?? null : null;
+  res.json({ linked: !!email, email });
+});
+
 app.post("/v1/auth/device", (req, res) => {
   const db = load();
   const deviceId = req.headers["x-kolex-device"];

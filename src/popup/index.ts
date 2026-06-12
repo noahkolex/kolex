@@ -24,6 +24,23 @@ function render(s: StatusResponse): void {
   el("pending").textContent = `${s.pendingEvents} events`;
   el("kill").classList.toggle("hidden", !s.killswitch);
   el("device").textContent = `device ${s.deviceId.slice(0, 8)}`;
+
+  // Once the device is linked to an account, show that instead of nagging the
+  // user to sign in. "Cash out" still opens the portal for withdrawals.
+  el("connectWrap").classList.toggle("hidden", s.linked);
+  const account = el("account");
+  account.classList.toggle("hidden", !s.linked);
+  if (s.linked) {
+    account.innerHTML = s.accountEmail
+      ? `✓ Linked to <b>${escapeHtml(s.accountEmail)}</b>`
+      : "✓ This browser is linked to your account";
+  }
+}
+
+function escapeHtml(s: string): string {
+  return s.replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string,
+  );
 }
 
 async function main(): Promise<void> {

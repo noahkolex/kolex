@@ -65,6 +65,20 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
   return (await res.json()) as T;
 }
 
+type LinkState = { linked: boolean; email: string | null };
+
+/** Ask the backend whether this device has been linked to an account yet. */
+async function refreshLinkStatus(): Promise<LinkState> {
+  try {
+    const r = await api<LinkState>("/link-status");
+    const link: LinkState = { linked: !!r.linked, email: r.email ?? null };
+    await kv.set("link", link);
+    return link;
+  } catch {
+    return kv.get<LinkState>("link", { linked: false, email: null });
+  }
+}
+
 /** Pull auction winners, remote selector config, and the killswitch. */
 async function refreshRemoteConfig(): Promise<void> {
   try {
@@ -146,9 +160,14 @@ async function handle(req: KolexRequest): Promise<unknown> {
     }
 
     case "kolex:status": {
-      // Pull fresh inventory on popup open so a just-activated campaign shows
-      // up right away instead of waiting for the 3-minute refresh alarm.
-      if (s.consent) await refreshRemoteConfig();
+      // Pull fresh inventory + link state on popup open so a just-activated
+      // campaign (and a just-linked account) show up right away instead of
+      // waiting for the 3-minute refresh alarm.
+      let link: LinkState = { linked: false, email: null };
+      if (s.consent) {
+        await refreshRemoteConfig();
+        link = await refreshLinkStatus();
+      }
       const sum = await rotation.summary();
       const ads = await rotation.getAds();
       return {
@@ -163,6 +182,8 @@ async function handle(req: KolexRequest): Promise<unknown> {
         // "Live ads" means real paid campaigns in rotation — Kolex's own $0
         // house ads (the blank-inventory fallback) are not counted.
         adCount: ads.filter((a) => !a.house).length,
+        linked: link.linked,
+        accountEmail: link.email,
       } satisfies StatusResponse;
     }
 

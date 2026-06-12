@@ -35,6 +35,10 @@ export interface StatusResponse {
   estEarnedUsd: number;
   pendingEvents: number;
   adCount: number;
+  /** True once this device has been linked to an account (cash-out ready). */
+  linked: boolean;
+  /** The linked account's email, when known. */
+  accountEmail: string | null;
 }
 
 export interface SetEnabledRequest {
