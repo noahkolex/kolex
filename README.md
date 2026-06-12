@@ -164,10 +164,28 @@ server by setting its API base to `http://localhost:4000/v1` during dev.
 
 ```bash
 npm install
-npm test          # typecheck the core + run the unit suite
-npm run build     # typecheck + bundle into extension/
-npm run package   # → kolex-extension.zip
+npm test           # typecheck the core + run the unit suite
+npm run build      # typecheck + bundle into extension/
+npm run test:browser   # real headless Chromium test (see below)
+npm run package    # → kolex-extension.zip
 ```
+
+### Real-browser test
+
+`npm run test:browser` runs the **built** `extension/content.js` against
+fixture pages in headless Chromium (Playwright) and asserts the on-screen
+result, then screenshots each to `/tmp/claude/kolex-*.png`:
+
+- `test/fixtures/claude.html` — the claude.ai case: a SMIL starburst *and* an
+  empty streaming-text placeholder side by side (the cluster). Asserts both
+  native spinners end up hidden and the ad replaces them.
+- `test/fixtures/chatgpt.html` — the indicator placed low, right above the
+  composer. Asserts the ad never overlaps the input and keeps clearance.
+
+Both fixtures assert: the ad mounts and is visible, shows the brand logo, no
+native spinner is left visible, the ad box does not intersect the input box,
+and the position is stable across time (no crawl). First run needs the
+browser: `npx playwright install --with-deps chromium`.
 
 Load it: `chrome://extensions` → Developer mode → **Load unpacked** → select
 the `extension/` directory. Open ChatGPT or Claude, ask something slow, and

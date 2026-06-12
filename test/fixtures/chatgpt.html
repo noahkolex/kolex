@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>ChatGPT-like fixture</title>
+  <style>
+    body { margin: 0; min-height: 100vh; background: #212121; color: #ececec;
+      font: 16px/1.6 -apple-system, system-ui, sans-serif; }
+    main { max-width: 768px; margin: 0 auto; padding: 40px 24px 150px; }
+    .user { text-align: right; margin: 0 0 24px; }
+    .user span { background: #303030; padding: 10px 16px; border-radius: 18px; display: inline-block; }
+    /* The indicator sits LOW, right above the composer — the case where a
+       naive placement would cover the input. */
+    .turn { min-height: 60vh; display: flex; align-items: flex-end; }
+    .spinner { display: none; }
+    .spinner.on { display: block; width: 18px; height: 18px; border-radius: 50%;
+      background: #ececec; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 50% { opacity: 0.25; transform: scale(0.8); } }
+    .composer { position: fixed; bottom: 0; left: 0; right: 0; padding: 16px 24px 26px;
+      display: flex; justify-content: center; background: linear-gradient(transparent, #212121 35%); }
+    form.box { width: min(720px, 84vw); display: flex; gap: 10px; align-items: end; }
+    textarea { flex: 1; padding: 14px 18px; border-radius: 24px; resize: none;
+      border: 1px solid #424242; background: #2f2f2f; color: #ececec; font: inherit; }
+    .stop { display: none; }
+    .stop.on { display: inline-block; width: 44px; height: 44px; border-radius: 50%;
+      border: 1px solid #555; background: #2f2f2f; color: #ececec; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="user"><span>summarize this 60-page document</span></div>
+    <div class="turn">
+      <div class="spinner" id="spinner"></div>
+      <div class="answer" style="display:none">Sure — here's the summary…</div>
+    </div>
+  </main>
+  <div class="composer">
+    <form class="box" onsubmit="return false">
+      <textarea id="input" rows="1" placeholder="Message ChatGPT…"></textarea>
+      <button class="stop" id="stop" data-testid="stop-button" aria-label="Stop streaming">stop</button>
+    </form>
+  </div>
+
+  <script>
+    window.__KOLEX_SITE = {
+      surface: "chatgpt",
+      busySelectors: ['button[data-testid="stop-button"].on', '.spinner.on'],
+      spinnerSelectors: ['.spinner.on'],
+    };
+  </script>
+  <script src="./harness.js"></script>
+  <script>
+    function setBusy(b) {
+      document.getElementById("spinner").classList.toggle("on", b);
+      document.getElementById("stop").classList.toggle("on", b);
+    }
+    window.__setBusy = setBusy;
+    setBusy(true);
+  </script>
+  <script src="../../extension/content.js"></script>
+</body>
+</html>

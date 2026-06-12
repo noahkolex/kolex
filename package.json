@@ -20,6 +20,7 @@
     "build": "npm run typecheck && node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/test/",
+    "test:browser": "npm run build && node test/browser.mjs",
     "icons": "node scripts/make-icons.mjs",
     "package": "npm run build && cd extension && zip -qr ../kolex-extension.zip .",
     "server": "node server/index.mjs",
@@ -31,6 +32,7 @@
     "@types/node": "^20.14.0",
     "esbuild": "^0.23.0",
     "jsdom": "^29.1.1",
+    "playwright": "^1.60.0",
     "typescript": "^5.5.0"
   },
   "dependencies": {
