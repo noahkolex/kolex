@@ -12,12 +12,16 @@ const EMPTY = {
   advertisers: [], // { id, email, createdAt }
   campaigns: [], // { id, advertiserId, brand, text, url, iconDataUrl, accent,
   //                    bidPerBlock, blocks, impressionsRemaining, impressions,
-  //                    clicks, spendUsd, status, createdAt }
+  //                    clicks, spendUsd, status, createdAt,
+  //                    payment: { checkoutId, status, amountUsd, paidAt } }
+  // status: "pending" (awaiting payment) | "active" (paid, serving) | "completed"
   users: [], // { id, email, createdAt }
   devices: [], // { deviceId, userId, deviceCode, token, authorized }
   earnings: {}, // deviceId -> { impressions, clicks, pendingUsd, paidUsd }
   sessions: {}, // token -> { kind: 'user'|'advertiser', id, email }
   seenEvents: {}, // eventId -> true (idempotency)
+  processedWebhooks: {}, // stripe event id -> true (idempotency)
+  payouts: [], // { id, userId, amountUsd, status, stripeId, createdAt }
 };
 
 let db = null;

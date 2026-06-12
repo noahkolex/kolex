@@ -1,7 +1,9 @@
-node_modules/
+
+.env
 dist-test/
-kolex-extension.zip
-extension/content.js
 extension/background.js
+extension/content.js
 extension/popup.js
+kolex-extension.zip
+node_modules/
 server/data/db.json

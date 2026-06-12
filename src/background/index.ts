@@ -7,11 +7,24 @@ import type {
   TickResponse,
 } from "../shared/messages.js";
 
-const API_BASE = "https://api.kolex.ai/v1";
-const SITE_BASE = "https://kolex.ai";
+// Injected at build time from KOLEX_API_BASE / KOLEX_SITE_BASE (see build.mjs).
+declare const __KOLEX_API_BASE__: string;
+declare const __KOLEX_SITE_BASE__: string;
+const BUILD_API_BASE = __KOLEX_API_BASE__;
+const BUILD_SITE_BASE = __KOLEX_SITE_BASE__;
 
 const kv = new ChromeKV(chrome.storage.local);
 const rotation = new Rotation(kv);
+
+/**
+ * Resolve the backend endpoints. A storage `override` (set by tooling/dev)
+ * wins over the build-time default, so the same build can be pointed at a
+ * local server without rebuilding.
+ */
+async function bases(): Promise<{ api: string; site: string }> {
+  const o = await kv.get<{ apiBase?: string; siteBase?: string }>("override", {});
+  return { api: o.apiBase || BUILD_API_BASE, site: o.siteBase || BUILD_SITE_BASE };
+}
 
 interface Settings {
   deviceId: string;
@@ -38,7 +51,8 @@ async function saveSettings(patch: Partial<Settings>): Promise<Settings> {
 /** Short-timeout fetch — an unreachable ad server must never block the UI. */
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const s = await settings();
-  const res = await fetch(`${API_BASE}${path}`, {
+  const { api: apiBase } = await bases();
+  const res = await fetch(`${apiBase}${path}`, {
     ...init,
     headers: {
       "content-type": "application/json",
@@ -120,9 +134,10 @@ async function handle(req: KolexRequest): Promise<unknown> {
       await rotation.click(req.adId, req.surface);
       const ads = await rotation.getAds();
       const ad = ads.find((a) => a.id === req.adId);
+      const { site } = await bases();
       const url = ad?.house
         ? ad.url
-        : `${SITE_BASE}/r/${encodeURIComponent(req.adId)}?d=${encodeURIComponent(s.deviceId)}`;
+        : `${site}/r/${encodeURIComponent(req.adId)}?d=${encodeURIComponent(s.deviceId)}`;
       await chrome.tabs.create({ url, active: true });
       void flushLedger();
       return { ok: true };
@@ -156,8 +171,9 @@ async function handle(req: KolexRequest): Promise<unknown> {
     case "kolex:open-page": {
       // Carry the device id so the portal can link earnings to the account
       // after the user logs in (the "cash out" flow from the popup).
+      const { site } = await bases();
       const path = req.page === "home" ? "/" : `/${req.page}`;
-      const url = `${SITE_BASE}${path}?device=${encodeURIComponent(s.deviceId)}&connect=1`;
+      const url = `${site}${path}?device=${encodeURIComponent(s.deviceId)}&connect=1`;
       await chrome.tabs.create({ url, active: true });
       return { ok: true };
     }

@@ -31,6 +31,10 @@
         <button class="btn btn-ghost" id="logout">Sign out</button>
       </div>
 
+      <div id="paid-banner" class="success hide" style="margin-top:18px;padding:12px 16px;font-size:14px">
+        ✓ Payment received — your campaign is live in the auction.
+      </div>
+
       <div class="stats-strip" id="adv-stats" style="margin-top:22px"></div>
 
       <table class="board" style="margin-top:8px">
@@ -73,8 +77,14 @@
           ["Clicks", num(totalClk)],
           ["Total spend", money(data.totalSpendUsd)],
         ].map(([l, v]) => `<div class="stat-chip"><b>${v}</b><span>${l}</span></div>`).join("");
+        const statusCell = (c) => {
+          if (c.status === "active") return '<span class="pill live">Live</span>';
+          if (c.status === "completed") return '<span class="pill done">Done</span>';
+          return `<span class="pill" style="background:#fff4dc;color:#9a6a00">Unpaid</span>
+                  <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;margin-left:6px" data-pay="${c.id}">Pay</button>`;
+        };
         $("adv-body").innerHTML = data.campaigns.length ? data.campaigns
-          .sort((a, b) => b.bidPerBlock - a.bidPerBlock)
+          .sort((a, b) => (b.status === "active") - (a.status === "active") || b.bidPerBlock - a.bidPerBlock)
           .map((c) => `
             <tr>
               <td><div class="brandcell">${c.iconDataUrl ? `<img src="${c.iconDataUrl}" alt="">` : ""}<span>${c.brand}</span></div>
@@ -83,9 +93,18 @@
               <td class="num hide-sm mono">${num(c.impressions)}</td>
               <td class="num hide-sm mono">${num(c.clicks)}</td>
               <td class="num mono">${money(c.spendUsd)}</td>
-              <td class="num"><span class="pill ${c.status === "active" ? "live" : "done"}">${c.status === "active" ? "Live" : "Done"}</span></td>
+              <td class="num">${statusCell(c)}</td>
             </tr>`).join("")
           : '<tr><td colspan="6" class="muted center" style="padding:24px">No campaigns yet.</td></tr>';
+        // Wire "Pay" buttons for unpaid campaigns → re-checkout.
+        for (const btn of document.querySelectorAll("[data-pay]")) {
+          btn.addEventListener("click", async () => {
+            const r = await api(`/api/advertiser/campaigns/${btn.dataset.pay}/checkout`, {
+              method: "POST", token: store.get("advToken"),
+            });
+            location.href = r.checkoutUrl;
+          });
+        }
       } catch {
         store.del("advToken");
         showLogin();
@@ -108,6 +127,9 @@
     $("email")?.addEventListener("keydown", (e) => { if (e.key === "Enter") $("signin").click(); });
     $("logout").addEventListener("click", () => { store.del("advToken"); showLogin(); });
 
+    if (new URLSearchParams(location.search).get("paid") === "1") {
+      $("paid-banner").classList.remove("hide");
+    }
     loadDash();
   </script>
 </body>

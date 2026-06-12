@@ -1,6 +1,6 @@
 {
   "name": "kolex",
-  "version": "0.5.6",
+  "version": "0.6.0",
   "description": "Get paid for waiting. Kolex is a Chrome extension that replaces the loading indicators on ChatGPT and Claude with one sponsored status line — 50% of ad revenue goes to you.",
   "keywords": [
     "chrome-extension",
@@ -20,7 +20,11 @@
     "build": "npm run typecheck && node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/test/",
+    "test:server": "node --test test/server.test.mjs",
+    "test:web": "node test/web-e2e.mjs",
     "test:browser": "npm run build && node test/browser.mjs",
+    "test:ext": "npm run build && xvfb-run -a node test/extension-e2e.mjs",
+    "test:all": "npm run test && npm run test:server && npm run test:web && npm run test:browser && npm run test:ext",
     "icons": "node scripts/make-icons.mjs",
     "package": "npm run build && cd extension && zip -qr ../kolex-extension.zip .",
     "server": "node server/index.mjs",
@@ -36,6 +40,7 @@
     "typescript": "^5.5.0"
   },
   "dependencies": {
-    "express": "^4.22.2"
+    "express": "^4.22.2",
+    "stripe": "^17.7.0"
   }
 }

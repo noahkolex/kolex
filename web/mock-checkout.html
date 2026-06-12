@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Checkout — Kolex (test mode)</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+</head>
+<body>
+  <main class="wrap narrow" style="padding-top:64px;max-width:460px">
+    <div class="card">
+      <span class="eyebrow">Stripe · test mode</span>
+      <h1 style="font-size:24px;font-weight:600;letter-spacing:-.02em;margin:10px 0 4px">Confirm your ad budget</h1>
+      <p class="muted" style="margin-top:0;font-size:13px">No real card is charged. This mock checkout stands in for Stripe until live keys are configured.</p>
+      <div class="row" style="border-top:1px solid var(--rule);margin-top:14px;padding-top:14px">
+        <span class="muted">Campaign</span><span id="campaign" class="mono"></span>
+      </div>
+      <div class="row">
+        <span class="muted">Total</span><span id="amount" class="mono" style="font-size:18px;font-weight:600"></span>
+      </div>
+      <button class="btn btn-primary btn-lg" id="pay" style="width:100%;justify-content:center;margin-top:14px">Pay</button>
+      <button class="btn btn-ghost" id="cancel" style="width:100%;justify-content:center;margin-top:8px">Cancel</button>
+      <div id="err" class="errors hide" style="margin-top:12px"></div>
+    </div>
+  </main>
+  <script type="module">
+    import { money, api } from "/assets/app.js";
+    const q = new URLSearchParams(location.search);
+    const campaignId = q.get("campaign");
+    const amountCents = Number(q.get("amount") || 0);
+    const success = q.get("success") || "/advertiser?paid=1";
+    const cancel = q.get("cancel") || "/advertise";
+    document.getElementById("campaign").textContent = (campaignId || "").slice(0, 16);
+    document.getElementById("amount").textContent = money(amountCents / 100);
+    document.getElementById("cancel").addEventListener("click", () => (location.href = cancel));
+    document.getElementById("pay").addEventListener("click", async () => {
+      document.getElementById("pay").disabled = true;
+      try {
+        await api("/api/stub/complete-checkout", {
+          method: "POST",
+          body: { campaignId, session: q.get("session") },
+        });
+        location.href = success;
+      } catch (e) {
+        const el = document.getElementById("err");
+        el.textContent = e.message;
+        el.classList.remove("hide");
+        document.getElementById("pay").disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

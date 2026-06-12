@@ -74,8 +74,8 @@
         </div>
       </div>
 
-      <button type="submit" class="btn btn-primary btn-lg" id="submit" style="width:100%;justify-content:center">Enter the auction</button>
-      <p class="muted center" style="font-size:12px;margin-top:10px">Prototype — no card charged. You'll land in your advertiser portal.</p>
+      <button type="submit" class="btn btn-primary btn-lg" id="submit" style="width:100%;justify-content:center">Continue to payment →</button>
+      <p class="muted center" style="font-size:12px;margin-top:10px">Secure checkout via Stripe. Your campaign goes live the moment payment clears.</p>
     </form>
 
     <!-- Success -->
@@ -144,14 +144,9 @@
         });
         store.set("advToken", res.token);
         store.set("advEmail", $("email").value.toLowerCase().trim());
-        $("form").classList.add("hide");
-        document.querySelector('[style*="Live preview"]')?.closest("div")?.classList.add("hide");
-        $("done").classList.remove("hide");
-        $("done-msg").textContent = res.rank === 1
-          ? `Your campaign is #1 in the auction — served first. ${num(res.impressions)} impressions queued for ${money(res.budgetUsd)}.`
-          : `Your campaign entered at rank #${res.rank}. ${num(res.impressions)} impressions queued for ${money(res.budgetUsd)}.`;
-        renderAdline($("done-ad"), { brand: $("brand").value, text: $("text").value, accent: $("accent").value, iconDataUrl: logoData });
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        // Off to Stripe Checkout (or the mock checkout in test mode). The
+        // campaign goes live once payment completes.
+        location.href = res.checkoutUrl;
       } catch (err) {
         const list = err.data?.errors || [err.message];
         $("errors").innerHTML = "<b>Couldn't launch:</b><ul>" + list.map((x) => `<li>${x}</li>`).join("") + "</ul>";
