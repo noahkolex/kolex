@@ -19,6 +19,7 @@
   "scripts": {
     "start": "node server/index.mjs",
     "build": "npm run typecheck && node scripts/build.mjs",
+    "build:demo": "npm run typecheck && KOLEX_DEMO=1 node scripts/build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.test.json && node --test dist-test/test/",
     "test:server": "node --test test/server.test.mjs test/auth.test.mjs test/adversarial.test.mjs test/ratelimit.test.mjs test/persistence.test.mjs",

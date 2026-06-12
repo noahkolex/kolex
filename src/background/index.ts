@@ -10,11 +10,33 @@ import type {
 // Injected at build time from KOLEX_API_BASE / KOLEX_SITE_BASE (see build.mjs).
 declare const __KOLEX_API_BASE__: string;
 declare const __KOLEX_SITE_BASE__: string;
+declare const __KOLEX_DEMO__: boolean;
 const BUILD_API_BASE = __KOLEX_API_BASE__;
 const BUILD_SITE_BASE = __KOLEX_SITE_BASE__;
+/** Demo build: baked-in fake ads + earnings, no backend (for screen recordings). */
+const DEMO = __KOLEX_DEMO__;
 
 const kv = new ChromeKV(chrome.storage.local);
 const rotation = new Rotation(kv);
+
+// ─────────────────────────── Demo mode ───────────────────────────
+const demoTile = (bg: string, glyph: string): string =>
+  "data:image/svg+xml;base64," +
+  btoa(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="7" fill="${bg}"/>${glyph}</svg>`,
+  );
+const DEMO_ADS = [
+  { id: "demo-linear", brand: "Linear", text: "The issue tracker teams actually enjoy", url: "https://linear.app", bidPerBlock: 42, impressionsRemaining: 1e9, house: false, accent: "#5E6AD2", iconDataUrl: demoTile("#5E6AD2", '<path d="M7 18.5 13.5 25A9 9 0 0 1 7 18.5Z M7 14.2A12.8 12.8 0 0 0 17.8 25 M7.6 10.6A16.4 16.4 0 0 0 21.4 24.4" stroke="#fff" stroke-width="2.1" fill="none" stroke-linecap="round"/>') },
+  { id: "demo-vercel", brand: "Vercel", text: "Ship your AI app to the edge in seconds", url: "https://vercel.com", bidPerBlock: 38, impressionsRemaining: 1e9, house: false, accent: "#0F1216", iconDataUrl: demoTile("#0F1216", '<path d="M16 8 25 23H7Z" fill="#fff"/>') },
+  { id: "demo-stripe", brand: "Stripe", text: "Payments infrastructure for the internet", url: "https://stripe.com", bidPerBlock: 31, impressionsRemaining: 1e9, house: false, accent: "#635BFF", iconDataUrl: demoTile("#635BFF", '<path d="M11 13.5c0-1 1-1.5 2.4-1.5 1.5 0 3 .5 4 1V9.4A9 9 0 0 0 13.4 9C10 9 7.7 10.7 7.7 13.4c0 4.2 5.8 3.5 5.8 5.3 0 .8-.7 1.1-1.9 1.1-1.6 0-3.5-.7-5-1.5v3.4a11 11 0 0 0 5 1c3.6 0 6-1.6 6-4.5 0-4.5-5.8-3.7-5.8-5.2Z" fill="#fff"/>') },
+  { id: "demo-raycast", brand: "Raycast", text: "Your shortcut to everything on the Mac", url: "https://raycast.com", bidPerBlock: 24, impressionsRemaining: 1e9, house: false, accent: "#FF6363", iconDataUrl: demoTile("#FF6363", '<path d="M16 8l8 8-8 8-8-8z" fill="none" stroke="#fff" stroke-width="2.2" stroke-linejoin="round"/>') },
+];
+const DEMO_START_USD = 12.84;
+async function demoBalanceUsd(): Promise<number> {
+  const sum = await rotation.summary();
+  return DEMO_START_USD + sum.estEarnedUsd;
+}
+if (DEMO) void rotation.setAds(DEMO_ADS); // load demo inventory on every worker start
 
 /**
  * Resolve the backend endpoints. A storage `override` (set by tooling/dev)
@@ -36,7 +58,8 @@ interface Settings {
 async function settings(): Promise<Settings> {
   let s = await kv.get<Settings | null>("settings", null);
   if (!s) {
-    s = { deviceId: crypto.randomUUID(), consent: false, enabled: true, killswitch: false };
+    // Demo builds auto-consent so it "just works" the moment you load it.
+    s = { deviceId: crypto.randomUUID(), consent: DEMO, enabled: true, killswitch: false };
     await kv.set("settings", s);
   }
   return s;
@@ -102,6 +125,12 @@ async function fetchServerBalance(): Promise<ServerBalance | null> {
 
 /** Pull auction winners, remote selector config, and the killswitch. */
 async function refreshRemoteConfig(): Promise<void> {
+  if (DEMO) {
+    // No backend: serve the baked-in demo ads and default site selectors.
+    await rotation.setAds(DEMO_ADS);
+    await kv.set("sites", DEFAULT_SITES);
+    return;
+  }
   try {
     const remote = await api<{ ads?: unknown; sites?: unknown; killswitch?: boolean }>("/config");
     await rotation.setAds(remote.ads ?? []);
@@ -206,10 +235,9 @@ async function handle(req: KolexRequest): Promise<unknown> {
         return { serving: false, balanceUsd: 0, impressionRecorded: false, ratePerImpressionUsd: 0, msIntoImpression: 0 } satisfies TickResponse;
       }
       const out = await rotation.tick(req.surface);
-      // Push the new impression to the server immediately (real-time) and read
-      // back the authoritative balance. When no event was recorded this beat,
-      // flushLedger returns the cached balance without a network call.
-      const bal = await flushLedger();
+      // Demo: fake locally-accruing balance, no backend. Otherwise push the new
+      // impression to the server and read back the authoritative balance.
+      const balanceUsd = DEMO ? await demoBalanceUsd() : earnedUsd(await flushLedger());
       return {
         serving: !!out.ad,
         ad: out.ad
@@ -222,7 +250,7 @@ async function handle(req: KolexRequest): Promise<unknown> {
               accent: out.ad.accent,
             }
           : undefined,
-        balanceUsd: earnedUsd(bal),
+        balanceUsd,
         impressionRecorded: out.impressionRecorded,
         ratePerImpressionUsd: out.ratePerImpressionUsd,
         msIntoImpression: out.msIntoImpression,
@@ -245,6 +273,27 @@ async function handle(req: KolexRequest): Promise<unknown> {
     }
 
     case "kolex:status": {
+      if (DEMO) {
+        await refreshRemoteConfig(); // ensure demo ads are loaded
+        const sum = await rotation.summary();
+        const ads = await rotation.getAds();
+        const balance = await demoBalanceUsd();
+        return {
+          consent: true,
+          enabled: s.enabled,
+          killswitch: false,
+          deviceId: s.deviceId,
+          totalImpressions: 1240 + sum.totalImpressions,
+          totalClicks: 37 + sum.totalClicks,
+          adCount: ads.filter((a) => !a.house).length,
+          linked: true,
+          accountEmail: "you@email.com",
+          serverPendingUsd: balance,
+          serverSettledUsd: 0,
+          minPayoutUsd: 10,
+          pendingNowUsd: await rotation.inProgressUsd(),
+        } satisfies StatusResponse;
+      }
       // Pull fresh inventory + link state on popup open so a just-activated
       // campaign (and a just-linked account) show up right away instead of
       // waiting for the 3-minute refresh alarm.
