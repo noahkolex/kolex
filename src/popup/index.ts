@@ -17,7 +17,23 @@ function render(s: StatusResponse): void {
   el("toggleWrap").classList.toggle("hidden", !s.consent);
 
   el<HTMLInputElement>("toggle").checked = s.enabled;
-  el("usd").textContent = formatUsd(s.estEarnedUsd);
+
+  // Prefer the SERVER balance (what the cash-out portal uses) so the popup and
+  // portal never disagree. Fall back to the local estimate only when offline.
+  if (s.serverPendingUsd != null) {
+    const earned = s.serverPendingUsd + (s.serverSettledUsd ?? 0);
+    el("usd-label").textContent = "Your earnings";
+    el("usd").textContent = formatUsd(earned);
+    const min = s.minPayoutUsd ?? 0;
+    const sub = el("usd-sub");
+    sub.textContent =
+      `${formatUsd(s.serverPendingUsd)} ready to cash out` + (min > 0 ? ` · ${formatUsd(min)} minimum` : "");
+  } else {
+    el("usd-label").textContent = "Estimated earnings";
+    el("usd").textContent = formatUsd(s.estEarnedUsd);
+    el("usd-sub").textContent = s.linked ? "" : "Estimate — sign in to confirm your balance";
+  }
+
   el("impressions").textContent = String(s.totalImpressions);
   el("clicks").textContent = String(s.totalClicks);
   el("adCount").textContent = String(s.adCount);

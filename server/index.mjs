@@ -119,7 +119,7 @@ app.get("/v1/balance", (req, res) => {
     pendingUsd: 0,
     paidUsd: 0,
   };
-  res.json({ settledUsd: e.paidUsd, pendingUsd: e.pendingUsd });
+  res.json({ settledUsd: e.paidUsd, pendingUsd: e.pendingUsd, minPayoutUsd: config.minPayoutUsd });
 });
 
 // Whether this device has been linked to an account (so the popup can show

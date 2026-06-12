@@ -37,8 +37,9 @@
       <div class="card center" style="margin-top:22px">
         <span class="eyebrow" style="justify-content:center">Available to withdraw</span>
         <div class="mono" id="pending" style="font-size:44px;font-weight:600;color:var(--positive);margin:8px 0">$0.00</div>
+        <div class="muted" id="min-hint" style="font-size:12px;margin:-2px 0 10px"></div>
         <div id="payout-method" style="margin:6px 0 12px;font-size:13px"></div>
-        <button class="btn btn-primary btn-lg" id="payout">Withdraw</button>
+        <button class="btn btn-primary btn-lg" id="payout" title="">Withdraw</button>
         <div class="muted" id="payout-note" style="font-size:12px;margin-top:10px">Payouts are sent to your connected Stripe account.</div>
       </div>
 
@@ -107,9 +108,21 @@
 
     function renderPayoutMethod(data) {
       const pm = $("payout-method");
+      const min = data.minPayoutUsd;
+      const enough = data.pendingUsd >= min;
+      const remaining = Math.max(0, min - data.pendingUsd);
+
+      // Always make the minimum crystal clear: a persistent line + a hover
+      // tooltip on the Withdraw button.
+      $("min-hint").textContent = enough
+        ? `Minimum cash out: ${money(min)} — you're over it ✓`
+        : `Minimum cash out: ${money(min)} · ${money(remaining)} to go`;
+      $("payout").title = enough
+        ? `Cash out ${money(data.pendingUsd)}`
+        : `You need ${money(min)} to cash out — you have ${money(data.pendingUsd)}`;
+
       if (data.payoutsReady) {
         pm.innerHTML = '<span style="color:var(--positive)">✓ Payouts enabled</span> · <a href="#" id="reconnect">manage</a>';
-        const enough = data.pendingUsd >= data.minPayoutUsd;
         $("payout").disabled = !enough;
         // Only nag about the minimum when there's a sub-minimum balance sitting
         // there. With $0 pending (e.g. right after a payout) keep it neutral so

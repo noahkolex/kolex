@@ -39,6 +39,11 @@ export interface StatusResponse {
   linked: boolean;
   /** The linked account's email, when known. */
   accountEmail: string | null;
+  /** Server-settled balance for this device (null when offline). */
+  serverPendingUsd: number | null;
+  serverSettledUsd: number | null;
+  /** Minimum balance required to cash out (USD), from the server. */
+  minPayoutUsd: number | null;
 }
 
 export interface SetEnabledRequest {

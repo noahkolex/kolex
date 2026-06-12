@@ -79,6 +79,27 @@ async function refreshLinkStatus(): Promise<LinkState> {
   }
 }
 
+type ServerBalance = { pendingUsd: number; settledUsd: number; minPayoutUsd: number };
+
+/**
+ * The device's SERVER-settled balance — the source of truth the cash-out
+ * portal uses. Shown in the popup instead of the local estimate so the two
+ * never disagree (the local tally can drift from budget caps, un-synced
+ * events, or reinstalls).
+ */
+async function fetchServerBalance(): Promise<ServerBalance | null> {
+  try {
+    const r = await api<Partial<ServerBalance>>("/balance");
+    return {
+      pendingUsd: Number(r.pendingUsd) || 0,
+      settledUsd: Number(r.settledUsd) || 0,
+      minPayoutUsd: Number(r.minPayoutUsd) || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Pull auction winners, remote selector config, and the killswitch. */
 async function refreshRemoteConfig(): Promise<void> {
   try {
@@ -164,9 +185,11 @@ async function handle(req: KolexRequest): Promise<unknown> {
       // campaign (and a just-linked account) show up right away instead of
       // waiting for the 3-minute refresh alarm.
       let link: LinkState = { linked: false, email: null };
+      let bal: ServerBalance | null = null;
       if (s.consent) {
         await refreshRemoteConfig();
         link = await refreshLinkStatus();
+        bal = await fetchServerBalance();
       }
       const sum = await rotation.summary();
       const ads = await rotation.getAds();
@@ -184,6 +207,11 @@ async function handle(req: KolexRequest): Promise<unknown> {
         adCount: ads.filter((a) => !a.house).length,
         linked: link.linked,
         accountEmail: link.email,
+        // Server-truth balance for this device (null when offline → popup
+        // falls back to the local estimate).
+        serverPendingUsd: bal ? bal.pendingUsd : null,
+        serverSettledUsd: bal ? bal.settledUsd : null,
+        minPayoutUsd: bal ? bal.minPayoutUsd : null,
       } satisfies StatusResponse;
     }
 
