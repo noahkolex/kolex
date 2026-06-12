@@ -49,12 +49,16 @@ test("stripe-config reports stub mode", async () => {
   assert.equal(body.webhookConfigured, true);
 });
 
-test("seed inventory serves and the leaderboard is populated", async () => {
+test("a blank deployment serves NO paid ads (extension falls back to house ads)", async () => {
   const cfg = await get("/v1/config");
-  assert.ok(cfg.body.ads.length >= 6, "seed ads serve");
+  assert.equal(cfg.body.ads.length, 0, "no paid campaigns on a blank DB");
   const auc = await get("/api/auction");
-  assert.ok(auc.body.leaderboard.length >= 6);
-  assert.ok(auc.body.stats.topBid > 0);
+  assert.equal(auc.body.leaderboard.length, 0);
+  assert.equal(auc.body.stats.liveCampaigns, 0);
+  // Real activity feed is empty, totals are zero — no fabricated data.
+  const act = await get("/api/activity");
+  assert.equal(act.body.totals.paidOutUsd, 0);
+  assert.equal(act.body.recent.length, 0);
 });
 
 // State shared across the ordered flow tests below.

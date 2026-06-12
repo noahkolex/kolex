@@ -56,14 +56,11 @@ export function renderAdline(el, { brand, text, iconDataUrl, accent }) {
     '<span class="ar">↗</span>';
 }
 
-/** Header nav. */
+/** Header nav. "Cash out" for earners, "Launch an ad" for advertisers. */
 export function mountNav(active) {
   const el = document.querySelector("[data-nav]");
   if (!el) return;
-  const links = [
-    ["/advertise", "Advertise"],
-    ["/portal", "Cash out"],
-  ];
+  const links = [["/portal", "Cash out"]];
   el.innerHTML =
     `<div class="wrap"><a class="brandmark" href="/">${bird(24)}<span>kolex</span></a><span class="spacer"></span>` +
     links.map(([h, t]) => `<a class="navlink${h === active ? " on" : ""}" href="${h}">${t}</a>`).join("") +
@@ -138,48 +135,13 @@ export function animateCount(el, from, to, ms = 900, prefix = "$") {
   requestAnimationFrame(frame);
 }
 
-// ─────────────────────── Live activity simulation ──────────────────────────
-// A casino-style feed that always feels alive. Generates anonymous "earned"
-// events so the site dings + the counter climbs even at low real traffic.
-
-const ADJ = ["swift", "lucky", "neon", "turbo", "cosmic", "golden", "pixel", "vapor", "hyper", "zen"];
-const FLAGS = ["🇺🇸", "🇬🇧", "🇩🇪", "🇮🇳", "🇧🇷", "🇯🇵", "🇨🇦", "🇫🇷", "🇦🇺", "🇳🇬", "🇰🇷", "🇪🇸"];
-const SURFACES = ["ChatGPT", "Claude", "Gemini", "Grok"];
-
-function randUser() {
-  const a = ADJ[(Math.random() * ADJ.length) | 0];
-  const n = (Math.random() * 9000 + 1000) | 0;
-  return `${a}_${n.toString(36)}`;
-}
-
-/** One synthetic earning event. */
-export function fakeEvent() {
-  const click = Math.random() < 0.22;
-  const amt = click ? 0.5 + Math.random() * 4 : 0.004 + Math.random() * 0.03;
-  return {
-    user: randUser(),
-    flag: FLAGS[(Math.random() * FLAGS.length) | 0],
-    surface: SURFACES[(Math.random() * SURFACES.length) | 0],
-    amount: Math.round(amt * 100) / 100,
-    kind: click ? "click" : "impression",
-  };
-}
-
-/**
- * Drive a live feed: calls onEvent(evt) at jittered intervals forever.
- * Returns a stop() function.
- */
-export function liveFeed(onEvent, { minMs = 900, maxMs = 2600 } = {}) {
-  let stopped = false;
-  function tick() {
-    if (stopped) return;
-    onEvent(fakeEvent());
-    setTimeout(tick, minMs + Math.random() * (maxMs - minMs));
-  }
-  setTimeout(tick, 400);
-  return () => {
-    stopped = true;
-  };
+/** Relative time like "2m ago" for the real activity feed. */
+export function ago(ts) {
+  const s = Math.max(0, (Date.now() - (Number(ts) || 0)) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)}m ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
+  return `${Math.floor(s / 86400)}d ago`;
 }
 
 /** Fire confetti coins from a point (no deps). */

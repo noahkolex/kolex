@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kolex — get paid while your AI thinks</title>
-  <meta name="description" content="Kolex turns the loading spinner on ChatGPT, Claude, Gemini & Grok into one sponsored line. You keep 50% of the ad money. Cash out anytime." />
+  <title>Kolex — your AI's loading screen now collects checks</title>
+  <meta name="description" content="Kolex (yes, like 'collects') turns the loading spinner on ChatGPT, Claude, Gemini & Grok into one sponsored line. You keep 50% of the ad money." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/brand.css" />
 </head>
@@ -14,12 +14,12 @@
   <main>
     <section class="hero">
       <div class="wrap center">
-        <span class="eyebrow" style="justify-content:center">Live · people are earning right now</span>
-        <h1>Get paid while<br />your AI <span class="pop">thinks.</span></h1>
-        <p class="sub" style="margin-left:auto;margin-right:auto">Kolex turns the "thinking…" spinner on ChatGPT, Claude, Gemini & Grok into one sponsored line. You keep <b>50% of the ad money</b> — it just piles up.</p>
+        <span class="eyebrow" style="justify-content:center">kolex&nbsp;·&nbsp;/kə&#39;lɛks/&nbsp;·&nbsp;see also: <i>collects</i></span>
+        <h1>Your AI's loading screen<br />now <span class="pop">collects</span> checks.</h1>
+        <p class="sub" style="margin-left:auto;margin-right:auto">Kolex (yeah — like <i>collects</i>) turns the "thinking…" spinner on ChatGPT, Claude, Gemini &amp; Grok into one sponsored line. You keep <b>50% of the ad money</b>, automatically.</p>
 
         <div class="ticker" id="ticker">
-          <span class="label">💸 paid to users so far</span>
+          <span class="label">💸 paid out to users</span>
           <span class="amount" id="ticker-amount">$0.00</span>
         </div>
 
@@ -33,16 +33,18 @@
     <section style="padding-top:8px">
       <div class="wrap" style="max-width:680px">
         <div class="section-head center" style="margin-bottom:16px">
-          <span class="eyebrow" style="justify-content:center">The money never stops</span>
+          <span class="eyebrow" style="justify-content:center">Live activity</span>
         </div>
-        <div class="feed" id="feed"></div>
+        <div class="feed" id="feed">
+          <div class="feed-item" id="feed-empty"><span class="meta">Nothing here yet — this fills up as real people cash out and brands launch. Be the first.</span></div>
+        </div>
       </div>
     </section>
 
     <section id="install" style="background:var(--bg2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
       <div class="wrap">
         <div class="section-head">
-          <span class="eyebrow">3 clicks, then you're printing</span>
+          <span class="eyebrow">3 clicks, then you collect</span>
           <h2>Install once. Earn forever.</h2>
           <p>No account needed to start. Kolex never reads your prompts — it only swaps the loading spinner.</p>
         </div>
@@ -59,7 +61,7 @@
         <div class="section-head">
           <span class="eyebrow">The auction</span>
           <h2>Who's paying for the spinner 💰</h2>
-          <p>Advertisers bid <b>in dollars</b> for blocks of 1,000 five-second impressions. Highest bid serves first. This is the live board.</p>
+          <p>Advertisers bid <b>in dollars</b> for blocks of 1,000 five-second impressions. Highest bid serves first. This is the live board — until a brand bids, the spinner shows Kolex.</p>
         </div>
         <div class="stats-strip" id="stats"></div>
         <table class="board">
@@ -74,7 +76,7 @@
           </thead>
           <tbody id="board-body"><tr><td colspan="6" class="muted center" style="padding:28px">Loading the auction…</td></tr></tbody>
         </table>
-        <div class="center" style="margin-top:22px"><a class="btn btn-gold btn-lg" href="/advertise">Outbid the top spot →</a></div>
+        <div class="center" style="margin-top:22px"><a class="btn btn-gold btn-lg" href="/advertise">Be the top bidder →</a></div>
       </div>
     </section>
 
@@ -100,50 +102,69 @@
 
   <button class="sound-toggle" id="sound" title="Toggle sound">🔊</button>
 
-  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/advertise">Advertise</a><a href="/portal">Cash out</a><a href="/advertiser">Advertiser login</a></div></footer>
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/advertise">Advertise</a><a href="/portal">Cash out</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, renderAdline, bird, ding, chaching, setSound, isSoundOn, animateCount, liveFeed, coinBurst } from "/assets/app.js";
+    import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago } from "/assets/app.js";
     mountNav("/");
 
-    // ── Sound toggle ──
     const soundBtn = document.getElementById("sound");
     const syncSound = () => (soundBtn.textContent = isSoundOn() ? "🔊" : "🔇");
     syncSound();
     soundBtn.addEventListener("click", () => { setSound(!isSoundOn()); syncSound(); if (isSoundOn()) ding(); });
 
-    // ── Money ticker: seed a believable running total, then climb live ──
-    let total = 184000 + Math.random() * 4000;
     const amtEl = document.getElementById("ticker-amount");
     const ticker = document.getElementById("ticker");
-    animateCount(amtEl, 0, total, 1400);
-
-    // ── Live activity feed (always alive) ──
     const feed = document.getElementById("feed");
-    const MAX = 7;
-    function pushEvent(e) {
-      total += e.amount;
-      // bump the ticker
-      amtEl.textContent = money(total, false);
-      ticker.classList.remove("flash"); void ticker.offsetWidth; ticker.classList.add("flash");
-      const r = ticker.getBoundingClientRect();
-      coinBurst(r.left + r.width / 2, r.top + 20, e.kind === "click" ? 16 : 6);
-      e.kind === "click" ? chaching() : ding();
-      // prepend feed item
-      const item = document.createElement("div");
-      item.className = "feed-item fresh";
-      item.innerHTML =
-        `<span class="mk">${bird(18)}</span>` +
-        `<span class="who">${e.flag} ${e.user}</span>` +
-        `<span class="meta">earned on ${e.surface}${e.kind === "click" ? " · clicked an ad" : ""}</span>` +
-        `<span class="amt ${e.kind === "click" ? "click" : ""}">+${money(e.amount)}</span>`;
-      feed.prepend(item);
-      setTimeout(() => item.classList.remove("fresh"), 700);
-      while (feed.children.length > MAX) feed.lastChild.remove();
-    }
-    liveFeed(pushEvent, { minMs: 850, maxMs: 2400 });
+    const empty = document.getElementById("feed-empty");
+    let lastTotal = 0;
+    let seen = new Set();
+    let firstLoad = true;
 
-    // ── Live auction board ──
+    function renderActivity({ totals, recent }) {
+      // Real running total of money paid out to users.
+      if (totals.paidOutUsd !== lastTotal) {
+        animateCount(amtEl, lastTotal, totals.paidOutUsd, firstLoad ? 1100 : 600);
+        if (!firstLoad && totals.paidOutUsd > lastTotal) {
+          ticker.classList.remove("flash"); void ticker.offsetWidth; ticker.classList.add("flash");
+          const r = ticker.getBoundingClientRect();
+          coinBurst(r.left + r.width / 2, r.top + 20, 12);
+          chaching();
+        }
+        lastTotal = totals.paidOutUsd;
+      }
+      // Real recent events.
+      if (recent.length === 0) {
+        if (empty) empty.style.display = "";
+        return;
+      }
+      if (empty) empty.style.display = "none";
+      const fresh = recent.filter((e) => !seen.has(keyOf(e)));
+      for (const e of recent) seen.add(keyOf(e));
+      // Rebuild the feed (most recent first), flag the new ones.
+      feed.querySelectorAll(".feed-item:not(#feed-empty)").forEach((n) => n.remove());
+      for (const e of recent) feed.appendChild(itemEl(e, fresh.includes(e)));
+      if (!firstLoad && fresh.length) ding();
+    }
+    const keyOf = (e) => `${e.type}:${e.brand || ""}:${e.amountUsd || ""}:${e.at}`;
+    function itemEl(e, isFresh) {
+      const div = document.createElement("div");
+      div.className = "feed-item" + (isFresh ? " fresh" : "");
+      if (e.type === "payout") {
+        div.innerHTML = `<span class="who">💸 Cash-out</span><span class="meta">a user withdrew their earnings · ${ago(e.at)}</span><span class="amt">${money(e.amountUsd)}</span>`;
+      } else {
+        div.innerHTML = `<span class="who">📣 ${e.brand}</span><span class="meta">launched a campaign · ${ago(e.at)}</span><span class="amt click">${money(e.bidPerBlock, false)}/1k</span>`;
+      }
+      return div;
+    }
+
+    async function poll() {
+      try { renderActivity(await api("/api/activity")); } catch {}
+      firstLoad = false;
+      setTimeout(poll, 4000);
+    }
+    poll();
+
     function renderBoard(leaderboard, stats) {
       document.getElementById("stats").innerHTML = [
         ["Top bid / 1k", money(stats.topBid, false), "green"],
@@ -151,7 +172,6 @@
         ["Advertiser spend", money(stats.totalSpendUsd, false), ""],
         ["Your cut", "50%", "green"],
       ].map(([l, v, c]) => `<div class="stat-chip ${c}"><b>${v}</b><span>${l}</span></div>`).join("");
-
       document.getElementById("board-body").innerHTML = leaderboard.length
         ? leaderboard.map((c) => `
           <tr data-id="${c.id}">
@@ -162,23 +182,14 @@
             <td class="num hide-sm mono">${money(c.spendUsd, false)}</td>
             <td class="num"><span class="pill ${c.status === "active" ? "live" : "done"}">${c.status === "active" ? "Live" : "Done"}</span></td>
           </tr>`).join("")
-        : '<tr><td colspan="6" class="muted center" style="padding:28px">No campaigns yet — <a href="/advertise">be the first to bid →</a></td></tr>';
+        : '<tr><td colspan="6" class="muted center" style="padding:28px">No paid campaigns yet — the spinner is showing <b>Kolex</b>. <a href="/advertise">Bid to take the top spot →</a></td></tr>';
     }
-
-    let boardRows = [];
-    api("/api/auction").then(({ leaderboard, stats }) => {
-      boardRows = leaderboard;
-      renderBoard(leaderboard, stats);
-      // periodic "bid bump" flash on a random row for life
-      setInterval(() => {
-        const rows = document.querySelectorAll("#board-body tr[data-id]");
-        if (!rows.length) return;
-        const row = rows[(Math.random() * rows.length) | 0];
-        row.classList.remove("flash-row"); void row.offsetWidth; row.classList.add("flash-row");
-      }, 3500);
-    }).catch(() => {
-      renderBoard([], { topBid: 0, liveCampaigns: 0, totalSpendUsd: 0 });
-    });
+    function loadBoard() {
+      api("/api/auction").then(({ leaderboard, stats }) => renderBoard(leaderboard, stats))
+        .catch(() => renderBoard([], { topBid: 0, liveCampaigns: 0, totalSpendUsd: 0 }));
+    }
+    loadBoard();
+    setInterval(loadBoard, 8000);
   </script>
 </body>
 </html>

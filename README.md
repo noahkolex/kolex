@@ -120,9 +120,35 @@ that serves the JSON API, the static `web/` site, and Stripe payments.
 
 ```bash
 cp .env.example .env    # then fill in (everything is optional)
-npm run server          # http://localhost:4000  (seeds a live auction)
-npm run server:reset    # wipe + reseed the store (dev/stub only)
+npm run server          # http://localhost:4000  (blank — real data only)
+KOLEX_SEED=1 npm run server   # populate demo campaigns for a showcase
 ```
+
+The DB starts **blank** — no fake campaigns, no fabricated activity. The
+landing's totals/feed are real (empty until people actually earn), and when
+there are no paid ads the extension spinner shows **Kolex's own** house ad.
+
+### Deploy to Railway (one click)
+
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
+
+It's a single Node service — no database to provision. Either:
+
+1. **From GitHub:** push this repo, then on [railway.app](https://railway.app)
+   → New Project → Deploy from GitHub repo. Railway auto-detects Node, runs
+   `node server/index.mjs` (see `railway.json`), and health-checks `/healthz`.
+2. **From the CLI:** `npm i -g @railway/cli && railway init && railway up`.
+
+Railway sets `PORT` and `RAILWAY_PUBLIC_DOMAIN` automatically — the server
+uses both, so it just works. With **no env vars** it runs in Stripe **stub**
+mode (a working demo). To take real money, add in the Railway dashboard:
+`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (and
+point a Stripe webhook at `https://<your-app>.up.railway.app/webhooks/stripe`).
+Data is file-backed and ephemeral on redeploy; mount a Railway volume and set
+`KOLEX_DB=/data/db.json` to persist it.
+
+After deploying, rebuild the extension pointed at your URL:
+`KOLEX_API_BASE=https://<your-app>.up.railway.app/v1 KOLEX_SITE_BASE=https://<your-app>.up.railway.app npm run build`.
 
 ### Configuration (all via `.env` — see `.env.example`)
 

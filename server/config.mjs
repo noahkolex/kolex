@@ -18,11 +18,17 @@ const hasRealKey = /^(sk|rk)_(test|live)_/.test(secretKey);
 const stripeMode = forced === "stub" ? "stub" : forced === "live" ? "live" : hasRealKey ? "live" : "stub";
 const isProd = (process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 
+// On Railway, the public domain is exposed as RAILWAY_PUBLIC_DOMAIN — use it
+// so Stripe redirect/webhook URLs are correct without any manual config.
+const railwayDomain = process.env.RAILWAY_PUBLIC_DOMAIN;
+const inferredBase =
+  process.env.SITE_BASE || process.env.PUBLIC_URL || (railwayDomain ? `https://${railwayDomain}` : "");
+
 export const config = {
   port: Number(process.env.PORT) || 4000,
   isProd,
   // Public base URL of this server (used for Stripe redirect URLs + webhooks).
-  siteBase: (process.env.SITE_BASE || process.env.PUBLIC_URL || "").replace(/\/$/, ""),
+  siteBase: inferredBase.replace(/\/$/, ""),
 
   stripe: {
     mode: stripeMode, // "live" | "stub"

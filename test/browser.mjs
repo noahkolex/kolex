@@ -183,5 +183,28 @@ async function runImageLoader() {
 }
 await runImageLoader();
 
+// Long-status row: the whole loading row (icon + the long status text) must be
+// hidden — no leftover text peeking out beside the ad.
+async function runLongStatus() {
+  console.log(`\n▶ claude-longstatus  (claude-longstatus.html)`);
+  const browser = await chromium.launch({ args: ["--no-sandbox"] });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+  await page.goto(pathToFileURL(path.join(DIR, "fixtures", "claude-longstatus.html")).href);
+  await page.waitForTimeout(6500);
+  const g = await page.evaluate(() => {
+    const label = document.querySelector("#label");
+    const vis = label
+      ? getComputedStyle(label).visibility !== "hidden" && label.getBoundingClientRect().width > 0
+      : false;
+    const line = document.querySelector("kolex-ad")?.shadowRoot?.querySelector(".line");
+    return { labelVisible: vis, adVisible: !!line && line.classList.contains("visible") };
+  });
+  await page.screenshot({ path: path.join(OUT, "kolex-claude-longstatus.png") });
+  ok("ad serves", g.adVisible);
+  ok("the long status text is fully hidden (no leftover text)", g.labelVisible === false);
+  await browser.close();
+}
+await runLongStatus();
+
 console.log(`\n${failures === 0 ? "ALL CHECKS PASSED" : failures + " CHECK(S) FAILED"}`);
 process.exit(failures === 0 ? 0 : 1);

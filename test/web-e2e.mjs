@@ -36,14 +36,14 @@ try {
   console.log("\n▶ Landing page + live leaderboard");
   await page.goto(`${base}/`);
   await page.waitForSelector("#board-body tr", { timeout: 5000 });
-  const rows = await page.locator("#board-body tr").count();
-  ok("leaderboard renders seeded campaigns", rows >= 6, `${rows} rows`);
-  // The money ticker climbs and the live feed dings in.
-  await page.waitForTimeout(3000);
+  // Blank deployment: leaderboard shows the honest empty state mentioning Kolex.
+  const boardText = await page.locator("#board-body").textContent();
+  ok("blank leaderboard shows the Kolex/empty state", /Kolex|first to bid/i.test(boardText), boardText.slice(0, 60));
+  // Real money ticker starts at $0.00 — no fabricated figures.
+  await page.waitForTimeout(1500);
   const tickerTxt = await page.locator("#ticker-amount").textContent();
-  ok("money ticker shows a running total", /\$[\d,]+/.test(tickerTxt), tickerTxt);
-  const feedItems = await page.locator("#feed .feed-item").count();
-  ok("live activity feed is populating", feedItems >= 1, `${feedItems} items`);
+  ok("money ticker shows the REAL total ($0.00 on blank)", /\$0\.00/.test(tickerTxt), tickerTxt);
+  ok("activity feed shows the honest empty state", await page.locator("#feed-empty").isVisible());
   // No giant bird: every svg/img on the page is reasonably sized.
   const oversized = await page.evaluate(() =>
     [...document.querySelectorAll("svg,img")].filter((e) => {

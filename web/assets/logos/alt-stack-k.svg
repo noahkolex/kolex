@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Kolex">
+  <defs>
+    <linearGradient id="kg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1CF0B0"/>
+      <stop offset="1" stop-color="#0FB585"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0F1216"/>
+  <!-- The stem of the K: a vertical stack of green coins -->
+  <g>
+    <rect x="14" y="16" width="11" height="32" fill="url(#kg)"/>
+    <ellipse cx="19.5" cy="48" rx="5.5" ry="2.1" fill="#0FB585"/>
+    <rect x="14" y="29.5" width="11" height="2" fill="#0F1216" opacity="0.35"/>
+    <rect x="14" y="43"   width="11" height="2" fill="#0F1216" opacity="0.35"/>
+    <ellipse cx="19.5" cy="16" rx="5.5" ry="2.1" fill="#1CF0B0"/>
+  </g>
+  <!-- Upper arm of K: coins stepping up to the right, gold (the pile that pays out) -->
+  <g>
+    <ellipse cx="42" cy="33" rx="5.5" ry="2.1" fill="#E0A516"/>
+    <rect x="36.5" y="22" width="11" height="11" fill="#FFC53D"/>
+    <ellipse cx="42" cy="22" rx="5.5" ry="2.1" fill="#FFD873"/>
+  </g>
+  <!-- Lower arm of K: coins stepping down to the right, gold -->
+  <g>
+    <ellipse cx="42" cy="48" rx="5.5" ry="2.1" fill="#E0A516"/>
+    <rect x="36.5" y="40" width="11" height="8" fill="#FFC53D"/>
+    <ellipse cx="42" cy="40" rx="5.5" ry="2.1" fill="#FFD873"/>
+  </g>
+  <!-- joint coin linking stem to arms -->
+  <ellipse cx="30" cy="36" rx="5.5" ry="2.1" fill="#1CF0B0"/>
+</svg>

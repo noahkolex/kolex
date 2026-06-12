@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy — Kolex</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+</head>
+<body>
+  <header class="nav" data-nav></header>
+
+  <main class="wrap narrow" style="padding-top:40px;padding-bottom:60px">
+    <span class="eyebrow">Privacy</span>
+    <h1 style="font-size:34px;font-weight:700;letter-spacing:-.03em;margin:12px 0 6px">Privacy Policy</h1>
+    <p class="muted" style="margin-top:0">Last updated: June 2026</p>
+
+    <p style="margin-top:20px">
+      Kolex is a Chrome extension that replaces the AI loading spinner with a single sponsored line —
+      and pays you for it. We built it privacy-first on purpose, because the whole thing only works if
+      you trust it. This page explains, in plain English, exactly what we do and do not collect.
+    </p>
+
+    <!-- The headline promise -->
+    <div class="success" style="margin-top:22px;padding:18px 20px">
+      <div class="mono" style="font-size:11px;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:8px">The short version</div>
+      <p style="margin:0;color:var(--ink);font-size:15px;line-height:1.65">
+        <b>Kolex never reads your prompts, your conversations, your files, or your browsing history.</b>
+        None of that ever leaves your device. The extension only checks a few CSS selectors to know
+        one thing: <i>is the model still working?</i> The only data we send is an <b>anonymous device
+        id</b> plus <b>impression and click counts</b> — and we don't send anything at all until you opt in.
+      </p>
+    </div>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">What we collect</h2>
+    <p class="muted" style="margin-top:0">We keep this list deliberately tiny.</p>
+    <div class="card" style="margin-top:14px">
+      <h3 style="font-size:16px;font-weight:700;margin:0 0 6px">Anonymous device id</h3>
+      <p class="muted" style="margin:0 0 16px;font-size:14px">A random identifier generated on your device so we can credit your earnings to the right browser. It is not tied to your name, and it isn't an advertising id.</p>
+
+      <h3 style="font-size:16px;font-weight:700;margin:0 0 6px">Impression &amp; click counts</h3>
+      <p class="muted" style="margin:0 0 16px;font-size:14px">When a sponsored line is shown (an impression) or clicked, we count it. That's how advertisers are billed and how you get paid. We count the event — we do not record what you were doing at the time.</p>
+
+      <h3 style="font-size:16px;font-weight:700;margin:0 0 6px">Portal account</h3>
+      <p class="muted" style="margin:0 0 16px;font-size:14px">If you create an account to cash out, we store your email and a securely hashed password. That's it. Your password is never stored in plain text.</p>
+
+      <h3 style="font-size:16px;font-weight:700;margin:0">Advertiser billing</h3>
+      <p class="muted" style="margin:0;font-size:14px">Advertiser payments are handled by Stripe. We never see or store card numbers — Stripe processes them directly.</p>
+    </div>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">What we do NOT collect</h2>
+    <p style="margin-top:0">This is the part that matters most, so we'll be blunt. Kolex does <b>not</b> collect, read, store, or transmit any of the following:</p>
+    <ul style="line-height:1.8;margin:10px 0 0;padding-left:20px">
+      <li>Your prompts or anything you type into an AI tool</li>
+      <li>Your conversations or the model's responses</li>
+      <li>The contents of any page you visit</li>
+      <li>Your browsing history or the URLs you open</li>
+      <li>Files, documents, or attachments on your device</li>
+    </ul>
+    <p class="muted" style="margin-top:14px;font-size:14px">No page content ever leaves your device. There is no hidden upload, no analytics on your activity, and no profile built from what you read or write.</p>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">How the extension works technically</h2>
+    <p style="margin-top:0">
+      Kolex doesn't need to understand your content to do its job — it only needs to know whether the
+      AI is currently generating a response. To detect that, it queries a small set of <b>CSS selectors</b>
+      (the same kind a stylesheet uses) to see if the page is showing its "busy" or "thinking" state.
+      That's the full extent of what it inspects: a yes/no answer to "is the model working?"
+    </p>
+    <p class="muted" style="margin-top:12px;font-size:14px">
+      When the model is busy, Kolex swaps the spinner for a sponsored line. Ad creatives are delivered as
+      <b>inline data URLs</b>, which means the extension makes no outbound network requests to render an ad —
+      so nothing about what you're looking at could be inferred from a request to a third party.
+    </p>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Cookies &amp; local storage</h2>
+    <p style="margin-top:0">
+      We use a session token to keep you logged in to the earnings portal, and we store your local settings
+      (such as whether Kolex is turned on) on your device. We don't use tracking cookies and we don't share
+      this with advertisers.
+    </p>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Payments</h2>
+    <p style="margin-top:0">
+      Payments — both advertiser billing and your payouts — are processed by <b>Stripe</b>. Card details are
+      handled entirely by Stripe under their own security and privacy practices; Kolex never stores them.
+      Your use of payments is also subject to Stripe's privacy policy.
+    </p>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Third parties</h2>
+    <p style="margin-top:0">We keep third parties to a minimum:</p>
+    <ul style="line-height:1.8;margin:10px 0 0;padding-left:20px">
+      <li><b>Stripe</b> — processes advertiser billing and your payouts.</li>
+      <li><b>The advertiser's destination</b> — if you choose to click a sponsored line, your browser navigates to that advertiser's site, just like clicking any other link. We don't share your identity with them.</li>
+    </ul>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Your choices</h2>
+    <p style="margin-top:0">You're in control at every step:</p>
+    <ul style="line-height:1.8;margin:10px 0 0;padding-left:20px">
+      <li><b>Consent toggle</b> — Kolex is consent-gated. It serves nothing and sends nothing until you opt in, and you can turn it off instantly at any time.</li>
+      <li><b>Uninstall</b> — remove the extension from Chrome and it stops entirely, immediately.</li>
+      <li><b>Data deletion</b> — request deletion of your account and associated data at any time by emailing us at <a href="mailto:privacy@kolex.ai">privacy@kolex.ai</a>.</li>
+    </ul>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Data retention</h2>
+    <p style="margin-top:0">
+      We retain impression and click counts and account information for as long as your account is active or
+      as needed to provide payouts and meet legal and accounting obligations. When you request deletion, we
+      remove your account data, keeping only what we're legally required to retain (such as records of
+      payments already made).
+    </p>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Children</h2>
+    <p style="margin-top:0">
+      Kolex is not intended for children. You must be at least 13 (or 16 where required by local law) to use
+      it. We do not knowingly collect information from anyone under that age.
+    </p>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Changes to this policy</h2>
+    <p style="margin-top:0">
+      We may update this policy as Kolex evolves. When we make material changes, we'll update the
+      "Last updated" date above and, where appropriate, notify you in the extension or portal.
+    </p>
+
+    <h2 style="font-size:24px;font-weight:700;letter-spacing:-.02em;margin:38px 0 10px">Contact</h2>
+    <p style="margin-top:0">
+      Questions, requests, or concerns about your privacy? Email us at
+      <a href="mailto:privacy@kolex.ai">privacy@kolex.ai</a> and we'll help.
+    </p>
+  </main>
+
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/terms">Terms</a></div></footer>
+
+  <script type="module">import { mountNav } from "/assets/app.js"; mountNav();</script>
+</body>
+</html>

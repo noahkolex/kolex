@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Kolex — logo options</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+  <style>
+    .logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px; }
+    .logo-card { background: var(--surface); border: 1px solid var(--rule); border-radius: 16px; padding: 22px; text-align: center; }
+    .logo-card.current { border-color: var(--green); box-shadow: 0 0 24px rgba(22,224,163,.12); }
+    .stage { display: flex; align-items: center; justify-content: center; gap: 22px; height: 110px; }
+    .stage .dark, .stage .light { display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+    .stage .dark { background: #0a0e0c; width: 96px; height: 96px; }
+    .stage .light { background: #f4f4f1; width: 96px; height: 96px; }
+    .stage img, .stage svg { width: 60px; height: 60px; display: block; }
+    .sizes { display: flex; align-items: center; justify-content: center; gap: 14px; margin-top: 12px; }
+    .sizes img, .sizes svg { display: block; }
+    .logo-name { font-weight: 700; margin: 14px 0 4px; }
+    .logo-desc { color: var(--muted); font-size: 12.5px; }
+    .badge { display: inline-block; font: 700 9px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--green); background: rgba(22,224,163,.15); padding: 2px 8px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <header class="nav" data-nav></header>
+  <main class="wrap" style="padding-top:40px;padding-bottom:60px">
+    <span class="eyebrow">Brand</span>
+    <h1 style="font-size:34px;font-weight:800;letter-spacing:-.03em;margin:12px 0 6px">Logo options</h1>
+    <p class="muted" style="margin-top:0;max-width:560px">The current mark (used everywhere today) plus alternate concepts. Each is shown on dark and light, and at 32 / 20 / 16&nbsp;px to check small-size legibility.</p>
+
+    <div class="logos" id="logos" style="margin-top:24px"></div>
+  </main>
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a></div></footer>
+
+  <script type="module">
+    import { mountNav, bird } from "/assets/app.js";
+    mountNav();
+
+    const CURRENT = { name: "Kolex bird (current)", desc: "The mark used across the app, extension, and icons today.", svg: bird(60, "#16E0A3"), current: true };
+    const ALTS = [
+      { name: "Coin-K monogram", desc: "A bold K embossed into a coin — letter and collectible at once.", src: "/assets/logos/alt-coin-k.svg" },
+      { name: "Spinner → coin", desc: "A loading arc that pays out into a gold $ coin.", src: "/assets/logos/alt-spinner-coin.svg" },
+      { name: "Chat-bubble coin", desc: "An AI chat bubble cradling a coin — chatting = earning.", src: "/assets/logos/alt-bubble-coin.svg" },
+      { name: "Coin-stack K", desc: "A K built from stacks of coins — money that collects.", src: "/assets/logos/alt-stack-k.svg" },
+    ];
+
+    const markBig = (l) => l.svg ? l.svg : `<img src="${l.src}" alt="${l.name}" width="60" height="60">`;
+    const markPx = (l, px) => l.svg ? bird(px, "#16E0A3") : `<img src="${l.src}" width="${px}" height="${px}">`;
+
+    function card(l) {
+      return `<div class="logo-card${l.current ? " current" : ""}">
+        ${l.current ? '<span class="badge">In use</span>' : ""}
+        <div class="stage"><div class="dark">${markBig(l)}</div><div class="light">${markBig(l)}</div></div>
+        <div class="sizes">${markPx(l, 32)}${markPx(l, 20)}${markPx(l, 16)}</div>
+        <div class="logo-name">${l.name}</div>
+        <div class="logo-desc">${l.desc}</div>
+      </div>`;
+    }
+    document.getElementById("logos").innerHTML = [CURRENT, ...ALTS].map(card).join("");
+  </script>
+</body>
+</html>

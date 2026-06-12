@@ -92,6 +92,9 @@ app.get("/v1/config", (_req, res) => {
 
 app.get("/v1/killswitch", (_req, res) => res.json({ disabled: false }));
 
+// Health check (Railway / uptime probes).
+app.get("/healthz", (_req, res) => res.json({ ok: true, stripe: config.stripe.mode }));
+
 app.post("/v1/events", eventsLimiter, (req, res) => {
   const deviceId = req.headers["x-kolex-device"];
   const events = Array.isArray(req.body?.events) ? req.body.events : [];
@@ -145,6 +148,33 @@ app.get("/r/:adId", clickLimiter, (req, res) => {
 // ─────────────────────────── Website API (/api) ────────────────────────────
 
 app.get("/api/stripe-config", (_req, res) => res.json(stripeStatus()));
+
+// Real activity + totals (no fabricated data). Empty on a fresh deployment.
+app.get("/api/activity", (_req, res) => {
+  const db = load();
+  const paidOutUsd = db.payouts
+    .filter((p) => p.status === "paid")
+    .reduce((s, p) => s + p.amountUsd, 0);
+  const pendingUsd = Object.values(db.earnings).reduce((s, e) => s + (e.pendingUsd || 0), 0);
+  const recent = [
+    ...db.payouts.map((p) => ({ type: "payout", amountUsd: p.amountUsd, status: p.status, at: p.createdAt })),
+    ...db.campaigns
+      .filter((c) => c.status === "active")
+      .map((c) => ({ type: "launch", brand: c.brand, bidPerBlock: c.bidPerBlock, at: c.payment?.paidAt || c.createdAt })),
+  ]
+    .sort((a, b) => (b.at || 0) - (a.at || 0))
+    .slice(0, 12);
+  res.json({
+    totals: {
+      paidOutUsd,
+      pendingUsd,
+      earners: Object.keys(db.earnings).length,
+      advertisers: db.advertisers.length,
+      liveCampaigns: liveCampaigns().length,
+    },
+    recent,
+  });
+});
 
 app.get("/api/auction", (_req, res) => {
   const board = leaderboard();
@@ -227,7 +257,7 @@ app.post("/api/ads", adsLimiter, async (req, res) => {
 // Stub-only: the mock checkout page calls this to "complete" payment, which
 // runs the exact same activation path as a real Stripe webhook.
 app.post("/api/stub/complete-checkout", (req, res) => {
-  if (!isStub() || config.isProd) return res.status(404).json({ error: "not available" });
+  if (!isStub()) return res.status(404).json({ error: "not available" });
   const campaignId = String(req.body?.campaignId ?? "");
   applyStripeEvent({
     id: newId("evt_stub"),
@@ -416,10 +446,10 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
   }
 });
 
-// Dev helper — reseed the store. Disabled in production / live mode so it
-// can't be used to wipe real data.
+// Dev/demo helper — reseed the store. Disabled in LIVE mode (real money) so
+// it can't wipe real data; available in stub/demo deploys.
 app.post("/api/reset", (_req, res) => {
-  if (config.isProd || !isStub()) return res.status(404).json({ error: "not available" });
+  if (!isStub()) return res.status(404).json({ error: "not available" });
   reset();
   res.json({ ok: true });
 });
@@ -464,6 +494,9 @@ const PAGES = {
   "/advertiser": "advertiser.html",
   "/portal": "portal.html",
   "/mock-checkout": "mock-checkout.html",
+  "/terms": "terms.html",
+  "/privacy": "privacy.html",
+  "/logos": "logos.html",
 };
 for (const [route, file] of Object.entries(PAGES)) {
   app.get(route, (_req, res) => res.sendFile(path.join(WEB, file)));
@@ -499,12 +532,15 @@ export { app, applyStripeEvent };
 // Start the server unless imported by a test.
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
   if (config.isProd && isStub()) {
-    console.error(
-      "\n⚠️  REFUSING TO START: NODE_ENV=production but Stripe is in STUB mode.\n" +
-        "   Set a real STRIPE_SECRET_KEY (sk_/rk_…) and STRIPE_WEBHOOK_SECRET, or set\n" +
-        "   STRIPE_MODE=stub explicitly to acknowledge running without real payments.\n",
+    console.warn(
+      "\n⚠️  Stripe is in STUB mode (no real payments). Great for a demo deploy.\n" +
+        "   To take real money, set STRIPE_SECRET_KEY (sk_/rk_…) + STRIPE_WEBHOOK_SECRET.\n",
     );
-    if ((process.env.STRIPE_MODE || "").toLowerCase() !== "stub") process.exit(1);
+    // Opt-in hard fail for real production: KOLEX_REQUIRE_STRIPE=1.
+    if (/^(1|true|yes|on)$/i.test(process.env.KOLEX_REQUIRE_STRIPE || "")) {
+      console.error("KOLEX_REQUIRE_STRIPE is set but Stripe is not configured. Exiting.");
+      process.exit(1);
+    }
   }
   load();
   app.listen(config.port, () => {

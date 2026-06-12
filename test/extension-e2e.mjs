@@ -25,6 +25,22 @@ const server = await new Promise((r) => {
 });
 const base = `http://127.0.0.1:${server.address().port}`;
 
+// Blank DB by default — create + pay one campaign so there's a real server ad
+// for the extension to fetch and settle against.
+const adRes = await fetch(`${base}/api/ads`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({
+    email: "ext-adv@x.com", password: "pw-test-12345", brand: "ExtTest",
+    text: "Hello from the extension test", url: "https://example.com", bidPerBlock: 42, blocks: 10,
+  }),
+}).then((r) => r.json());
+await fetch(`${base}/api/stub/complete-checkout`, {
+  method: "POST",
+  headers: { "content-type": "application/json" },
+  body: JSON.stringify({ campaignId: adRes.campaign.id }),
+});
+
 let failures = 0;
 const ok = (name, cond, detail = "") => {
   console.log(`${cond ? "  ✓" : "  ✗"} ${name}${detail ? ` — ${detail}` : ""}`);

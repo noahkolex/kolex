@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Kolex coin K">
+  <!-- Coin body -->
+  <circle cx="32" cy="32" r="26" fill="#16E0A3"/>
+  <!-- Coin rim rings (ink) -->
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#0F1216" stroke-width="3"/>
+  <circle cx="32" cy="32" r="21" fill="none" stroke="#0F1216" stroke-width="2"/>
+  <!-- Monogram K embossed into the coin (ink) -->
+  <path fill="#0F1216" d="M24 19h6v10.6l8.4-10.6h7.2L43.2 31.6 46.8 45h-7.1L35.1 36 30 42.4V45h-6z"/>
+</svg>

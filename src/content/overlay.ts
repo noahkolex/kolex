@@ -18,7 +18,7 @@ const SEFRA = {
   ink: "#0F1216",
   muted: "#6E7079",
   rule: "#DBDBD5",
-  accent: "#1547F5",
+  accent: "#16E0A3",
   positive: "#16A34A",
   sans: '"Geist", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
   mono: '"Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, monospace',
@@ -339,9 +339,17 @@ export class SpinnerSuppressor {
     const cluster = this.cluster();
     for (const el of cluster) this.hide(el);
     // Re-assert on anything we hid earlier that's still around (React may
-    // re-render the node; keep the previous one hidden too).
-    for (const el of this.hidden) {
-      if (el.isConnected) el.style.setProperty("visibility", "hidden", "important");
+    // re-render the node; keep the previous one hidden too) — UNLESS it has
+    // grown tall, which means the streaming answer is now flowing into it.
+    // Never keep an answer hidden: restore it and forget it.
+    for (const el of [...this.hidden]) {
+      if (!el.isConnected) continue;
+      if (el.getBoundingClientRect().height > 96) {
+        el.style.removeProperty("visibility");
+        this.hidden.delete(el);
+      } else {
+        el.style.setProperty("visibility", "hidden", "important");
+      }
     }
     return cluster;
   }
@@ -453,7 +461,10 @@ export class SpinnerSuppressor {
     // cap the climb at boxes narrower than most of the message column.
     const main = this.doc.querySelector("main") as StyledElement | null;
     const colW = (main ?? (this.doc.body as StyledElement))?.getBoundingClientRect?.().width || 0;
-    const maxW = colW > 0 ? colW * 0.72 : 420;
+    // Allow nearly-full-width rows (a long status like "Researching the web…"
+    // can be wide) but stop short of the full message column, which is the
+    // answer wrapper. HEIGHT is the real guard: a loading row is 1–2 lines.
+    const maxW = colW > 0 ? colW * 0.92 : 560;
 
     let best = el;
     let p = el.parentElement;
@@ -463,8 +474,9 @@ export class SpinnerSuppressor {
       if (parent.querySelector?.("button, textarea, input, [contenteditable], form, a")) break;
       const r = parent.getBoundingClientRect();
       const text = (parent.textContent ?? "").trim();
-      // Tight (content-sized), short, little text → it's the label row.
-      if (r.height >= 1 && r.height <= 64 && r.width <= maxW && text.length <= 44) best = parent;
+      // A short row (≤2 lines) with a status-length label → the loading row.
+      // Hiding it covers the WHOLE thing so no leftover text peeks out.
+      if (r.height >= 1 && r.height <= 64 && r.width <= maxW && text.length <= 140) best = parent;
       else break;
     }
     return best;

@@ -32,7 +32,7 @@ export function load() {
     db = { ...EMPTY, ...JSON.parse(fs.readFileSync(DB_PATH, "utf8")) };
   } catch {
     db = structuredClone(EMPTY);
-    seed(db);
+    if (wantSeed()) seed(db);
     save();
   }
   return db;
@@ -46,9 +46,13 @@ export function save() {
   fs.renameSync(tmp, DB_PATH);
 }
 
+// Blank by default — real data only. Set KOLEX_SEED=1 to populate demo
+// campaigns for a showcase deployment.
+const wantSeed = () => /^(1|true|yes|on|demo)$/i.test(process.env.KOLEX_SEED || "");
+
 export function reset() {
   db = structuredClone(EMPTY);
-  seed(db);
+  if (wantSeed()) seed(db);
   save();
   return db;
 }

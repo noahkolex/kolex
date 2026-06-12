@@ -95,7 +95,7 @@ test("brand takeover: advertiser logo and accent replace the defaults", () => {
   view.show({ id: "ex-indie", brand: "Indie", text: "Founders share", house: true }, 0);
   assert.ok(line.querySelector(".mark .bird"), "logo-less ad uses the bird");
   assert.equal(line.querySelector(".mark img"), null);
-  assert.equal(host.style.getPropertyValue("--kx-accent"), "#1547F5", "accent resets to cobalt");
+  assert.equal(host.style.getPropertyValue("--kx-accent"), "#16E0A3", "accent resets to Kolex green");
 });
 
 test("clicking the line reports the served ad id", () => {
