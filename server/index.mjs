@@ -241,11 +241,22 @@ app.get("/api/activity", (_req, res) => {
     .filter((c) => c.status === "active")
     .map((c) => ({ type: "launch", brand: c.brand, bidPerBlock: c.bidPerBlock, at: c.payment?.paidAt || c.createdAt }))
     .sort(byNewest);
-  // Guarantee recent cash-outs always surface — don't let a flood of campaign
-  // launches crowd payments-out off the feed.
-  const recent = [...payoutEvents.slice(0, 10), ...launchEvents.slice(0, 10)]
+  // People EARNING (watching ads), not just cashing out.
+  const earnEvents = (db.recentEarnings || [])
+    .map((e) => ({
+      type: "earn",
+      amountUsd: e.amountUsd,
+      email: anonEmail(
+        db.users.find((u) => u.id === db.devices.find((d) => d.deviceId === e.deviceId)?.userId)?.email,
+      ),
+      at: e.at,
+    }))
+    .sort(byNewest);
+  // Mix all three, newest first — guarantee each kind surfaces (a flood of one
+  // can't crowd out the others).
+  const recent = [...payoutEvents.slice(0, 8), ...earnEvents.slice(0, 12), ...launchEvents.slice(0, 6)]
     .sort(byNewest)
-    .slice(0, 16);
+    .slice(0, 20);
   res.json({
     totals: {
       paidOutUsd,

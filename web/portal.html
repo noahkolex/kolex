@@ -54,6 +54,7 @@
           </thead>
           <tbody id="payouts-body"></tbody>
         </table>
+        <p class="muted hide" id="payouts-note" style="font-size:12px;margin:12px 0 0"></p>
       </div>
 
       <div class="card" style="margin-top:14px">
@@ -162,6 +163,13 @@
           <td class="muted" style="font-size:12.5px">${ref(p)}</td>
           <td class="num">${statusPill(p.status)}</td>
         </tr>`).join("");
+      // Explain "Processing" so it's not mistaken for money that already moved.
+      const note = $("payouts-note");
+      const queued = payouts.some((p) => p.status === "queued");
+      note.classList.toggle("hide", !queued);
+      if (queued) {
+        note.innerHTML = "<b>Processing</b> means the payout is recorded and owed to you, but the transfer hasn't been sent yet — so it won't show in Stripe until it settles. This happens while your payout account is still being verified.";
+      }
     }
 
     function renderPayoutMethod(data) {

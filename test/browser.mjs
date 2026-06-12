@@ -143,9 +143,10 @@ async function run(name, file, opts = {}) {
     ok("ad position is stable (no crawl)", drift <= 1, `drift=${drift.toFixed(1)}px`);
   }
 
-  // Earnings must COUNT UP continuously between settles, not only jump at 5s.
+  // The in-progress "pending" amount must COUNT UP continuously between
+  // settles, not only jump at 5s. (Settled balance is the stable .earned span.)
   const readEarned = () => page.evaluate(() => {
-    const el = document.querySelector("kolex-ad")?.shadowRoot?.querySelector(".earned");
+    const el = document.querySelector("kolex-ad")?.shadowRoot?.querySelector(".pending");
     const m = el && el.textContent && el.textContent.match(/\$([0-9.]+)/);
     return m ? Number(m[1]) : null;
   });

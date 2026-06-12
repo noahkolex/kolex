@@ -35,6 +35,7 @@ const EMPTY = {
   seenEvents: {}, // eventId -> true (idempotency)
   processedWebhooks: {}, // stripe event id -> true (idempotency)
   payouts: [], // { id, userId, amountUsd, status, stripeId, createdAt }
+  recentEarnings: [], // capped log for the live feed: { deviceId, amountUsd, at }
 };
 
 let db = null;

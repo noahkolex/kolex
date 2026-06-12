@@ -88,31 +88,35 @@ function maybeComplete(campaign) {
   }
 }
 
-/** Settle one impression: bill the advertiser, credit the viewer. */
+/** Settle one impression: bill the advertiser, credit the viewer. Returns the
+ *  USD credited to the viewer (0 if it couldn't be billed). */
 export function settleImpression(campaign, deviceId) {
   const cost = impressionCost(campaign.bidPerBlock);
-  if (!canBill(campaign, cost)) return false;
+  if (!canBill(campaign, cost)) return 0;
   campaign.impressions += 1;
   campaign.impressionsRemaining = Math.max(0, campaign.impressionsRemaining - 1);
   campaign.spendUsd += cost;
   const e = earningsFor(deviceId);
   e.impressions += 1;
-  e.pendingUsd += cost * USER_REVENUE_SHARE;
+  const credited = cost * USER_REVENUE_SHARE;
+  e.pendingUsd += credited;
   maybeComplete(campaign);
-  return true;
+  return credited;
 }
 
-/** Settle one click: bill 50× the impression rate, credit the viewer. */
+/** Settle one click: bill 50× the impression rate, credit the viewer. Returns
+ *  the USD credited to the viewer (0 if it couldn't be billed). */
 export function settleClick(campaign, deviceId) {
   const cost = clickCost(campaign.bidPerBlock);
-  if (!canBill(campaign, cost)) return false;
+  if (!canBill(campaign, cost)) return 0;
   campaign.clicks += 1;
   campaign.spendUsd += cost;
   const e = earningsFor(deviceId);
   e.clicks += 1;
-  e.pendingUsd += cost * USER_REVENUE_SHARE;
+  const credited = cost * USER_REVENUE_SHARE;
+  e.pendingUsd += credited;
   maybeComplete(campaign);
-  return true;
+  return credited;
 }
 
 /**
@@ -124,17 +128,28 @@ export function settleClick(campaign, deviceId) {
 export function ingestEvents(events, deviceId) {
   const db = load();
   let accepted = 0;
+  let credited = 0;
   for (const ev of events) {
     if (!ev || typeof ev.id !== "string" || db.seenEvents[ev.id]) continue;
     const campaign = db.campaigns.find((c) => c.id === ev.adId);
-    let settled = false;
+    let amt = 0;
     if (campaign) {
-      if (ev.type === "impression") settled = settleImpression(campaign, deviceId);
-      else if (ev.type === "click") settled = settleClick(campaign, deviceId);
+      if (ev.type === "impression") amt = settleImpression(campaign, deviceId);
+      else if (ev.type === "click") amt = settleClick(campaign, deviceId);
       else continue; // unknown event type — don't even record
     }
     db.seenEvents[ev.id] = true; // record (house/unknown/over-budget) → no retry
-    if (settled) accepted += 1;
+    if (amt > 0) {
+      accepted += 1;
+      credited += amt;
+    }
+  }
+  // Log one "earned" entry per batch for the live feed (capped).
+  if (credited > 0) {
+    db.recentEarnings.push({ deviceId, amountUsd: credited, at: Date.now() });
+    if (db.recentEarnings.length > 100) {
+      db.recentEarnings.splice(0, db.recentEarnings.length - 100);
+    }
   }
   save();
   return accepted;

@@ -116,6 +116,14 @@ const STYLE = `
     padding-left: 9px;
     border-left: 1px solid var(--kx-rule);
   }
+  .pending {
+    flex: none;
+    font: 500 11px/1 ${SEFRA.mono};
+    color: var(--kx-accent);
+    font-variant-numeric: tabular-nums;
+    padding-left: 6px;
+    opacity: 0.95;
+  }
 `;
 
 export interface Box {
@@ -185,6 +193,7 @@ export class AdView {
   private brandEl: HTMLElement;
   private textEl: HTMLElement;
   private earnedEl: HTMLElement;
+  private pendingEl: HTMLElement;
   private currentAdId: string | null = null;
   /** Continuous earnings projection so the figure counts up between settles. */
   private earnRaf = 0;
@@ -219,8 +228,10 @@ export class AdView {
     arrow.textContent = "↗";
     this.earnedEl = doc.createElement("span");
     this.earnedEl.className = "earned";
+    this.pendingEl = doc.createElement("span");
+    this.pendingEl.className = "pending";
 
-    this.line.append(this.markEl, dot, tag, this.brandEl, this.textEl, arrow, this.earnedEl);
+    this.line.append(this.markEl, dot, tag, this.brandEl, this.textEl, arrow, this.earnedEl, this.pendingEl);
     this.line.addEventListener("click", () => {
       if (this.currentAdId) onClick(this.currentAdId);
     });
@@ -353,30 +364,37 @@ export class AdView {
     return this.doc.defaultView?.performance?.now?.() ?? 0;
   }
 
-  /** Earnings figure with enough precision to SEE the count climb. */
-  private fmtEarned(usd: number): string {
-    // 4 decimals (hundredths of a penny) so the last digit visibly moves while
-    // an impression accrues; never less than what formatUsd would show.
-    return `$${usd.toFixed(4)} earned`;
-  }
-
-  /** The projected balance right now: confirmed + the fraction of the current
-   *  impression that has accrued (capped at one whole impression). */
-  private projectedNow(): number {
-    if (!this.proj) return 0;
-    const elapsed = this.proj.rate > 0 ? this.now() - this.proj.at : 0;
+  /** How much the in-progress impression has accrued so far (0..rate). */
+  private inProgressNow(): number {
+    if (!this.proj || this.proj.rate <= 0) return 0;
+    const elapsed = this.now() - this.proj.at;
     const into = Math.min(IMPRESSION_MS, this.proj.sinceMs + Math.max(0, elapsed));
-    return this.proj.base + this.proj.rate * (into / IMPRESSION_MS);
+    return this.proj.rate * (into / IMPRESSION_MS);
   }
 
+  /**
+   * SETTLED balance is the main figure (identical to the popup/portal). The
+   * in-progress impression is shown SEPARATELY as live "pending" that counts
+   * up and folds into the settled figure when the impression completes — so the
+   * two never disagree and it's clear what's confirmed vs. on the way.
+   */
   private renderEarned(): void {
-    const v = this.projectedNow();
-    if (v > 0) {
+    const settled = this.proj ? this.proj.base : 0;
+    const pending = this.inProgressNow();
+    if (settled > 0) {
       this.earnedEl.style.display = "";
-      this.earnedEl.textContent = this.fmtEarned(v);
+      this.earnedEl.textContent = `${formatUsd(settled)} earned`;
     } else {
       this.earnedEl.style.display = "none";
       this.earnedEl.textContent = "";
+    }
+    if (pending > 0.00005) {
+      this.pendingEl.style.display = "";
+      // 4 decimals so the fractions-of-a-penny climb is visible.
+      this.pendingEl.textContent = `+$${pending.toFixed(4)} pending`;
+    } else {
+      this.pendingEl.style.display = "none";
+      this.pendingEl.textContent = "";
     }
   }
 
