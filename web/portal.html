@@ -46,6 +46,17 @@
       <div class="stats-strip" id="usr-stats" style="margin-top:22px"></div>
 
       <div class="card" style="margin-top:6px">
+        <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Payout history</div>
+        <div id="payouts-empty" class="muted" style="font-size:13px">No payouts yet. Withdraw above once you've connected payouts and cleared the minimum.</div>
+        <table class="board hide" id="payouts-table" style="margin-top:0">
+          <thead>
+            <tr><th>Date</th><th class="num">Amount</th><th>Destination</th><th class="num">Status</th></tr>
+          </thead>
+          <tbody id="payouts-body"></tbody>
+        </table>
+      </div>
+
+      <div class="card" style="margin-top:14px">
         <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Linked devices</div>
         <div id="devices" class="muted" style="font-size:13px">None yet.</div>
         <p class="muted" style="font-size:12px;margin:12px 0 0">Open the Kolex extension and click <b>Cash out →</b> to link this browser.</p>
@@ -96,6 +107,7 @@
         $("who").textContent = data.email;
         $("pending").textContent = money(data.pendingUsd);
         renderPayoutMethod(data);
+        renderPayouts(data.payouts || []);
         if (linked) {
           $("linked").textContent = `✓ Linked this browser (device ${linked.slice(0, 8)}). Earnings will appear here.`;
           $("linked").classList.remove("hide");
@@ -129,6 +141,28 @@
     }
 
     function showLogin() { $("dash").classList.add("hide"); $("login").classList.remove("hide"); }
+
+    function renderPayouts(payouts) {
+      const has = payouts.length > 0;
+      $("payouts-empty").classList.toggle("hide", has);
+      $("payouts-table").classList.toggle("hide", !has);
+      if (!has) return;
+      const fmtDate = (ts) => new Date(ts).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+      const statusPill = (s) => s === "paid"
+        ? '<span class="pill live">Paid</span>'
+        : s === "queued"
+          ? '<span class="pill" style="background:rgba(255,197,61,.15);color:var(--gold)">Processing</span>'
+          : `<span class="pill done">${escapeHtml(s || "—")}</span>`;
+      const ref = (p) => p.stripeId ? `Stripe ····${escapeHtml(String(p.stripeId).slice(-4))}` : "Connected account";
+      $("payouts-body").innerHTML = payouts
+        .slice().sort((a, b) => b.createdAt - a.createdAt)
+        .map((p) => `<tr>
+          <td>${fmtDate(p.createdAt)}</td>
+          <td class="num mono">${money(p.amountUsd)}</td>
+          <td class="muted" style="font-size:12.5px">${ref(p)}</td>
+          <td class="num">${statusPill(p.status)}</td>
+        </tr>`).join("");
+    }
 
     function renderPayoutMethod(data) {
       const pm = $("payout-method");

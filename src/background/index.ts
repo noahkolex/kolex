@@ -203,7 +203,7 @@ async function handle(req: KolexRequest): Promise<unknown> {
   switch (req.type) {
     case "kolex:tick": {
       if (!s.consent || !s.enabled || s.killswitch) {
-        return { serving: false, balanceUsd: 0, impressionRecorded: false } satisfies TickResponse;
+        return { serving: false, balanceUsd: 0, impressionRecorded: false, ratePerImpressionUsd: 0, msIntoImpression: 0 } satisfies TickResponse;
       }
       const out = await rotation.tick(req.surface);
       // Push the new impression to the server immediately (real-time) and read
@@ -224,6 +224,8 @@ async function handle(req: KolexRequest): Promise<unknown> {
           : undefined,
         balanceUsd: earnedUsd(bal),
         impressionRecorded: out.impressionRecorded,
+        ratePerImpressionUsd: out.ratePerImpressionUsd,
+        msIntoImpression: out.msIntoImpression,
       } satisfies TickResponse;
     }
 

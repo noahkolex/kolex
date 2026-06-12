@@ -40,11 +40,20 @@
           const now = Date.now();
           if (last && now - last <= 4000) accrued += now - last;
           last = now;
+          let impressionRecorded = false;
           if (accrued >= 5000) {
             accrued -= 5000;
             earned += 0.005;
+            impressionRecorded = true;
           }
-          return { serving: true, ad: ADS[0], balanceUsd: earned, impressionRecorded: false };
+          return {
+            serving: true,
+            ad: ADS[0],
+            balanceUsd: earned,
+            impressionRecorded,
+            ratePerImpressionUsd: 0.005, // the in-progress impression's payout
+            msIntoImpression: accrued,
+          };
         }
         return { ok: true };
       },

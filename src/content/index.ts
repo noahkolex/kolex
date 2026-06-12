@@ -1,7 +1,7 @@
 import { TICK_INTERVAL_MS } from "../shared/economics.js";
 import { isBusy, siteForHost, type SiteConfig } from "../shared/detect.js";
 import type { TickResponse } from "../shared/messages.js";
-import { AdView, SpinnerSuppressor, type Box, type OverlayAd } from "./overlay.js";
+import { AdView, SpinnerSuppressor, type Box, type OverlayAd, type EarningsInfo } from "./overlay.js";
 
 /**
  * Content script. Watches the page for a wait state (model streaming or
@@ -43,7 +43,7 @@ let site: SiteConfig | undefined;
 let adView: AdView | undefined;
 let suppressor: SpinnerSuppressor | undefined;
 let currentAd: OverlayAd | null = null;
-let currentEarnedUsd = 0;
+let currentEarnings: EarningsInfo = { confirmedUsd: 0, rateUsd: 0, msIntoImpression: 0 };
 let lingerUntil = 0;
 
 /** Anchor pinned once so the line is stable, not re-read every tick. */
@@ -107,7 +107,13 @@ async function accountingTick(): Promise<void> {
     })) as TickResponse;
     if (res?.serving && res.ad) {
       currentAd = res.ad;
-      currentEarnedUsd = res.balanceUsd; // server-truth balance, same as the popup/portal
+      // Server-truth balance (same as popup/portal) plus what the in-progress
+      // impression will add, so the overlay can count up continuously.
+      currentEarnings = {
+        confirmedUsd: res.balanceUsd,
+        rateUsd: res.ratePerImpressionUsd,
+        msIntoImpression: res.msIntoImpression,
+      };
     } else {
       currentAd = null;
     }
@@ -185,7 +191,7 @@ function placementTick(): void {
     pinnedRect = null;
   }
 
-  adView.show(currentAd, currentEarnedUsd, { anchor: pinnedRect, composerTop: composerTop() });
+  adView.show(currentAd, currentEarnings, { anchor: pinnedRect, composerTop: composerTop() });
 }
 
 function onAdClick(adId: string): void {

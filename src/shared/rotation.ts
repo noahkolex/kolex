@@ -55,6 +55,8 @@ export interface TickOutcome {
   impressionRecorded: boolean;
   totalImpressions: number;
   estEarnedUsd: number;
+  ratePerImpressionUsd: number;
+  msIntoImpression: number;
 }
 
 /**
@@ -129,6 +131,10 @@ export class Rotation {
       impressionRecorded,
       totalImpressions: state.totalImpressions,
       estEarnedUsd: state.estEarnedUsd,
+      // For the overlay's continuous count-up: what the in-progress impression
+      // will pay, and how far into its 5s window we are.
+      ratePerImpressionUsd: ad ? impressionPayout(ad) : 0,
+      msIntoImpression: state.accruedMs,
     };
   }
 

@@ -1,4 +1,14 @@
-import { formatUsd } from "../shared/economics.js";
+import { formatUsd, IMPRESSION_MS } from "../shared/economics.js";
+
+/** Earnings the overlay shows: a confirmed balance plus the in-progress impression. */
+export interface EarningsInfo {
+  /** Server-settled balance (the floor the count-up climbs from). */
+  confirmedUsd: number;
+  /** What the in-progress impression will add when it settles (0 for house ads). */
+  rateUsd: number;
+  /** Milliseconds accrued into the current 5s impression window. */
+  msIntoImpression: number;
+}
 
 export interface OverlayAd {
   id: string;
@@ -176,9 +186,10 @@ export class AdView {
   private textEl: HTMLElement;
   private earnedEl: HTMLElement;
   private currentAdId: string | null = null;
-  /** Smoothly animated earnings figure, so you can watch it tick up. */
-  private shownEarned = 0;
+  /** Continuous earnings projection so the figure counts up between settles. */
   private earnRaf = 0;
+  private proj: { base: number; rate: number; sinceMs: number; at: number } | null = null;
+  private projKey = "";
 
   constructor(doc: Document, onClick: (adId: string) => void) {
     this.doc = doc;
@@ -223,12 +234,16 @@ export class AdView {
    * composer's top edge; placement clamps the line above the composer so it
    * never covers the input or typed text.
    */
-  show(ad: OverlayAd, earnedUsd: number, opts: PlaceOpts = {}): void {
+  show(ad: OverlayAd, earnings: number | EarningsInfo, opts: PlaceOpts = {}): void {
     this.attach();
     // Rebuild the logo/brand only when the ad changes — re-running it every
     // placement tick would reload the <img> and flicker.
     if (ad.id !== this.currentAdId) this.renderContent(ad);
-    this.updateEarned(earnedUsd);
+    const info: EarningsInfo =
+      typeof earnings === "number"
+        ? { confirmedUsd: earnings, rateUsd: 0, msIntoImpression: 0 }
+        : earnings;
+    this.updateEarned(info);
     this.line.classList.add("visible");
 
     const r = this.line.getBoundingClientRect();
@@ -255,6 +270,9 @@ export class AdView {
       this.doc.defaultView?.cancelAnimationFrame(this.earnRaf);
       this.earnRaf = 0;
     }
+    // Force a fresh projection baseline on the next show (clock would be stale).
+    this.proj = null;
+    this.projKey = "";
     this.line.classList.remove("visible");
     this.host.remove();
   }
@@ -331,44 +349,65 @@ export class AdView {
     this.line.title = `Sponsored · ${ad.brand}. You earn 50% of this ad's revenue.`;
   }
 
-  private updateEarned(earnedUsd: number): void {
-    if (!(earnedUsd > 0)) {
+  private now(): number {
+    return this.doc.defaultView?.performance?.now?.() ?? 0;
+  }
+
+  /** Earnings figure with enough precision to SEE the count climb. */
+  private fmtEarned(usd: number): string {
+    // 4 decimals (hundredths of a penny) so the last digit visibly moves while
+    // an impression accrues; never less than what formatUsd would show.
+    return `$${usd.toFixed(4)} earned`;
+  }
+
+  /** The projected balance right now: confirmed + the fraction of the current
+   *  impression that has accrued (capped at one whole impression). */
+  private projectedNow(): number {
+    if (!this.proj) return 0;
+    const elapsed = this.proj.rate > 0 ? this.now() - this.proj.at : 0;
+    const into = Math.min(IMPRESSION_MS, this.proj.sinceMs + Math.max(0, elapsed));
+    return this.proj.base + this.proj.rate * (into / IMPRESSION_MS);
+  }
+
+  private renderEarned(): void {
+    const v = this.projectedNow();
+    if (v > 0) {
+      this.earnedEl.style.display = "";
+      this.earnedEl.textContent = this.fmtEarned(v);
+    } else {
       this.earnedEl.style.display = "none";
       this.earnedEl.textContent = "";
-      this.shownEarned = 0;
-      return;
     }
-    this.earnedEl.style.display = "";
-    const from = this.shownEarned;
-    const to = earnedUsd;
+  }
+
+  /**
+   * Update the projection baseline. Called every placement tick, but only
+   * re-syncs the clock when the worker reports new numbers — so between the 1s
+   * accounting ticks the figure keeps climbing smoothly instead of stuttering.
+   */
+  private updateEarned(info: EarningsInfo): void {
+    const key = `${info.confirmedUsd}|${info.rateUsd}|${info.msIntoImpression}`;
+    if (key !== this.projKey) {
+      this.projKey = key;
+      this.proj = {
+        base: info.confirmedUsd,
+        rate: Math.max(0, info.rateUsd),
+        sinceMs: Math.min(IMPRESSION_MS, Math.max(0, info.msIntoImpression)),
+        at: this.now(),
+      };
+    }
+    this.renderEarned(); // immediate, synchronous (also makes tests deterministic)
+
+    // Run a continuous loop while there's an in-progress impression to project.
     const win = this.doc.defaultView;
-    // Animate only an upward increment from an existing figure. First
-    // appearance (from 0) and any reset snap so the number is always correct
-    // immediately; subsequent settles tween so you can watch it tick up.
-    if (
-      !win ||
-      typeof win.requestAnimationFrame !== "function" ||
-      from <= 0 ||
-      to <= from ||
-      Math.abs(to - from) < 0.00005
-    ) {
-      this.shownEarned = to;
-      this.earnedEl.textContent = `${formatUsd(to)} earned`;
-      return;
-    }
-    // Tween from the last shown value to the new server balance so the number
-    // visibly counts up as impressions settle.
+    if (!win || typeof win.requestAnimationFrame !== "function") return;
     if (this.earnRaf) win.cancelAnimationFrame(this.earnRaf);
-    const start = win.performance.now();
-    const dur = 600;
-    const frame = (t: number): void => {
-      const k = Math.min(1, (t - start) / dur);
-      const eased = 1 - Math.pow(1 - k, 3);
-      this.shownEarned = from + (to - from) * eased;
-      this.earnedEl.textContent = `${formatUsd(this.shownEarned)} earned`;
-      if (k < 1) this.earnRaf = win.requestAnimationFrame(frame);
+    if (!this.proj || this.proj.rate <= 0) return;
+    const loop = (): void => {
+      this.renderEarned();
+      this.earnRaf = win.requestAnimationFrame(loop);
     };
-    this.earnRaf = win.requestAnimationFrame(frame);
+    this.earnRaf = win.requestAnimationFrame(loop);
   }
 }
 

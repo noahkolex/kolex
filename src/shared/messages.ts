@@ -14,6 +14,10 @@ export interface TickResponse {
   /** Server-settled total earned on this device (the single source of truth). */
   balanceUsd: number;
   impressionRecorded: boolean;
+  /** What the in-progress impression will add when it settles (USD). */
+  ratePerImpressionUsd: number;
+  /** Milliseconds accrued into the current 5s impression window. */
+  msIntoImpression: number;
 }
 
 export interface ClickRequest {

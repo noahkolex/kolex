@@ -62,7 +62,7 @@ test("show() renders, places the line, and is stable across re-shows", () => {
   assert.equal(line.style.transform, "", "no transform — exact pixel placement");
   assert.ok(line.querySelector(".mark .bird"), "house ad with no logo uses the Kolex bird");
   assert.match(line.textContent ?? "", /Indie Hackers/);
-  assert.match(line.textContent ?? "", /\$0\.01 earned/);
+  assert.match(line.textContent ?? "", /\$0\.0123 earned/);
 
   view.show(AD, 0.02, { anchor: { left: 50, top: 80, width: 20, height: 20 }, composerTop: 600 });
   assert.equal(doc.querySelectorAll("kolex-ad").length, 1, "no duplicate hosts");

@@ -143,6 +143,19 @@ async function run(name, file, opts = {}) {
     ok("ad position is stable (no crawl)", drift <= 1, `drift=${drift.toFixed(1)}px`);
   }
 
+  // Earnings must COUNT UP continuously between settles, not only jump at 5s.
+  const readEarned = () => page.evaluate(() => {
+    const el = document.querySelector("kolex-ad")?.shadowRoot?.querySelector(".earned");
+    const m = el && el.textContent && el.textContent.match(/\$([0-9.]+)/);
+    return m ? Number(m[1]) : null;
+  });
+  const e1 = await readEarned();
+  await page.waitForTimeout(700);
+  const e2 = await readEarned();
+  if (e1 !== null && e2 !== null) {
+    ok("earnings count up continuously between settles", e2 > e1, `${e1} → ${e2}`);
+  }
+
   console.log(`  📸 ${path.join(OUT, `kolex-${name}.png`)}`);
   await browser.close();
 }
