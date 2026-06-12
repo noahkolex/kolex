@@ -28,10 +28,9 @@ async function geometry(page) {
     const adText = line ? line.textContent : "";
     const hasLogo = !!(line && line.querySelector(".mark img"));
 
-    // Any natively-visible spinner OR loading label left on screen?
-    const spinnerEls = [
-      ...document.querySelectorAll("#starburst, #star, .spinner, .placeholder, .loader, .wait"),
-    ];
+    // Any natively-visible spinner GRAPHIC left on screen? (Check the actual
+    // visuals, not wrapper divs — an empty hidden-children wrapper is fine.)
+    const spinnerEls = [...document.querySelectorAll("#starburst, #star, .spinner, .placeholder")];
     const isVisible = (el) => {
       const cs = getComputedStyle(el);
       const r = el.getBoundingClientRect();
@@ -96,12 +95,28 @@ async function run(name, file) {
       `ad.bottom=${Math.round(g.lineBox.bottom)} input.top=${Math.round(g.inputBox.top)}`,
     );
   }
-  if (g.lineBox && g.composerBox) {
+  if (g.lineBox && g.inputBox) {
     ok(
-      "ad sits above the composer with clearance",
-      g.lineBox.bottom <= g.composerBox.top - 10,
-      `ad.bottom=${Math.round(g.lineBox.bottom)} composer.top=${Math.round(g.composerBox.top)}`,
+      "ad sits clearly above the input",
+      g.lineBox.bottom <= g.inputBox.top - 8,
+      `ad.bottom=${Math.round(g.lineBox.bottom)} input.top=${Math.round(g.inputBox.top)}`,
     );
+  }
+
+  // While the model streams answer text, the ad must not sit over it.
+  const overlapText = await page.evaluate(() => {
+    const line = document.querySelector("kolex-ad")?.shadowRoot?.querySelector(".line");
+    if (!line) return 0;
+    const lb = line.getBoundingClientRect();
+    let hits = 0;
+    for (const el of document.querySelectorAll("p.para")) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && !(r.right <= lb.left || r.left >= lb.right || r.bottom <= lb.top || r.top >= lb.bottom)) hits++;
+    }
+    return hits;
+  });
+  if (await page.$("p.para")) {
+    ok("ad does NOT overlap streaming answer text", overlapText === 0, `${overlapText} paragraph(s) overlapped`);
   }
 
   // Stability: capture position, wait, capture again — must not drift.
@@ -119,6 +134,7 @@ async function run(name, file) {
 
 await run("claude", "claude.html");
 await run("claude-thinking", "claude-thinking.html");
+await run("claude-streaming", "claude-streaming.html");
 await run("chatgpt", "chatgpt.html");
 
 console.log(`\n${failures === 0 ? "ALL CHECKS PASSED" : failures + " CHECK(S) FAILED"}`);

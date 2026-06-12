@@ -388,6 +388,11 @@ export class SpinnerSuppressor {
         for (const anim of doc.getAnimations()) {
           const effect = anim.effect as KeyframeEffect | null;
           if (effect?.getTiming?.()?.iterations !== Infinity) continue;
+          // Only MOTION animations are spinners. A blinking streaming cursor
+          // animates opacity, not transform — skip it, or the ad would chase
+          // the cursor into the answer text. (Lenient when we can't
+          // introspect keyframes, e.g. SMIL or test stubs.)
+          if (!this.animatesTransform(effect)) continue;
           const el = this.drawableRoot(effect.target as Element | null);
           if (el) animated.add(el);
         }
@@ -435,6 +440,14 @@ export class SpinnerSuppressor {
    * over-grabs (and stays a no-op in size-less test DOMs).
    */
   private indicatorContainer(el: StyledElement): StyledElement {
+    // The "✦ Thinking" row is a tight, content-sized box. A full-width block
+    // is the message/turn WRAPPER — climbing into it would (a) pin the ad
+    // over the answer and (b) hide the whole answer when it streams in. So
+    // cap the climb at boxes narrower than most of the message column.
+    const main = this.doc.querySelector("main") as StyledElement | null;
+    const colW = (main ?? (this.doc.body as StyledElement))?.getBoundingClientRect?.().width || 0;
+    const maxW = colW > 0 ? colW * 0.72 : 420;
+
     let best = el;
     let p = el.parentElement;
     for (let i = 0; i < 5 && p; i++, p = p.parentElement) {
@@ -443,11 +456,8 @@ export class SpinnerSuppressor {
       if (parent.querySelector?.("button, textarea, input, [contenteditable], form, a")) break;
       const r = parent.getBoundingClientRect();
       const text = (parent.textContent ?? "").trim();
-      // A loading row is SHORT (one or two lines) with little text — the row
-      // may span the full message width, so height (not width) is the guard.
-      // This is what makes us hide "✦ Thinking", label and all, not just the
-      // icon. Once tokens stream the turn grows tall and is rejected here.
-      if (r.height >= 1 && r.height <= 64 && r.width <= 900 && text.length <= 44) best = parent;
+      // Tight (content-sized), short, little text → it's the label row.
+      if (r.height >= 1 && r.height <= 64 && r.width <= maxW && text.length <= 44) best = parent;
       else break;
     }
     return best;
@@ -481,6 +491,26 @@ export class SpinnerSuppressor {
     return prev !== undefined && prev !== sig && /matrix|rotate|translate|skew/.test(sig);
   }
 
+  /**
+   * Does this animation move the element (transform), vs only blink/fade
+   * (opacity/color)? Lenient: if the keyframes can't be read, assume motion.
+   */
+  private animatesTransform(effect: KeyframeEffect): boolean {
+    const getKeyframes = (effect as { getKeyframes?: () => Keyframe[] }).getKeyframes;
+    if (typeof getKeyframes !== "function") return true;
+    let frames: Keyframe[];
+    try {
+      frames = getKeyframes.call(effect);
+    } catch {
+      return true;
+    }
+    if (!Array.isArray(frames) || frames.length === 0) return true;
+    // NB: `offset` is the keyframe's timing offset, present on every frame —
+    // not a motion property. Only these mean the element actually moves.
+    const motion = ["transform", "translate", "rotate", "scale"];
+    return frames.some((kf) => motion.some((k) => (kf as Record<string, unknown>)[k] !== undefined));
+  }
+
   /** Climb out of SVG internals so we anchor at the drawable root. */
   private drawableRoot(el: Element | null): StyledElement | null {
     if (!el) return null;
@@ -489,27 +519,20 @@ export class SpinnerSuppressor {
     return typeof target.style?.setProperty === "function" ? target : null;
   }
 
-  /** SMIL animation children, or an infinite CSS animation. */
+  /**
+   * Is this a *moving* indicator (a real spinner), not just something that
+   * blinks? We only count MOTION — SMIL transform/motion, or a CSS animation
+   * whose computed transform actually changes (caught by spinningNow). A
+   * blinking streaming cursor (opacity only) is deliberately NOT an
+   * indicator: anchoring to it would drag the ad into the answer text as it
+   * streams. That distinction is what keeps the ad off Claude's text.
+   */
   private isAnimating(el: StyledElement): boolean {
     try {
-      if (el.querySelector?.("animate, animateTransform, animateMotion, set")) return true;
+      // SMIL that moves the element. `animate` of opacity is excluded.
+      if (el.querySelector?.("animateTransform, animateMotion")) return true;
     } catch {
       // some elements reject querySelector for these names
-    }
-    const win = (el.ownerDocument as Document | null)?.defaultView;
-    if (win?.getComputedStyle) {
-      try {
-        const cs = win.getComputedStyle(el);
-        if (
-          cs.animationName &&
-          cs.animationName !== "none" &&
-          (cs.animationIterationCount || "").split(",").some((v) => v.trim() === "infinite")
-        ) {
-          return true;
-        }
-      } catch {
-        // jsdom and some realms throw — treat as not-animating
-      }
     }
     return false;
   }

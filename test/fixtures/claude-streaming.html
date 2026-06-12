@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Claude streaming fixture (long answer + scroll)</title>
+  <style>
+    body { margin: 0; min-height: 100vh; background: #1f1e1d; color: #e9e6e1;
+      font: 16px/1.7 -apple-system, system-ui, sans-serif; }
+    main { max-width: 740px; margin: 0 auto; padding: 56px 24px 200px; }
+    p { margin: 0 0 18px; }
+    .loader { display: inline-flex; align-items: center; gap: 10px; color: #b8b3ab; }
+    .loader svg { display: block; }
+    /* trailing streaming cursor — a pulsing block, like Claude's */
+    .cursor { display: inline-block; width: 9px; height: 18px; background: #e0936b;
+      margin-left: 2px; vertical-align: text-bottom; animation: blink 1s steps(2) infinite; }
+    @keyframes blink { 50% { opacity: 0; } }
+    .composer { position: fixed; bottom: 0; left: 0; right: 0; padding: 18px 24px 30px;
+      display: flex; justify-content: center; background: linear-gradient(transparent, #1f1e1d 45%); }
+    .composer .box { width: min(700px, 86vw); background: #2a2927; border: 1px solid #3a3836;
+      border-radius: 20px; padding: 14px 18px; }
+    .composer [contenteditable] { outline: none; color: #e9e6e1; min-height: 24px; }
+    .stop { display: inline-block; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="turn" id="turn">
+      <div class="loader" id="loader">
+        <svg id="star" width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#e0936b" stroke-width="2" stroke-linecap="round">
+          <g id="starg">
+            <line x1="11" y1="2" x2="11" y2="6"/><line x1="11" y1="16" x2="11" y2="20"/>
+            <line x1="2" y1="11" x2="6" y2="11"/><line x1="16" y1="11" x2="20" y2="11"/>
+          </g>
+        </svg>
+        <span>Thinking</span>
+      </div>
+    </div>
+  </main>
+  <div class="composer">
+    <div class="box">
+      <div contenteditable="true" id="input" data-placeholder="Reply to Claude…"></div>
+      <button class="stop" id="stop" aria-label="Stop response">stop</button>
+    </div>
+  </div>
+
+  <script>
+    window.__KOLEX_SITE = {
+      surface: "claude",
+      busySelectors: ['button[aria-label="Stop response"].on', '.loader', '.cursor'],
+      spinnerSelectors: [],
+    };
+  </script>
+  <script src="./harness.js"></script>
+  <script>
+    let a = 0;
+    (function spin() { a = (a + 6) % 360;
+      const g = document.getElementById("starg"); if (g) g.setAttribute("transform", `rotate(${a} 11 11)`);
+      requestAnimationFrame(spin); })();
+
+    // After 2s: drop the "Thinking" loader and stream a long answer with a
+    // trailing blinking cursor, autoscrolling to the bottom (like Claude).
+    const turn = document.getElementById("turn");
+    const WORDS = "This report examines the subject in depth across many dimensions and sections with detailed analysis and supporting evidence throughout the document".split(" ");
+    let pi = 0, wi = 0, cur = null;
+    setTimeout(() => {
+      document.getElementById("loader").remove();
+      const tick = () => {
+        if (!cur || wi === 0) {
+          const p = document.createElement("p");
+          p.className = "para";
+          cur = document.createElement("span");
+          p.appendChild(cur);
+          const c = document.createElement("span"); c.className = "cursor";
+          p.appendChild(c);
+          turn.appendChild(p);
+        }
+        cur.textContent += (wi ? " " : "") + WORDS[wi % WORDS.length];
+        wi++;
+        if (wi % 12 === 0) { pi++; wi = 0; cur = null; }
+        window.scrollTo(0, document.body.scrollHeight);
+        if (pi < 14) setTimeout(tick, 120);
+      };
+      tick();
+    }, 2000);
+  </script>
+  <script src="../../extension/content.js"></script>
+</body>
+</html>
