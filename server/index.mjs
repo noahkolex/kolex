@@ -192,6 +192,13 @@ app.get("/r/:adId", clickLimiter, (req, res) => {
 
 // ─────────────────────────── Website API (/api) ────────────────────────────
 
+/** Mask an email for the public activity feed: noah@gmail.com → n****@gmail.com */
+function anonEmail(email) {
+  if (typeof email !== "string" || !email.includes("@")) return "someone";
+  const [local, domain] = email.split("@");
+  return `${local.slice(0, 1)}****@${domain}`;
+}
+
 app.get("/api/stripe-config", (_req, res) => res.json(stripeStatus()));
 
 // Real activity + totals (no fabricated data). Empty on a fresh deployment.
@@ -202,7 +209,13 @@ app.get("/api/activity", (_req, res) => {
     .reduce((s, p) => s + p.amountUsd, 0);
   const pendingUsd = Object.values(db.earnings).reduce((s, e) => s + (e.pendingUsd || 0), 0);
   const recent = [
-    ...db.payouts.map((p) => ({ type: "payout", amountUsd: p.amountUsd, status: p.status, at: p.createdAt })),
+    ...db.payouts.map((p) => ({
+      type: "payout",
+      amountUsd: p.amountUsd,
+      status: p.status,
+      email: anonEmail(db.users.find((u) => u.id === p.userId)?.email),
+      at: p.createdAt,
+    })),
     ...db.campaigns
       .filter((c) => c.status === "active")
       .map((c) => ({ type: "launch", brand: c.brand, bidPerBlock: c.bidPerBlock, at: c.payment?.paidAt || c.createdAt })),

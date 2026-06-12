@@ -105,7 +105,7 @@
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/advertise">Advertise</a><a href="/portal">Cash out</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago } from "/assets/app.js";
+    import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago, escapeHtml } from "/assets/app.js";
     mountNav("/");
 
     const soundBtn = document.getElementById("sound");
@@ -151,7 +151,7 @@
       const div = document.createElement("div");
       div.className = "feed-item" + (isFresh ? " fresh" : "");
       if (e.type === "payout") {
-        div.innerHTML = `<span class="who">💸 Cash-out</span><span class="meta">a user withdrew their earnings · ${ago(e.at)}</span><span class="amt">${money(e.amountUsd)}</span>`;
+        div.innerHTML = `<span class="who">💸 ${escapeHtml(e.email || "someone")}</span><span class="meta">cashed out · ${ago(e.at)}</span><span class="amt">${money(e.amountUsd)}</span>`;
       } else {
         div.innerHTML = `<span class="who">📣 ${e.brand}</span><span class="meta">launched a campaign · ${ago(e.at)}</span><span class="amt click">${money(e.bidPerBlock, false)}/1k</span>`;
       }
