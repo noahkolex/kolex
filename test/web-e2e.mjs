@@ -127,6 +127,41 @@ try {
   await page.waitForTimeout(500);
   ok("wrong password is rejected at login", await page.locator("#login-err").isVisible());
 
+  console.log("\n▶ Advertiser re-login + pay a cancelled (pending) campaign");
+  // New advertiser submits, then CANCELS at checkout → campaign stays pending.
+  await page.evaluate(() => localStorage.clear());
+  await page.goto(`${base}/advertise`);
+  await page.fill("#brand", "Globex");
+  await page.fill("#email", "owner@globex.com");
+  await page.fill("#password", "globexpass123");
+  await page.fill("#text", "Globex powers tomorrow");
+  await page.fill("#url", "https://globex.com");
+  await page.fill("#bid", "40");
+  await page.fill("#blocks", "3");
+  await Promise.all([page.waitForURL(/\/mock-checkout/, { timeout: 8000 }), page.click("#submit")]);
+  await Promise.all([page.waitForURL(/\/advertise/, { timeout: 8000 }), page.click("#cancel")]);
+  ok("cancelling checkout returns to advertise", page.url().includes("/advertise"));
+
+  // Re-login to the advertiser portal with the password set during submission.
+  await page.evaluate(() => localStorage.clear());
+  await page.goto(`${base}/advertiser`);
+  await page.waitForSelector("#login:not(.hide)", { timeout: 5000 });
+  await page.fill("#email", "owner@globex.com");
+  await page.fill("#password", "globexpass123");
+  await page.click("#signin");
+  await page.waitForSelector("#dash:not(.hide)", { timeout: 5000 });
+  ok("advertiser re-login with their password works", await page.locator("#dash").isVisible());
+  await page.waitForSelector("#adv-body tr", { timeout: 5000 });
+  ok("the pending campaign shows as Unpaid", (await page.locator("#adv-body").textContent()).includes("Globex"));
+  const unpaidPills = await page.locator("#adv-body .pill.unpaid").count();
+  ok("Unpaid status pill is shown", unpaidPills >= 1, `${unpaidPills}`);
+
+  // Pay it from the portal (re-checkout) → it goes live.
+  await Promise.all([page.waitForURL(/\/mock-checkout/, { timeout: 8000 }), page.click("[data-pay]")]);
+  await Promise.all([page.waitForURL(/\/advertiser\?paid=1/, { timeout: 8000 }), page.click("#pay")]);
+  await page.waitForSelector("#adv-body .pill.live", { timeout: 5000 });
+  ok("paying the pending campaign makes it Live", (await page.locator("#adv-body .pill.live").count()) >= 1);
+
   ok("no page errors across the flow", errors.length === 0, errors[0] || "");
   await page.screenshot({ path: "/tmp/claude/kolex-web-advertiser.png" });
 } catch (err) {

@@ -81,8 +81,8 @@
         const statusCell = (c) => {
           if (c.status === "active") return '<span class="pill live">Live</span>';
           if (c.status === "completed") return '<span class="pill done">Done</span>';
-          return `<span class="pill" style="background:#fff4dc;color:#9a6a00">Unpaid</span>
-                  <button class="btn btn-ghost" style="padding:3px 8px;font-size:11px;margin-left:6px" data-pay="${c.id}">Pay</button>`;
+          return `<span class="pill unpaid">Unpaid</span>
+                  <button class="btn btn-gold" style="padding:4px 10px;font-size:11px;margin-left:6px" data-pay="${c.id}">Pay now</button>`;
         };
         $("adv-body").innerHTML = data.campaigns.length ? data.campaigns
           .sort((a, b) => (b.status === "active") - (a.status === "active") || b.bidPerBlock - a.bidPerBlock)
