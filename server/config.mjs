@@ -12,13 +12,15 @@ function bool(v, dflt = false) {
 const secretKey = process.env.STRIPE_SECRET_KEY?.trim() || "";
 // Stub mode runs the full payment flow locally with NO real Stripe calls, so
 // everything is testable without keys. It activates when no real secret key is
-// present, or when STRIPE_MODE=stub is forced. A real `sk_...` key → live.
+// present, or when STRIPE_MODE=stub is forced. A real sk_/rk_ key → live.
 const forced = (process.env.STRIPE_MODE || "auto").trim().toLowerCase();
-const hasRealKey = /^sk_(test|live)_/.test(secretKey);
+const hasRealKey = /^(sk|rk)_(test|live)_/.test(secretKey);
 const stripeMode = forced === "stub" ? "stub" : forced === "live" ? "live" : hasRealKey ? "live" : "stub";
+const isProd = (process.env.NODE_ENV || "").trim().toLowerCase() === "production";
 
 export const config = {
   port: Number(process.env.PORT) || 4000,
+  isProd,
   // Public base URL of this server (used for Stripe redirect URLs + webhooks).
   siteBase: (process.env.SITE_BASE || process.env.PUBLIC_URL || "").replace(/\/$/, ""),
 

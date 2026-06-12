@@ -55,6 +55,34 @@ app.use((req, res, next) => {
   next();
 });
 
+// Lightweight in-memory rate limiter (fixed window per IP) — blunts abuse of
+// the unauthenticated endpoints. The hard money cap is the per-campaign
+// budget (see auction.mjs); this is defense-in-depth.
+const rlBuckets = new Map();
+// On in production by default; opt in/out anywhere with KOLEX_RATE_LIMIT.
+const rateLimitOn = process.env.KOLEX_RATE_LIMIT
+  ? /^(1|true|on|yes)$/i.test(process.env.KOLEX_RATE_LIMIT)
+  : config.isProd;
+function rateLimit({ windowMs, max, key }) {
+  if (!rateLimitOn) return (_req, _res, next) => next();
+  return (req, res, next) => {
+    const ip = req.headers["x-forwarded-for"]?.split(",")[0]?.trim() || req.socket.remoteAddress || "?";
+    const bucketKey = `${key}:${ip}`;
+    const now = Date.now();
+    let b = rlBuckets.get(bucketKey);
+    if (!b || now - b.start > windowMs) {
+      b = { start: now, count: 0 };
+      rlBuckets.set(bucketKey, b);
+    }
+    if (++b.count > max) return res.status(429).json({ error: "too many requests" });
+    next();
+  };
+}
+const eventsLimiter = rateLimit({ windowMs: 60_000, max: 600, key: "events" });
+const loginLimiter = rateLimit({ windowMs: 60_000, max: 30, key: "login" });
+const adsLimiter = rateLimit({ windowMs: 60_000, max: 30, key: "ads" });
+const clickLimiter = rateLimit({ windowMs: 60_000, max: 300, key: "click" });
+
 // ─────────────────────────── Extension API (/v1) ───────────────────────────
 
 app.get("/v1/config", (_req, res) => {
@@ -63,7 +91,7 @@ app.get("/v1/config", (_req, res) => {
 
 app.get("/v1/killswitch", (_req, res) => res.json({ disabled: false }));
 
-app.post("/v1/events", (req, res) => {
+app.post("/v1/events", eventsLimiter, (req, res) => {
   const deviceId = req.headers["x-kolex-device"];
   const events = Array.isArray(req.body?.events) ? req.body.events : [];
   if (typeof deviceId !== "string" || !deviceId) {
@@ -102,7 +130,7 @@ app.post("/v1/auth/device/poll", (req, res) => {
 });
 
 // Click redirect — record the click, then bounce to the advertiser.
-app.get("/r/:adId", (req, res) => {
+app.get("/r/:adId", clickLimiter, (req, res) => {
   const db = load();
   const campaign = db.campaigns.find((c) => c.id === req.params.adId);
   const deviceId = typeof req.query.d === "string" ? req.query.d : "";
@@ -133,7 +161,7 @@ app.get("/api/auction", (_req, res) => {
 // Quick ad submission. Creates a PENDING campaign and a Stripe Checkout
 // Session for its budget; the campaign goes live when payment completes
 // (webhook). Returns the checkout URL the browser should be sent to.
-app.post("/api/ads", async (req, res) => {
+app.post("/api/ads", adsLimiter, async (req, res) => {
   const b = req.body ?? {};
   const errors = validateAd(b);
   if (errors.length) return res.status(400).json({ errors });
@@ -192,7 +220,7 @@ app.post("/api/ads", async (req, res) => {
 // Stub-only: the mock checkout page calls this to "complete" payment, which
 // runs the exact same activation path as a real Stripe webhook.
 app.post("/api/stub/complete-checkout", (req, res) => {
-  if (!isStub()) return res.status(404).json({ error: "not available in live mode" });
+  if (!isStub() || config.isProd) return res.status(404).json({ error: "not available" });
   const campaignId = String(req.body?.campaignId ?? "");
   applyStripeEvent({
     id: newId("evt_stub"),
@@ -202,7 +230,7 @@ app.post("/api/stub/complete-checkout", (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/login", (req, res) => {
+app.post("/api/login", loginLimiter, (req, res) => {
   const email = String(req.body?.email ?? "").toLowerCase().trim();
   const kind = req.body?.kind === "advertiser" ? "advertiser" : "user";
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
@@ -289,6 +317,11 @@ app.post("/api/portal/link-device", requireKind("user"), (req, res) => {
     dev = db.devices.find((d) => d.deviceCode === code);
   }
   if (!dev) return res.status(404).json({ error: "device not found" });
+  // A device already claimed by another account cannot be re-linked — that
+  // would let anyone absorb a stranger's earnings by guessing a device id.
+  if (dev.userId && dev.userId !== req.session.id) {
+    return res.status(409).json({ error: "device is already linked to another account" });
+  }
   dev.userId = req.session.id;
   dev.authorized = true;
   dev.token = token;
@@ -296,44 +329,73 @@ app.post("/api/portal/link-device", requireKind("user"), (req, res) => {
   res.json({ ok: true, deviceId: dev.deviceId });
 });
 
+// Per-user lock so concurrent payout requests can't double-spend the balance
+// across the `await` to Stripe.
+const payoutsInFlight = new Set();
+
 app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
+  const userId = req.session.id;
+  if (payoutsInFlight.has(userId)) {
+    return res.status(409).json({ error: "a payout is already in progress" });
+  }
+  payoutsInFlight.add(userId);
   const db = load();
-  const devices = db.devices.filter((d) => d.userId === req.session.id);
-  const pending = devices.reduce((s, d) => s + (db.earnings[d.deviceId]?.pendingUsd ?? 0), 0);
-  if (pending < config.minPayoutUsd) {
-    return res.status(400).json({
-      error: `Minimum payout is $${config.minPayoutUsd.toFixed(2)}. You have $${pending.toFixed(2)}.`,
-    });
-  }
-  let result;
+  const devices = db.devices.filter((d) => d.userId === userId);
+  // Snapshot each device's pending so we can restore exactly on failure.
+  const snapshot = devices
+    .map((d) => ({ deviceId: d.deviceId, amt: db.earnings[d.deviceId]?.pendingUsd ?? 0 }))
+    .filter((s) => s.amt > 0);
+  const total = snapshot.reduce((s, x) => s + x.amt, 0);
   try {
-    result = await createPayout({ amountUsd: pending, email: req.session.email });
-  } catch (err) {
-    return res.status(502).json({ error: `Payout failed: ${err.message}` });
-  }
-  // Move pending → paid on every linked device.
-  for (const dev of devices) {
-    const e = db.earnings[dev.deviceId];
-    if (e && e.pendingUsd > 0) {
-      e.paidUsd += e.pendingUsd;
-      e.pendingUsd = 0;
+    if (total < config.minPayoutUsd) {
+      return res.status(400).json({
+        error: `Minimum payout is $${config.minPayoutUsd.toFixed(2)}. You have $${total.toFixed(2)}.`,
+      });
     }
+    // Deduct FIRST (before the await) so a concurrent request sees zero.
+    for (const s of snapshot) db.earnings[s.deviceId].pendingUsd = 0;
+    save();
+
+    let result;
+    try {
+      result = await createPayout({ amountUsd: total, email: req.session.email });
+    } catch (err) {
+      // Restore the balance — the money never moved.
+      for (const s of snapshot) db.earnings[s.deviceId].pendingUsd += s.amt;
+      save();
+      return res.status(502).json({ error: `Payout failed: ${err.message}` });
+    }
+
+    // Only credit paidUsd when the transfer actually settled. A "queued"
+    // payout (no Connect destination yet) is recorded as owed.
+    if (result.status === "paid") {
+      for (const s of snapshot) db.earnings[s.deviceId].paidUsd += s.amt;
+    }
+    const payout = {
+      id: newId("pay"),
+      userId,
+      amountUsd: total,
+      status: result.status,
+      stripeId: result.id,
+      createdAt: Date.now(),
+    };
+    db.payouts.push(payout);
+    save();
+    res.json({
+      ok: true,
+      paidUsd: result.status === "paid" ? total : 0,
+      queuedUsd: result.status === "paid" ? 0 : total,
+      payout,
+    });
+  } finally {
+    payoutsInFlight.delete(userId);
   }
-  const payout = {
-    id: newId("pay"),
-    userId: req.session.id,
-    amountUsd: pending,
-    status: result.status,
-    stripeId: result.id,
-    createdAt: Date.now(),
-  };
-  db.payouts.push(payout);
-  save();
-  res.json({ ok: true, paidUsd: pending, payout });
 });
 
-// Dev helper — reseed the store.
+// Dev helper — reseed the store. Disabled in production / live mode so it
+// can't be used to wipe real data.
 app.post("/api/reset", (_req, res) => {
+  if (config.isProd || !isStub()) return res.status(404).json({ error: "not available" });
   reset();
   res.json({ ok: true });
 });
@@ -348,13 +410,22 @@ function applyStripeEvent(event) {
     const campaignId = obj.metadata?.campaignId;
     const campaign = db.campaigns.find((c) => c.id === campaignId);
     if (campaign && campaign.status !== "active") {
-      campaign.status = "active";
-      campaign.payment = {
-        ...(campaign.payment ?? {}),
-        status: "paid",
-        checkoutId: obj.id ?? campaign.payment?.checkoutId ?? null,
-        paidAt: Date.now(),
-      };
+      // For real Stripe events, verify the session was actually paid and the
+      // amount matches the campaign budget before activating. (Stub events
+      // omit these fields, so the checks only apply when present.)
+      const expectedCents = Math.round((campaign.payment?.amountUsd ?? 0) * 100);
+      const paidOk = obj.payment_status === undefined || obj.payment_status === "paid";
+      const amountOk =
+        obj.amount_total === undefined || obj.amount_total === expectedCents;
+      if (paidOk && amountOk) {
+        campaign.status = "active";
+        campaign.payment = {
+          ...(campaign.payment ?? {}),
+          status: "paid",
+          checkoutId: obj.id ?? campaign.payment?.checkoutId ?? null,
+          paidAt: Date.now(),
+        };
+      }
     }
   }
   if (event.id) db.processedWebhooks[event.id] = true;
@@ -386,8 +457,10 @@ function validateAd(b) {
   const bid = Number(b.bidPerBlock);
   if (!Number.isFinite(bid) || bid < MIN_BID_PER_BLOCK)
     errors.push(`Bid must be at least $${MIN_BID_PER_BLOCK} per 1,000 impressions.`);
+  else if (bid > 100_000) errors.push("Bid is too large.");
   const blocks = Number(b.blocks);
   if (!Number.isFinite(blocks) || blocks < 1) errors.push("Buy at least one block of 1,000 impressions.");
+  else if (blocks > 1_000_000) errors.push("That's more than 1,000,000 blocks — please contact sales.");
   if (b.accent && !/^#[0-9a-fA-F]{6}$/.test(String(b.accent))) errors.push("Accent must be a #rrggbb color.");
   if (b.iconDataUrl && !/^data:image\/(png|jpeg|jpg|webp|svg\+xml);/.test(String(b.iconDataUrl)))
     errors.push("Logo must be a PNG, JPG, WebP, or SVG image.");
@@ -399,6 +472,14 @@ export { app, applyStripeEvent };
 
 // Start the server unless imported by a test.
 if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
+  if (config.isProd && isStub()) {
+    console.error(
+      "\n⚠️  REFUSING TO START: NODE_ENV=production but Stripe is in STUB mode.\n" +
+        "   Set a real STRIPE_SECRET_KEY (sk_/rk_…) and STRIPE_WEBHOOK_SECRET, or set\n" +
+        "   STRIPE_MODE=stub explicitly to acknowledge running without real payments.\n",
+    );
+    if ((process.env.STRIPE_MODE || "").toLowerCase() !== "stub") process.exit(1);
+  }
   load();
   app.listen(config.port, () => {
     const settled = fmtUsd(leaderboard().reduce((s, c) => s + c.spendUsd, 0));

@@ -63,31 +63,63 @@ function earningsFor(deviceId) {
   return db.earnings[deviceId];
 }
 
+/** The advertiser's paid budget — the hard cap on total spend. */
+function budgetOf(campaign) {
+  return campaign.payment?.amountUsd ?? campaign.blocks * campaign.bidPerBlock;
+}
+
+/**
+ * Can this campaign be billed `cost` more right now? Only active campaigns
+ * that still have budget. This prevents clicks (or anything) from spending
+ * past what the advertiser actually paid for.
+ */
+function canBill(campaign, cost) {
+  if (campaign.status !== "active") return false;
+  return campaign.spendUsd + cost <= budgetOf(campaign) + 1e-9;
+}
+
+/** Mark a campaign completed once it has exhausted its budget or inventory. */
+function maybeComplete(campaign) {
+  if (
+    campaign.status === "active" &&
+    (campaign.impressionsRemaining <= 0 || campaign.spendUsd + 1e-9 >= budgetOf(campaign))
+  ) {
+    campaign.status = "completed";
+  }
+}
+
 /** Settle one impression: bill the advertiser, credit the viewer. */
 export function settleImpression(campaign, deviceId) {
   const cost = impressionCost(campaign.bidPerBlock);
+  if (!canBill(campaign, cost)) return false;
   campaign.impressions += 1;
   campaign.impressionsRemaining = Math.max(0, campaign.impressionsRemaining - 1);
   campaign.spendUsd += cost;
-  if (campaign.impressionsRemaining === 0) campaign.status = "completed";
   const e = earningsFor(deviceId);
   e.impressions += 1;
   e.pendingUsd += cost * USER_REVENUE_SHARE;
+  maybeComplete(campaign);
+  return true;
 }
 
 /** Settle one click: bill 50× the impression rate, credit the viewer. */
 export function settleClick(campaign, deviceId) {
   const cost = clickCost(campaign.bidPerBlock);
+  if (!canBill(campaign, cost)) return false;
   campaign.clicks += 1;
   campaign.spendUsd += cost;
   const e = earningsFor(deviceId);
   e.clicks += 1;
   e.pendingUsd += cost * USER_REVENUE_SHARE;
+  maybeComplete(campaign);
+  return true;
 }
 
 /**
  * Ingest a batch of ledger events from the extension. Idempotent on event
- * id, so retried batches never double-bill. Returns how many were accepted.
+ * id, so retried batches never double-bill. Events for non-active or
+ * over-budget campaigns are recorded (so they aren't retried) but not
+ * billed. Returns how many were actually settled.
  */
 export function ingestEvents(events, deviceId) {
   const db = load();
@@ -95,16 +127,15 @@ export function ingestEvents(events, deviceId) {
   for (const ev of events) {
     if (!ev || typeof ev.id !== "string" || db.seenEvents[ev.id]) continue;
     const campaign = db.campaigns.find((c) => c.id === ev.adId);
-    if (!campaign) {
-      db.seenEvents[ev.id] = true; // house ad or unknown — record, skip billing
-      continue;
+    let settled = false;
+    if (campaign) {
+      if (ev.type === "impression") settled = settleImpression(campaign, deviceId);
+      else if (ev.type === "click") settled = settleClick(campaign, deviceId);
+      else continue; // unknown event type — don't even record
     }
-    if (ev.type === "impression") settleImpression(campaign, deviceId);
-    else if (ev.type === "click") settleClick(campaign, deviceId);
-    else continue;
-    db.seenEvents[ev.id] = true;
-    accepted += 1;
+    db.seenEvents[ev.id] = true; // record (house/unknown/over-budget) → no retry
+    if (settled) accepted += 1;
   }
-  if (accepted > 0) save();
+  save();
   return accepted;
 }

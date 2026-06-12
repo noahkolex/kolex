@@ -113,14 +113,65 @@ scripts/            esbuild bundling + zero-dependency PNG icon generator
 test/               node:test suite (core logic + jsdom DOM-glue tests)
 ```
 
-## Backend + website
+## Backend + website + payments
 
 The `server/` is a single Express app (file-backed store, no native deps)
-that serves both the JSON API and the static `web/` site.
+that serves the JSON API, the static `web/` site, and Stripe payments.
 
 ```bash
-npm run server         # http://localhost:4000  (seeds a live auction)
-npm run server:reset   # wipe + reseed the store
+cp .env.example .env    # then fill in (everything is optional)
+npm run server          # http://localhost:4000  (seeds a live auction)
+npm run server:reset    # wipe + reseed the store (dev/stub only)
+```
+
+### Configuration (all via `.env` — see `.env.example`)
+
+Every knob is an environment variable. With **no Stripe keys** the server
+runs in **stub mode**: the entire payment flow works locally (a mock checkout
+page stands in for Stripe), so you can test end to end immediately. Add real
+keys to go live:
+
+| Var | Purpose |
+|-----|---------|
+| `PORT`, `SITE_BASE` | server port; public base URL for Stripe redirects/webhooks |
+| `STRIPE_SECRET_KEY` | `sk_test_…`/`sk_live_…` (or `rk_…`). Present → **live** mode |
+| `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | from the Stripe dashboard / `stripe listen` |
+| `STRIPE_CURRENCY`, `STRIPE_MODE` | `usd…`; `auto`/`stub`/`live` |
+| `STRIPE_ENABLE_PAYOUTS` | real user payouts (needs Stripe Connect) |
+| `KOLEX_MIN_PAYOUT_USD` | minimum balance before cash-out |
+| `KOLEX_RATE_LIMIT` | force the per-IP limiter on/off (on by default in prod) |
+| `KOLEX_API_BASE`, `KOLEX_SITE_BASE` | **extension** build targets (see below) |
+
+### Payment flow
+
+Advertiser submits an ad → server creates a **pending** campaign + a Stripe
+Checkout Session and returns its URL → browser pays on Stripe (or the mock
+checkout in stub mode) → `checkout.session.completed` webhook (signature
+verified; amount + paid-status checked) flips the campaign to **active** so
+it serves. Earnings settle as the extension posts impression/click events,
+**capped at each campaign's paid budget**, and users cash out (minimum
+enforced; real payouts via Connect when configured).
+
+### Connecting the extension to a backend
+
+The extension's endpoints are injected at build time and overridable at
+runtime:
+
+```bash
+# Build pointed at a local server:
+KOLEX_API_BASE=http://localhost:4000/v1 KOLEX_SITE_BASE=http://localhost:4000 npm run build
+# …or leave the production default and set a chrome.storage `override` at runtime.
+```
+
+### Tests
+
+```bash
+npm test            # 35 extension-core unit tests (jsdom)
+npm run test:server # 40 payment-flow + adversarial + rate-limit tests
+npm run test:web    # browser drives advertise → checkout → pay → live
+npm run test:browser# 6 real-Chromium spinner-replacement fixtures
+npm run test:ext    # REAL extension in Chrome (xvfb) talks to a live server
+npm run test:all    # everything
 ```
 
 Pages (Sefra-branded, vanilla JS, no build step):
