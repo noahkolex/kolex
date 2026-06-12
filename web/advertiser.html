@@ -18,7 +18,8 @@
       <p class="muted" style="margin-top:0">Enter the email you launched with.</p>
       <div id="login-err" class="errors hide"></div>
       <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@acme.com" /></div>
-      <button class="btn btn-primary btn-lg" id="signin" style="width:100%;justify-content:center">Continue</button>
+      <div class="field"><label>Password</label><input type="password" id="password" placeholder="Your password" autocomplete="current-password" /></div>
+      <button class="btn btn-primary btn-lg" id="signin" style="width:100%;justify-content:center">Sign in</button>
       <p class="center muted" style="margin-top:14px;font-size:13px">No campaigns yet? <a href="/advertise">Launch one →</a></p>
     </div>
 
@@ -116,7 +117,7 @@
     $("signin").addEventListener("click", async () => {
       $("login-err").classList.add("hide");
       try {
-        const { token } = await api("/api/login", { method: "POST", body: { email: $("email").value, kind: "advertiser" } });
+        const { token } = await api("/api/auth", { method: "POST", body: { email: $("email").value, password: $("password").value, kind: "advertiser" } });
         store.set("advToken", token);
         loadDash();
       } catch (e) {
@@ -124,7 +125,7 @@
         $("login-err").classList.remove("hide");
       }
     });
-    $("email")?.addEventListener("keydown", (e) => { if (e.key === "Enter") $("signin").click(); });
+    $("password")?.addEventListener("keydown", (e) => { if (e.key === "Enter") $("signin").click(); });
     $("logout").addEventListener("click", () => { store.del("advToken"); showLogin(); });
 
     if (new URLSearchParams(location.search).get("paid") === "1") {

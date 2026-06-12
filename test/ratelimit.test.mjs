@@ -32,10 +32,10 @@ after(() => {
 test("login endpoint is throttled past its window limit (30/min)", async () => {
   let throttled = 0;
   for (let i = 0; i < 40; i++) {
-    const res = await fetch(`${base}/api/login`, {
+    const res = await fetch(`${base}/api/auth`, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ email: `x${i}@y.com`, kind: "user" }),
+      body: JSON.stringify({ email: `x${i}@y.com`, password: "pw-test-12345", kind: "user" }),
     });
     if (res.status === 429) throttled++;
   }

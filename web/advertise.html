@@ -18,7 +18,7 @@
     <!-- Live preview -->
     <div style="margin:24px 0 28px">
       <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Live preview — exactly how it appears</div>
-      <div style="background:var(--paper-deep);border:1px solid var(--rule);border-radius:8px;padding:28px;display:flex;justify-content:center">
+      <div style="background:var(--elev);border:1px solid var(--rule);border-radius:8px;padding:28px;display:flex;justify-content:center">
         <div class="adline" id="preview"></div>
       </div>
     </div>
@@ -35,6 +35,12 @@
           <label>Your email</label>
           <input type="email" id="email" placeholder="you@acme.com" required />
         </div>
+      </div>
+
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="password" placeholder="At least 8 characters" autocomplete="current-password" required />
+        <div class="hint">New here? We'll create your advertiser account. Returning? Sign in.</div>
       </div>
 
       <div class="field">
@@ -56,16 +62,16 @@
         </div>
         <div class="field">
           <label>Accent color</label>
-          <input type="text" id="accent" value="#1547F5" maxlength="7" />
+          <input type="text" id="accent" value="#16E0A3" maxlength="7" />
           <div class="hint">Tints the dot, the AD tag, and the arrow.</div>
         </div>
       </div>
 
       <div class="row2">
         <div class="field">
-          <label>Bid per 1,000 impressions</label>
-          <input type="number" id="bid" min="1" step="1" value="25" required />
-          <div class="hint" id="rankhint">Higher bids serve first.</div>
+          <label>Bid per 1,000 impressions ($)</label>
+          <div class="input-money"><input type="number" id="bid" min="1" step="1" value="25" required /></div>
+          <div class="hint" id="rankhint">In US dollars. Higher bids serve first.</div>
         </div>
         <div class="field">
           <label>Blocks (× 1,000 impressions)</label>
@@ -105,7 +111,7 @@
       renderAdline($("preview"), model());
       $("copycount").textContent = $("text").value.length + "/60";
       const bid = Number($("bid").value) || 0, blocks = Number($("blocks").value) || 0;
-      $("budgethint").textContent = `Budget: ${money(bid * blocks)} · ${num(blocks * 1000)} impressions`;
+      $("budgethint").textContent = `Budget: ${money(bid * blocks, false)} · ${num(blocks * 1000)} impressions`;
     }
     ["brand", "text", "accent", "bid", "blocks"].forEach((id) => $(id).addEventListener("input", refresh));
 
@@ -137,13 +143,15 @@
         const res = await api("/api/ads", {
           method: "POST",
           body: {
-            email: $("email").value, brand: $("brand").value, text: $("text").value,
+            email: $("email").value, password: $("password").value,
+            brand: $("brand").value, text: $("text").value,
             url: $("url").value, accent: $("accent").value, iconDataUrl: logoData,
             bidPerBlock: Number($("bid").value), blocks: Number($("blocks").value),
           },
         });
         store.set("advToken", res.token);
         store.set("advEmail", $("email").value.toLowerCase().trim());
+        if (!res.checkoutUrl) throw new Error("Could not start checkout. Please try again.");
         // Off to Stripe Checkout (or the mock checkout in test mode). The
         // campaign goes live once payment completes.
         location.href = res.checkoutUrl;

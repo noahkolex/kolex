@@ -9,6 +9,7 @@ import fs from "node:fs";
 process.env.KOLEX_ENV_FILE = "/dev/null";
 process.env.STRIPE_MODE = "stub";
 process.env.SITE_BASE = ""; // infer from request
+process.env.KOLEX_MIN_PAYOUT_USD = "0.10";
 process.env.KOLEX_DB = path.join(os.tmpdir(), `kolex-web-${process.pid}-${Date.now()}.json`);
 
 const { app } = await import("../server/index.mjs");
@@ -37,12 +38,26 @@ try {
   await page.waitForSelector("#board-body tr", { timeout: 5000 });
   const rows = await page.locator("#board-body tr").count();
   ok("leaderboard renders seeded campaigns", rows >= 6, `${rows} rows`);
-  ok("hero ad line renders", await page.locator("#hero-ad .bn, #hero-ad").first().isVisible());
+  // The money ticker climbs and the live feed dings in.
+  await page.waitForTimeout(3000);
+  const tickerTxt = await page.locator("#ticker-amount").textContent();
+  ok("money ticker shows a running total", /\$[\d,]+/.test(tickerTxt), tickerTxt);
+  const feedItems = await page.locator("#feed .feed-item").count();
+  ok("live activity feed is populating", feedItems >= 1, `${feedItems} items`);
+  // No giant bird: every svg/img on the page is reasonably sized.
+  const oversized = await page.evaluate(() =>
+    [...document.querySelectorAll("svg,img")].filter((e) => {
+      const r = e.getBoundingClientRect();
+      return r.width > 80 || r.height > 80;
+    }).length,
+  );
+  ok("no oversized marks (no giant bird)", oversized === 0, `${oversized} oversized`);
 
   console.log("\n▶ Advertise → Stripe mock checkout → pay");
   await page.goto(`${base}/advertise`);
   await page.fill("#brand", "Acme Rockets");
   await page.fill("#email", "ceo@acme.com");
+  await page.fill("#password", "supersecret123");
   await page.fill("#text", "We make great widgets fast");
   await page.fill("#url", "https://acme.com");
   await page.fill("#bid", "120");
@@ -76,16 +91,43 @@ try {
   ok("paid campaign serves in /v1/config", !!served);
   ok("served ad carries its bid", served?.bidPerBlock === 120);
 
-  console.log("\n▶ Earner portal: login + connect prompt");
-  await page.goto(`${base}/portal?device=web-test-device&connect=1`);
+  console.log("\n▶ Earner earns, then cashes out (full from scratch)");
+  // The device watches the live ad and earns (a click on the $120 campaign).
+  const DEVICE = "web-test-device";
+  await fetch(`${base}/v1/events`, {
+    method: "POST",
+    headers: { "content-type": "application/json", "x-kolex-device": DEVICE },
+    body: JSON.stringify({ events: [{ id: "web-clk-1", type: "click", adId: served.id }] }),
+  });
+  await page.goto(`${base}/portal?device=${DEVICE}&connect=1`);
   await page.fill("#email", "earner@web.com");
+  await page.fill("#password", "earnerpass123");
   await page.click("#signin");
   await page.waitForSelector("#dash:not(.hide)", { timeout: 5000 });
   ok("earner portal opens after login", await page.locator("#dash").isVisible());
   ok("device auto-linked banner shows", await page.locator("#linked").isVisible());
+  await page.waitForTimeout(500);
+  const pendingTxt = await page.locator("#pending").textContent();
+  ok("earned balance shows in the portal", /\$[1-9]/.test(pendingTxt), pendingTxt);
+
+  await page.click("#payout");
+  await page.waitForTimeout(800);
+  const note = await page.locator("#payout-note").textContent();
+  ok("withdrawal succeeds with payout message", /Paid out|queued/.test(note), note);
+  const afterPending = await page.locator("#pending").textContent();
+  ok("balance is zero after withdrawing", /\$0\.00/.test(afterPending), afterPending);
+
+  // Wrong password must be rejected (no more "any email signs in").
+  await page.evaluate(() => localStorage.clear());
+  await page.goto(`${base}/portal`);
+  await page.waitForSelector("#login:not(.hide)", { timeout: 5000 });
+  await page.fill("#email", "earner@web.com");
+  await page.fill("#password", "totally-wrong-pw");
+  await page.click("#signin");
+  await page.waitForTimeout(500);
+  ok("wrong password is rejected at login", await page.locator("#login-err").isVisible());
 
   ok("no page errors across the flow", errors.length === 0, errors[0] || "");
-
   await page.screenshot({ path: "/tmp/claude/kolex-web-advertiser.png" });
 } catch (err) {
   ok(`flow threw: ${err.message}`, false);

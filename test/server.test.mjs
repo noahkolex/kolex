@@ -63,6 +63,7 @@ const flow = {};
 test("FLOW 1 — advertiser submits → PENDING campaign + checkout URL", async () => {
   const res = await post("/api/ads", {
     email: "founder@startup.com",
+    password: "pw-test-12345",
     brand: "Startup",
     text: "The future of widgets is here",
     url: "https://startup.com",
@@ -144,7 +145,7 @@ test("FLOW 5 — extension serves & settles: events bill advertiser, credit devi
 });
 
 test("FLOW 6 — user links device, sees earnings, and cashes out", async () => {
-  const login = await post("/api/login", { email: "earner@me.com", kind: "user" });
+  const login = await post("/api/auth", { email: "earner@me.com", password: "pw-test-12345", kind: "user" });
   const token = login.body.token;
   const auth = { authorization: `Bearer ${token}` };
 
@@ -172,7 +173,7 @@ test("FLOW 7 — payout below the minimum is rejected", async () => {
     headers: { "content-type": "application/json", "x-kolex-device": DEV2 },
     body: JSON.stringify({ events: [{ id: "imp-2", type: "impression", adId: flow.campaignId }] }),
   });
-  const login = await post("/api/login", { email: "small@me.com", kind: "user" });
+  const login = await post("/api/auth", { email: "small@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV2 }, auth);
   const payout = await post("/api/portal/payout", undefined, auth);

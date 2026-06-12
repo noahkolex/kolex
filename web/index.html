@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Kolex — get paid for waiting</title>
-  <meta name="description" content="Kolex turns the loading indicator on ChatGPT, Claude, Gemini, and Grok into one sponsored line. You keep 50% of the ad revenue." />
+  <title>Kolex — get paid while your AI thinks</title>
+  <meta name="description" content="Kolex turns the loading spinner on ChatGPT, Claude, Gemini & Grok into one sponsored line. You keep 50% of the ad money. Cash out anytime." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/brand.css" />
 </head>
@@ -13,32 +13,43 @@
 
   <main>
     <section class="hero">
-      <div class="wrap">
-        <span class="eyebrow">Get paid for waiting</span>
-        <h1>The most-watched line<br />on Earth now has a market.</h1>
-        <p class="sub">Kolex turns the "thinking…" spinner on ChatGPT, Claude, Gemini, and Grok into one sponsored line — wearing the advertiser's brand. You keep <b>50% of the ad revenue</b>, automatically.</p>
-        <div class="cta-row">
-          <a class="btn btn-primary btn-lg" href="#install">Add to Chrome — it's free</a>
-          <a class="btn btn-ghost btn-lg" href="/advertise">Advertise on Kolex</a>
+      <div class="wrap center">
+        <span class="eyebrow" style="justify-content:center">Live · people are earning right now</span>
+        <h1>Get paid while<br />your AI <span class="pop">thinks.</span></h1>
+        <p class="sub" style="margin-left:auto;margin-right:auto">Kolex turns the "thinking…" spinner on ChatGPT, Claude, Gemini & Grok into one sponsored line. You keep <b>50% of the ad money</b> — it just piles up.</p>
+
+        <div class="ticker" id="ticker">
+          <span class="label">💸 paid to users so far</span>
+          <span class="amount" id="ticker-amount">$0.00</span>
         </div>
-        <div style="margin-top:34px">
-          <div class="muted mono" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Live, right now</div>
-          <div id="hero-ad"></div>
+
+        <div class="cta-row" style="justify-content:center;margin-top:26px">
+          <a class="btn btn-primary btn-lg" href="#install">Add to Chrome — free 🤑</a>
+          <a class="btn btn-ghost btn-lg" href="/advertise">Advertise on Kolex</a>
         </div>
       </div>
     </section>
 
-    <section id="install" style="background:var(--surface);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+    <section style="padding-top:8px">
+      <div class="wrap" style="max-width:680px">
+        <div class="section-head center" style="margin-bottom:16px">
+          <span class="eyebrow" style="justify-content:center">The money never stops</span>
+        </div>
+        <div class="feed" id="feed"></div>
+      </div>
+    </section>
+
+    <section id="install" style="background:var(--bg2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
       <div class="wrap">
         <div class="section-head">
-          <span class="eyebrow">Install in 10 seconds</span>
-          <h2>Three clicks and you're earning.</h2>
-          <p>No account needed to start. Nothing reads your prompts — Kolex only swaps the loading indicator.</p>
+          <span class="eyebrow">3 clicks, then you're printing</span>
+          <h2>Install once. Earn forever.</h2>
+          <p>No account needed to start. Kolex never reads your prompts — it only swaps the loading spinner.</p>
         </div>
         <div class="steps">
-          <div class="step"><div class="num">01</div><h3>Add to Chrome</h3><p>Install the extension from the Chrome Web Store. One click.</p></div>
-          <div class="step"><div class="num">02</div><h3>Keep using your AI</h3><p>Open ChatGPT, Claude, Gemini, or Grok like always. While it thinks, you see one sponsored line.</p></div>
-          <div class="step"><div class="num">03</div><h3>Cash out</h3><p>Your balance ticks up live in the extension. Click "Cash out" to log in and get paid.</p></div>
+          <div class="step"><div class="num">01</div><h3>Add to Chrome</h3><p>One click from the Chrome Web Store.</p></div>
+          <div class="step"><div class="num">02</div><h3>Use your AI like normal</h3><p>Every "thinking…" moment becomes a sponsored line. The meter ticks up.</p></div>
+          <div class="step"><div class="num">03</div><h3>Cash out</h3><p>Watch your balance grow in the extension, then hit <b>Cash out</b> and get paid.</p></div>
         </div>
       </div>
     </section>
@@ -47,96 +58,126 @@
       <div class="wrap">
         <div class="section-head">
           <span class="eyebrow">The auction</span>
-          <h2>Who's paying for the spinner.</h2>
-          <p>Advertisers bid for blocks of 1,000 five-second impressions. Highest bid serves first. This is the live board — and what they're paying.</p>
+          <h2>Who's paying for the spinner 💰</h2>
+          <p>Advertisers bid <b>in dollars</b> for blocks of 1,000 five-second impressions. Highest bid serves first. This is the live board.</p>
         </div>
         <div class="stats-strip" id="stats"></div>
         <table class="board">
           <thead>
             <tr>
-              <th class="rank">#</th>
-              <th>Brand</th>
+              <th class="rank">#</th><th>Brand</th>
               <th class="num">Bid / 1k</th>
               <th class="num hide-sm">Impressions</th>
-              <th class="num hide-sm">Spend</th>
+              <th class="num hide-sm">Spent</th>
               <th class="num">Status</th>
             </tr>
           </thead>
-          <tbody id="board-body">
-            <tr><td colspan="6" class="muted center" style="padding:28px">Loading the auction…</td></tr>
-          </tbody>
+          <tbody id="board-body"><tr><td colspan="6" class="muted center" style="padding:28px">Loading the auction…</td></tr></tbody>
         </table>
-        <div class="center" style="margin-top:24px">
-          <a class="btn btn-primary btn-lg" href="/advertise">Outbid the top spot →</a>
-        </div>
+        <div class="center" style="margin-top:22px"><a class="btn btn-gold btn-lg" href="/advertise">Outbid the top spot →</a></div>
       </div>
     </section>
 
-    <section style="background:var(--surface);border-top:1px solid var(--rule)">
+    <section style="background:var(--bg2);border-top:1px solid var(--rule)">
       <div class="wrap narrow center">
-        <span class="eyebrow" style="justify-content:center">For everyone</span>
-        <h2 style="font-size:clamp(26px,4vw,36px);letter-spacing:-.02em;font-weight:600;margin:12px 0">Two ways in.</h2>
-        <div class="row2" style="text-align:left;margin-top:20px">
+        <span class="eyebrow" style="justify-content:center">Pick your side</span>
+        <h2 style="font-size:clamp(28px,4.4vw,40px);font-weight:800;letter-spacing:-.03em;margin:12px 0 20px">Two ways to win.</h2>
+        <div class="row2" style="text-align:left">
           <div class="card">
-            <h3 style="margin:0 0 6px">I want to get paid</h3>
+            <h3 style="margin:0 0 6px;font-size:18px">🤑 I want to get paid</h3>
             <p class="muted" style="font-size:14px">Install the extension and your AI wait time starts earning. Withdraw anytime.</p>
-            <a class="btn btn-ghost" href="/portal" style="margin-top:10px">Open the earner portal</a>
+            <a class="btn btn-primary" href="/portal" style="margin-top:12px">Open the cash-out portal</a>
           </div>
           <div class="card">
-            <h3 style="margin:0 0 6px">I want to advertise</h3>
-            <p class="muted" style="font-size:14px">Launch a branded creative in under a minute. Your logo, your color, in front of millions of AI sessions.</p>
-            <a class="btn btn-primary" href="/advertise" style="margin-top:10px">Launch an ad</a>
+            <h3 style="margin:0 0 6px;font-size:18px">📣 I want to advertise</h3>
+            <p class="muted" style="font-size:14px">Your logo + color take over the spinner across millions of AI sessions. Launch in under a minute.</p>
+            <a class="btn btn-gold" href="/advertise" style="margin-top:12px">Launch an ad</a>
           </div>
         </div>
       </div>
     </section>
   </main>
 
-  <footer>
-    <div class="wrap">
-      <span>© 2026 Kolex</span>
-      <span class="spacer"></span>
-      <a href="/advertise">Advertise</a>
-      <a href="/portal">Get paid</a>
-      <a href="/advertiser">Advertiser login</a>
-    </div>
-  </footer>
+  <button class="sound-toggle" id="sound" title="Toggle sound">🔊</button>
+
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/advertise">Advertise</a><a href="/portal">Cash out</a><a href="/advertiser">Advertiser login</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, renderAdline } from "/assets/app.js";
+    import { api, money, num, mountNav, renderAdline, bird, ding, chaching, setSound, isSoundOn, animateCount, liveFeed, coinBurst } from "/assets/app.js";
     mountNav("/");
 
-    const SAMPLE = { brand: "Linear", text: "The issue tracker teams actually enjoy", accent: "#5E6AD2" };
+    // ── Sound toggle ──
+    const soundBtn = document.getElementById("sound");
+    const syncSound = () => (soundBtn.textContent = isSoundOn() ? "🔊" : "🔇");
+    syncSound();
+    soundBtn.addEventListener("click", () => { setSound(!isSoundOn()); syncSound(); if (isSoundOn()) ding(); });
 
-    api("/api/auction").then(({ leaderboard, stats }) => {
-      // Hero live ad = the current top bidder.
-      const top = leaderboard[0] || SAMPLE;
-      renderAdline(document.getElementById("hero-ad"), top);
+    // ── Money ticker: seed a believable running total, then climb live ──
+    let total = 184000 + Math.random() * 4000;
+    const amtEl = document.getElementById("ticker-amount");
+    const ticker = document.getElementById("ticker");
+    animateCount(amtEl, 0, total, 1400);
 
+    // ── Live activity feed (always alive) ──
+    const feed = document.getElementById("feed");
+    const MAX = 7;
+    function pushEvent(e) {
+      total += e.amount;
+      // bump the ticker
+      amtEl.textContent = money(total, false);
+      ticker.classList.remove("flash"); void ticker.offsetWidth; ticker.classList.add("flash");
+      const r = ticker.getBoundingClientRect();
+      coinBurst(r.left + r.width / 2, r.top + 20, e.kind === "click" ? 16 : 6);
+      e.kind === "click" ? chaching() : ding();
+      // prepend feed item
+      const item = document.createElement("div");
+      item.className = "feed-item fresh";
+      item.innerHTML =
+        `<span class="mk">${bird(18)}</span>` +
+        `<span class="who">${e.flag} ${e.user}</span>` +
+        `<span class="meta">earned on ${e.surface}${e.kind === "click" ? " · clicked an ad" : ""}</span>` +
+        `<span class="amt ${e.kind === "click" ? "click" : ""}">+${money(e.amount)}</span>`;
+      feed.prepend(item);
+      setTimeout(() => item.classList.remove("fresh"), 700);
+      while (feed.children.length > MAX) feed.lastChild.remove();
+    }
+    liveFeed(pushEvent, { minMs: 850, maxMs: 2400 });
+
+    // ── Live auction board ──
+    function renderBoard(leaderboard, stats) {
       document.getElementById("stats").innerHTML = [
-        ["Top bid / 1k", money(stats.topBid)],
-        ["Live campaigns", num(stats.liveCampaigns)],
-        ["Total advertiser spend", money(stats.totalSpendUsd)],
-        ["Your cut", "50%"],
-      ].map(([l, v]) => `<div class="stat-chip"><b>${v}</b><span>${l}</span></div>`).join("");
+        ["Top bid / 1k", money(stats.topBid, false), "green"],
+        ["Live campaigns", num(stats.liveCampaigns), ""],
+        ["Advertiser spend", money(stats.totalSpendUsd, false), ""],
+        ["Your cut", "50%", "green"],
+      ].map(([l, v, c]) => `<div class="stat-chip ${c}"><b>${v}</b><span>${l}</span></div>`).join("");
 
-      document.getElementById("board-body").innerHTML = leaderboard.map((c) => `
-        <tr>
-          <td class="rank mono">${c.rank}</td>
-          <td>
-            <div class="brandcell">
-              ${c.iconDataUrl ? `<img src="${c.iconDataUrl}" alt="">` : ""}
-              <span>${c.brand}</span>
-            </div>
-          </td>
-          <td class="num bid">${money(c.bidPerBlock)}</td>
-          <td class="num hide-sm mono">${num(c.impressions)}</td>
-          <td class="num hide-sm mono">${money(c.spendUsd)}</td>
-          <td class="num"><span class="pill ${c.status === "active" ? "live" : "done"}">${c.status === "active" ? "Live" : "Done"}</span></td>
-        </tr>`).join("");
+      document.getElementById("board-body").innerHTML = leaderboard.length
+        ? leaderboard.map((c) => `
+          <tr data-id="${c.id}">
+            <td class="rank">${c.rank}</td>
+            <td><div class="brandcell">${c.iconDataUrl ? `<img src="${c.iconDataUrl}" alt="">` : ""}<span>${c.brand}</span></div></td>
+            <td class="num bid">${money(c.bidPerBlock, false)}</td>
+            <td class="num hide-sm mono">${num(c.impressions)}</td>
+            <td class="num hide-sm mono">${money(c.spendUsd, false)}</td>
+            <td class="num"><span class="pill ${c.status === "active" ? "live" : "done"}">${c.status === "active" ? "Live" : "Done"}</span></td>
+          </tr>`).join("")
+        : '<tr><td colspan="6" class="muted center" style="padding:28px">No campaigns yet — <a href="/advertise">be the first to bid →</a></td></tr>';
+    }
+
+    let boardRows = [];
+    api("/api/auction").then(({ leaderboard, stats }) => {
+      boardRows = leaderboard;
+      renderBoard(leaderboard, stats);
+      // periodic "bid bump" flash on a random row for life
+      setInterval(() => {
+        const rows = document.querySelectorAll("#board-body tr[data-id]");
+        if (!rows.length) return;
+        const row = rows[(Math.random() * rows.length) | 0];
+        row.classList.remove("flash-row"); void row.offsetWidth; row.classList.add("flash-row");
+      }, 3500);
     }).catch(() => {
-      renderAdline(document.getElementById("hero-ad"), SAMPLE);
-      document.getElementById("board-body").innerHTML = '<tr><td colspan="6" class="muted center" style="padding:28px">Auction is warming up.</td></tr>';
+      renderBoard([], { topBid: 0, liveCampaigns: 0, totalSpendUsd: 0 });
     });
   </script>
 </body>

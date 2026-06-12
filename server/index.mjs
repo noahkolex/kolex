@@ -11,9 +11,10 @@ import {
 } from "./auction.mjs";
 import { IMPRESSIONS_PER_BLOCK, MIN_BID_PER_BLOCK, fmtUsd } from "./economics.mjs";
 import {
-  findOrCreateUser,
-  findOrCreateAdvertiser,
+  authenticate,
+  validatePassword,
   createSession,
+  sessionFromReq,
   requireKind,
   newId,
 } from "./auth.mjs";
@@ -166,7 +167,13 @@ app.post("/api/ads", adsLimiter, async (req, res) => {
   const errors = validateAd(b);
   if (errors.length) return res.status(400).json({ errors });
 
-  const advertiser = findOrCreateAdvertiser(String(b.email).toLowerCase().trim());
+  // Authenticate (or create) the advertiser account with email + password.
+  let advertiser;
+  try {
+    advertiser = authenticate("advertiser", String(b.email).toLowerCase().trim(), String(b.password ?? "")).account;
+  } catch (e) {
+    return res.status(e.status || 401).json({ errors: [e.error || "Sign in failed."] });
+  }
   const db = load();
   const blocks = Math.max(1, Math.floor(Number(b.blocks)));
   const bidPerBlock = Number(b.bidPerBlock);
@@ -230,14 +237,31 @@ app.post("/api/stub/complete-checkout", (req, res) => {
   res.json({ ok: true });
 });
 
-app.post("/api/login", loginLimiter, (req, res) => {
+// Sign in or create an account (email + password). One endpoint: existing
+// email requires the correct password; a new email creates the account.
+app.post("/api/auth", loginLimiter, (req, res) => {
   const email = String(req.body?.email ?? "").toLowerCase().trim();
+  const password = String(req.body?.password ?? "");
   const kind = req.body?.kind === "advertiser" ? "advertiser" : "user";
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
-    return res.status(400).json({ error: "valid email required" });
+    return res.status(400).json({ error: "Enter a valid email." });
   }
-  const account = kind === "advertiser" ? findOrCreateAdvertiser(email) : findOrCreateUser(email);
-  res.json({ token: createSession(kind, account), email, kind });
+  const pwErr = validatePassword(password);
+  if (pwErr) return res.status(400).json({ error: pwErr });
+  let result;
+  try {
+    result = authenticate(kind, email, password);
+  } catch (e) {
+    return res.status(e.status || 400).json({ error: e.error || "Authentication failed." });
+  }
+  res.json({ token: createSession(kind, result.account), email, kind, created: result.created });
+});
+
+// Validate a session (frontend uses this to know who is logged in).
+app.get("/api/me", (req, res) => {
+  const s = sessionFromReq(req);
+  if (!s) return res.status(401).json({ error: "not signed in" });
+  res.json({ email: s.email, kind: s.kind });
 });
 
 app.get("/api/advertiser/campaigns", requireKind("advertiser"), (req, res) => {
@@ -450,6 +474,8 @@ function validateAd(b) {
   const errors = [];
   const email = String(b.email ?? "").toLowerCase().trim();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) errors.push("A valid email is required.");
+  const pwErr = validatePassword(String(b.password ?? ""));
+  if (pwErr) errors.push(pwErr);
   if (!b.brand || String(b.brand).trim().length < 1) errors.push("Brand name is required.");
   const text = String(b.text ?? "").trim();
   if (text.length < 3 || text.length > 60) errors.push("Ad copy must be 3–60 characters.");

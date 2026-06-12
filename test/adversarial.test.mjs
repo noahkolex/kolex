@@ -43,6 +43,7 @@ const balance = (device) =>
 async function makeActiveCampaign({ email = "adv@x.com", bidPerBlock = 80, blocks = 10 } = {}) {
   const res = await post("/api/ads", {
     email,
+    password: "pw-test-12345",
     brand: "Brand",
     text: "The future of widgets is here",
     url: "https://example.com",
@@ -77,7 +78,7 @@ after(() => {
 
 test("ADV: duplicate /webhooks/stripe with same event id only activates once", async () => {
   const r = await post("/api/ads", {
-    email: "idem@x.com", brand: "B", text: "abcdef", url: "https://x.com", bidPerBlock: 10, blocks: 5,
+    email: "idem@x.com", password: "pw-test-12345", brand: "B", text: "abcdef", url: "https://x.com", bidPerBlock: 10, blocks: 5,
   });
   const campaignId = r.body.campaign.id;
   const evt = {
@@ -127,7 +128,7 @@ test("ADV: concurrent /v1/events with same id never double-settle", async () => 
 
 test("ADV: pending campaign never appears in /v1/config", async () => {
   const r = await post("/api/ads", {
-    email: "pend@x.com", brand: "B", text: "abcdef", url: "https://x.com", bidPerBlock: 99, blocks: 5,
+    email: "pend@x.com", password: "pw-test-12345", brand: "B", text: "abcdef", url: "https://x.com", bidPerBlock: 99, blocks: 5,
   });
   const campaignId = r.body.campaign.id;
   const cfg = await get("/v1/config");
@@ -198,7 +199,7 @@ test("ADV: payout below minimum is rejected", async () => {
   const { campaignId } = await makeActiveCampaign({ bidPerBlock: 1, blocks: 100 });
   const DEV = "dev-below";
   await events([{ id: "i1", type: "impression", adId: campaignId }], DEV); // 0.0005
-  const login = await post("/api/login", { email: "below@me.com", kind: "user" });
+  const login = await post("/api/auth", { email: "below@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV }, auth);
   const payout = await post("/api/portal/payout", undefined, auth);
@@ -213,7 +214,7 @@ test("ADV: exact pending->paid transfer on payout", async () => {
     { id: "i1", type: "impression", adId: campaignId },
     { id: "c1", type: "click", adId: campaignId },
   ], DEV); // 0.04 + 2.00 = 2.04
-  const login = await post("/api/login", { email: "exact@me.com", kind: "user" });
+  const login = await post("/api/auth", { email: "exact@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV }, auth);
   const payout = await post("/api/portal/payout", undefined, auth);
@@ -231,7 +232,7 @@ test("ADV: double-payout (sequential) does not pay twice", async () => {
     { id: "i1", type: "impression", adId: campaignId },
     { id: "c1", type: "click", adId: campaignId },
   ], DEV);
-  const login = await post("/api/login", { email: "double@me.com", kind: "user" });
+  const login = await post("/api/auth", { email: "double@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV }, auth);
   const first = await post("/api/portal/payout", undefined, auth);
@@ -251,7 +252,7 @@ test("ADV: concurrent double-payout must not pay twice (race condition probe)", 
     { id: "i1", type: "impression", adId: campaignId },
     { id: "c1", type: "click", adId: campaignId },
   ], DEV); // 2.04
-  const login = await post("/api/login", { email: "race@me.com", kind: "user" });
+  const login = await post("/api/auth", { email: "race@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV }, auth);
   // Fire many payouts concurrently.
@@ -278,7 +279,7 @@ test("ADV: advertiser A cannot view advertiser B's campaigns", async () => {
 test("ADV: advertiser A cannot re-checkout advertiser B's campaign", async () => {
   const a = await makeActiveCampaign({ email: "a2-adv@x.com", bidPerBlock: 10, blocks: 5 });
   const bRes = await post("/api/ads", {
-    email: "b2-adv@x.com", brand: "B", text: "abcdef", url: "https://x.com", bidPerBlock: 10, blocks: 5,
+    email: "b2-adv@x.com", password: "pw-test-12345", brand: "B", text: "abcdef", url: "https://x.com", bidPerBlock: 10, blocks: 5,
   });
   const bCampaignId = bRes.body.campaign.id;
   const attempt = await post(
@@ -293,9 +294,9 @@ test("ADV: user A cannot see user B's earnings via summary", async () => {
   const { campaignId } = await makeActiveCampaign({ bidPerBlock: 80, blocks: 100 });
   const DEV_B = "dev-userB";
   await events([{ id: "ib", type: "impression", adId: campaignId }], DEV_B);
-  const loginB = await post("/api/login", { email: "userB@me.com", kind: "user" });
+  const loginB = await post("/api/auth", { email: "userB@me.com", password: "pw-test-12345", kind: "user" });
   await post("/api/portal/link-device", { deviceId: DEV_B }, { authorization: `Bearer ${loginB.body.token}` });
-  const loginA = await post("/api/login", { email: "userA@me.com", kind: "user" });
+  const loginA = await post("/api/auth", { email: "userA@me.com", password: "pw-test-12345", kind: "user" });
   const sumA = await get("/api/portal/summary", { authorization: `Bearer ${loginA.body.token}` });
   assert.equal(sumA.body.pendingUsd, 0, "A must not see B's earnings");
   assert.equal(sumA.body.impressions, 0);
@@ -306,10 +307,10 @@ test("ADV: user A re-linking user B's already-linked device must not hijack earn
   const DEV = "dev-victim";
   await events([{ id: "iv", type: "impression", adId: campaignId }, { id: "cv", type: "click", adId: campaignId }], DEV);
   // Victim B links the device.
-  const loginB = await post("/api/login", { email: "victimB@me.com", kind: "user" });
+  const loginB = await post("/api/auth", { email: "victimB@me.com", password: "pw-test-12345", kind: "user" });
   await post("/api/portal/link-device", { deviceId: DEV }, { authorization: `Bearer ${loginB.body.token}` });
   // Attacker A links the SAME device id.
-  const loginA = await post("/api/login", { email: "attackerA@me.com", kind: "user" });
+  const loginA = await post("/api/auth", { email: "attackerA@me.com", password: "pw-test-12345", kind: "user" });
   const link = await post("/api/portal/link-device", { deviceId: DEV }, { authorization: `Bearer ${loginA.body.token}` });
   const sumA = await get("/api/portal/summary", { authorization: `Bearer ${loginA.body.token}` });
   const sumB = await get("/api/portal/summary", { authorization: `Bearer ${loginB.body.token}` });
@@ -369,7 +370,7 @@ test("ADV: /api/ads rejects NaN, negative, and string bid/blocks", async () => {
   ];
   for (const params of bad) {
     const res = await post("/api/ads", {
-      email: "abuse@x.com", brand: "B", text: "abcdef", url: "https://x.com", ...params,
+      email: "abuse@x.com", password: "pw-test-12345", brand: "B", text: "abcdef", url: "https://x.com", ...params,
     });
     assert.equal(res.status, 400, `params ${JSON.stringify(params)} should be rejected`);
     assert.ok(Array.isArray(res.body.errors) && res.body.errors.length >= 1);
@@ -378,7 +379,7 @@ test("ADV: /api/ads rejects NaN, negative, and string bid/blocks", async () => {
 
 test("ADV: absurd bid/blocks are rejected (or produce a finite, bounded amount)", async () => {
   const res = await post("/api/ads", {
-    email: "huge@x.com", brand: "B", text: "abcdef", url: "https://x.com",
+    email: "huge@x.com", password: "pw-test-12345", brand: "B", text: "abcdef", url: "https://x.com",
     bidPerBlock: 1e9, blocks: 1e6,
   });
   // SECURE behavior: reject absurd values, or accept with a finite amount.
@@ -393,7 +394,7 @@ test("ADV: absurd bid/blocks are rejected (or produce a finite, bounded amount)"
 test("ADV: oversized iconDataUrl is rejected", async () => {
   const bigIcon = "data:image/png;base64," + "A".repeat(95_000);
   const res = await post("/api/ads", {
-    email: "icon@x.com", brand: "B", text: "abcdef", url: "https://x.com",
+    email: "icon@x.com", password: "pw-test-12345", brand: "B", text: "abcdef", url: "https://x.com",
     bidPerBlock: 10, blocks: 5, iconDataUrl: bigIcon,
   });
   assert.equal(res.status, 400);
@@ -403,7 +404,7 @@ test("ADV: oversized iconDataUrl is rejected", async () => {
 test("ADV: non-https url is rejected", async () => {
   for (const u of ["http://insecure.com", "ftp://x.com", "javascript:alert(1)", "//x.com", "x.com"]) {
     const res = await post("/api/ads", {
-      email: "url@x.com", brand: "B", text: "abcdef", url: u, bidPerBlock: 10, blocks: 5,
+      email: "url@x.com", password: "pw-test-12345", brand: "B", text: "abcdef", url: u, bidPerBlock: 10, blocks: 5,
     });
     assert.equal(res.status, 400, `url ${u} should be rejected`);
   }

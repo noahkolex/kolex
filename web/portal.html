@@ -18,8 +18,9 @@
       <p class="muted" style="margin-top:0" id="login-sub">Your earnings are waiting. Enter your email to claim them.</p>
       <div id="login-err" class="errors hide"></div>
       <div class="field"><label>Email</label><input type="email" id="email" placeholder="you@email.com" /></div>
-      <button class="btn btn-primary btn-lg" id="signin" style="width:100%;justify-content:center">Continue</button>
-      <p class="center muted" style="margin-top:14px;font-size:13px">New here? We'll create your account automatically.</p>
+      <div class="field"><label>Password</label><input type="password" id="password" placeholder="At least 8 characters" autocomplete="current-password" /></div>
+      <button class="btn btn-primary btn-lg" id="signin" style="width:100%;justify-content:center">Sign in / Create account</button>
+      <p class="center muted" style="margin-top:14px;font-size:13px">New here? Just pick a password — we'll create your account.</p>
     </div>
 
     <!-- Dashboard -->
@@ -52,7 +53,7 @@
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, store, qp } from "/assets/app.js";
+    import { api, money, num, mountNav, store, qp, chaching, coinBurst, ding, animateCount } from "/assets/app.js";
     mountNav("/portal");
 
     const $ = (id) => document.getElementById(id);
@@ -105,7 +106,7 @@
     $("signin").addEventListener("click", async () => {
       $("login-err").classList.add("hide");
       try {
-        const { token } = await api("/api/login", { method: "POST", body: { email: $("email").value, kind: "user" } });
+        const { token } = await api("/api/auth", { method: "POST", body: { email: $("email").value, password: $("password").value, kind: "user" } });
         store.set("usrToken", token);
         loadDash();
       } catch (e) {
@@ -113,14 +114,28 @@
         $("login-err").classList.remove("hide");
       }
     });
-    $("email")?.addEventListener("keydown", (e) => { if (e.key === "Enter") $("signin").click(); });
+    $("password")?.addEventListener("keydown", (e) => { if (e.key === "Enter") $("signin").click(); });
     $("logout").addEventListener("click", () => { store.del("usrToken"); showLogin(); });
 
     $("payout").addEventListener("click", async () => {
       const token = store.get("usrToken");
-      const r = await api("/api/portal/payout", { method: "POST", token });
-      $("payout-note").textContent = `Withdrew ${money(r.paidUsd)}. (Prototype — no real transfer.)`;
-      loadDash();
+      $("payout").disabled = true;
+      try {
+        const r = await api("/api/portal/payout", { method: "POST", token });
+        // 🎉 cash-register moment
+        chaching();
+        const rect = $("payout").getBoundingClientRect();
+        for (let i = 0; i < 4; i++) setTimeout(() => coinBurst(rect.left + rect.width / 2, rect.top, 18), i * 120);
+        const amt = r.paidUsd || r.queuedUsd || 0;
+        $("payout-note").textContent = r.payout?.status === "paid"
+          ? `🎉 Paid out ${money(amt)}! It's on its way.`
+          : `Withdrawal of ${money(amt)} queued — it'll arrive shortly.`;
+      } catch (e) {
+        $("payout-note").textContent = e.message;
+      } finally {
+        $("payout").disabled = false;
+        loadDash();
+      }
     });
 
     loadDash();
