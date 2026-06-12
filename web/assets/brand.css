@@ -84,6 +84,7 @@ img { max-width: 100%; }
 .btn-ghost { background: rgba(255, 255, 255, 0.04); border-color: var(--rule); color: var(--ink); }
 .btn-ghost:hover { border-color: var(--green); color: var(--green); }
 .btn-gold { background: linear-gradient(180deg, #ffd96b, #f0a800); color: #2a1c00; box-shadow: 0 6px 20px rgba(255, 197, 61, 0.3); }
+.btn-gold:hover { color: #2a1c00; box-shadow: 0 8px 28px rgba(255, 197, 61, 0.45); }
 .btn-lg { padding: 15px 28px; font-size: 16px; border-radius: 12px; }
 .btn[disabled] { opacity: 0.5; cursor: default; }
 
