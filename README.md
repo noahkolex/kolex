@@ -115,8 +115,9 @@ test/               node:test suite (core logic + jsdom DOM-glue tests)
 
 ## Backend + website + payments
 
-The `server/` is a single Express app (file-backed store, no native deps)
-that serves the JSON API, the static `web/` site, and Stripe payments.
+The `server/` is a single Express app (Postgres in production via
+`DATABASE_URL`, JSON file for local dev) that serves the JSON API, the static
+`web/` site, and Stripe payments.
 
 ```bash
 cp .env.example .env    # then fill in (everything is optional)
@@ -132,20 +133,28 @@ there are no paid ads the extension spinner shows **Kolex's own** house ad.
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/new)
 
-It's a single Node service — no database to provision. Either:
+A Node service plus a Postgres database. Steps:
 
-1. **From GitHub:** push this repo, then on [railway.app](https://railway.app)
+1. **Deploy the app:** push this repo, then on [railway.app](https://railway.app)
    → New Project → Deploy from GitHub repo. Railway auto-detects Node, runs
    `node server/index.mjs` (see `railway.json`), and health-checks `/healthz`.
-2. **From the CLI:** `npm i -g @railway/cli && railway init && railway up`.
+   (Or from the CLI: `npm i -g @railway/cli && railway init && railway up`.)
+2. **Add Postgres:** in the project, **New → Database → Add PostgreSQL**.
+   Railway injects `DATABASE_URL` into the service automatically. That's the
+   whole setup — on next deploy the app stores everything in Postgres (durable
+   across restarts and redeploys). SSL is handled automatically.
 
-Railway sets `PORT` and `RAILWAY_PUBLIC_DOMAIN` automatically — the server
-uses both, so it just works. With **no env vars** it runs in Stripe **stub**
-mode (a working demo). To take real money, add in the Railway dashboard:
-`STRIPE_SECRET_KEY`, `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (and
-point a Stripe webhook at `https://<your-app>.up.railway.app/webhooks/stripe`).
-Data is file-backed and ephemeral on redeploy; mount a Railway volume and set
-`KOLEX_DB=/data/db.json` to persist it.
+Railway sets `PORT`, `RAILWAY_PUBLIC_DOMAIN`, and (once you add the DB)
+`DATABASE_URL` automatically — the server uses all three, so it just works.
+With **no Stripe keys** it runs in Stripe **stub** mode (a working demo). To
+take real money, add in the Railway dashboard: `STRIPE_SECRET_KEY`,
+`STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` (and point a Stripe webhook at
+`https://<your-app>.up.railway.app/webhooks/stripe`).
+
+> **Persistence:** with `DATABASE_URL` set, data lives in Postgres. Without it
+> (local dev) the server falls back to a JSON file at `server/data/db.json`.
+> The startup log prints which one is active and the current record counts, so
+> you can confirm at a glance.
 
 After deploying, rebuild the extension pointed at your URL:
 `KOLEX_API_BASE=https://<your-app>.up.railway.app/v1 KOLEX_SITE_BASE=https://<your-app>.up.railway.app npm run build`.
@@ -160,6 +169,7 @@ keys to go live:
 | Var | Purpose |
 |-----|---------|
 | `PORT`, `SITE_BASE` | server port; public base URL for Stripe redirects/webhooks |
+| `DATABASE_URL` | Postgres connection string → durable store. Unset → JSON file (local dev). Auto-set by Railway's Postgres plugin |
 | `STRIPE_SECRET_KEY` | `sk_test_…`/`sk_live_…` (or `rk_…`). Present → **live** mode |
 | `STRIPE_PUBLISHABLE_KEY`, `STRIPE_WEBHOOK_SECRET` | from the Stripe dashboard / `stripe listen` |
 | `STRIPE_CURRENCY`, `STRIPE_MODE` | `usd…`; `auto`/`stub`/`live` |

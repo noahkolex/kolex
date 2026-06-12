@@ -2,7 +2,7 @@ import express from "express";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { config, publicBase } from "./config.mjs";
-import { load, save, reset, dbPath, stats } from "./db.mjs";
+import { load, save, reset, init, close, flush, dbPath, stats } from "./db.mjs";
 import {
   configAds,
   leaderboard,
@@ -41,7 +41,7 @@ app.disable("x-powered-by");
 
 // The Stripe webhook needs the RAW body for signature verification, so it is
 // mounted BEFORE express.json() (which would otherwise consume the stream).
-app.post("/webhooks/stripe", express.raw({ type: "*/*" }), (req, res) => {
+app.post("/webhooks/stripe", express.raw({ type: "*/*" }), async (req, res) => {
   let event;
   try {
     event = verifyWebhook(req.body, req.headers["stripe-signature"]);
@@ -49,10 +49,27 @@ app.post("/webhooks/stripe", express.raw({ type: "*/*" }), (req, res) => {
     return res.status(400).json({ error: `webhook signature failed: ${err.message}` });
   }
   applyStripeEvent(event);
+  await flush(); // make the campaign activation durable before ack'ing Stripe
   res.json({ received: true });
 });
 
 app.use(express.json({ limit: "256kb" }));
+
+// Durability seam: make every JSON response wait for pending writes to land in
+// the store first. No-op for the file backend (writes are synchronous); for
+// Postgres it awaits the ordered write queue, so a client never sees "ok"
+// before its mutation is durable. Keeps endpoint code free of await save().
+app.use((_req, res, next) => {
+  const orig = res.json.bind(res);
+  res.json = (body) => {
+    Promise.resolve(flush()).then(
+      () => orig(body),
+      () => orig(body),
+    );
+    return res;
+  };
+  next();
+});
 
 // CORS — the extension and any origin can hit the public API.
 app.use((req, res, next) => {
@@ -246,7 +263,7 @@ app.post("/api/ads", adsLimiter, async (req, res) => {
     payment: { status: "unpaid", amountUsd, checkoutId: null, paidAt: null },
   };
   db.campaigns.push(campaign);
-  save();
+  await save();
 
   const base = publicBase(req);
   const token = createSession("advertiser", advertiser);
@@ -262,7 +279,7 @@ app.post("/api/ads", adsLimiter, async (req, res) => {
     return res.status(502).json({ errors: [`Payment setup failed: ${err.message}`] });
   }
   campaign.payment.checkoutId = checkout.id;
-  save();
+  await save();
 
   res.json({
     campaign,
@@ -564,7 +581,7 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
     }
     // Deduct FIRST (before the await) so a concurrent request sees zero.
     for (const s of snapshot) db.earnings[s.deviceId].pendingUsd = 0;
-    save();
+    await save(); // durably record the deduction BEFORE moving any money
 
     let result;
     try {
@@ -576,7 +593,7 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
     } catch (err) {
       // Restore the balance — the money never moved.
       for (const s of snapshot) db.earnings[s.deviceId].pendingUsd += s.amt;
-      save();
+      await save();
       return res.status(502).json({ error: `Payout failed: ${err.message}` });
     }
 
@@ -594,7 +611,7 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
       createdAt: Date.now(),
     };
     db.payouts.push(payout);
-    save();
+    await save();
     res.json({
       ok: true,
       paidUsd: result.status === "paid" ? total : 0,
@@ -608,9 +625,9 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
 
 // Dev/demo helper — reseed the store. Disabled in LIVE mode (real money) so
 // it can't wipe real data; available in stub/demo deploys.
-app.post("/api/reset", (_req, res) => {
+app.post("/api/reset", async (_req, res) => {
   if (!isStub()) return res.status(404).json({ error: "not available" });
-  reset();
+  await reset();
   res.json({ ok: true });
 });
 
@@ -704,24 +721,29 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
       process.exit(1);
     }
   }
-  load();
-  // Flush to disk on shutdown (belt-and-suspenders; we already save on every
-  // mutation) so a Ctrl-C can never drop the last write.
-  for (const sig of ["SIGINT", "SIGTERM"]) {
-    process.on(sig, () => {
-      save();
-      process.exit(0);
+  (async () => {
+    await init(); // connect to Postgres (or load the file) before serving
+    // Flush + close the store on shutdown so a redeploy/Ctrl-C never drops the
+    // last write (we already persist on every mutation; this is the backstop).
+    for (const sig of ["SIGINT", "SIGTERM"]) {
+      process.on(sig, async () => {
+        await close();
+        process.exit(0);
+      });
+    }
+    app.listen(config.port, () => {
+      const settled = fmtUsd(leaderboard().reduce((s, c) => s + c.spendUsd, 0));
+      const s = stats();
+      console.log(
+        `kolex server on http://localhost:${config.port}  ·  Stripe: ${config.stripe.mode.toUpperCase()}  ·  ${settled} settled`,
+      );
+      // So you can SEE where data lives and that it loaded across restarts.
+      console.log(
+        `  data: ${dbPath()}  ·  ${s.advertisers} advertisers, ${s.campaigns} campaigns, ${s.users} users, ${s.earners} earning devices, ${s.payouts} payouts`,
+      );
     });
-  }
-  app.listen(config.port, () => {
-    const settled = fmtUsd(leaderboard().reduce((s, c) => s + c.spendUsd, 0));
-    const s = stats();
-    console.log(
-      `kolex server on http://localhost:${config.port}  ·  Stripe: ${config.stripe.mode.toUpperCase()}  ·  ${settled} settled`,
-    );
-    // So you can SEE where data lives and that it loaded across restarts.
-    console.log(
-      `  data: ${dbPath()}  ·  ${s.advertisers} advertisers, ${s.campaigns} campaigns, ${s.users} users, ${s.earners} earning devices, ${s.payouts} payouts`,
-    );
+  })().catch((err) => {
+    console.error("kolex: failed to start:", err.message);
+    process.exit(1);
   });
 }

@@ -1,5 +1,11 @@
-// Tiny JSON-file store — no native deps, atomic writes. Fine for a
-// prototype/single-node deployment; swap for Postgres when it grows up.
+// Persistence with two interchangeable backends, chosen at boot:
+//   • Postgres  — when DATABASE_URL is set (production / Railway). Durable
+//                 across restarts and redeploys. State is held in one JSONB
+//                 row so the in-memory object model (and every endpoint that
+//                 uses load()/save()) is unchanged.
+//   • JSON file — otherwise (local dev + tests). No DB needed, fast, atomic.
+// Both expose the same API: init() (async, once at boot), load() (sync, returns
+// the cached object), save() (persists), flush(), reset(), close().
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -7,9 +13,12 @@ import { IMPRESSIONS_PER_BLOCK } from "./economics.mjs";
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = process.env.KOLEX_DB ?? path.join(DIR, "data", "db.json");
+const DATABASE_URL = process.env.DATABASE_URL?.trim() || "";
+const usePg = !!DATABASE_URL;
 
-/** Absolute path of the data file (for startup diagnostics). */
-export const dbPath = () => path.resolve(DB_PATH);
+/** Human-readable location of the store (for startup diagnostics). */
+export const dbPath = () =>
+  usePg ? `postgres (${DATABASE_URL.replace(/:\/\/[^@]*@/, "://***@")})` : path.resolve(DB_PATH);
 
 const EMPTY = {
   advertisers: [], // { id, email, createdAt }
@@ -30,48 +39,154 @@ const EMPTY = {
 
 let db = null;
 
-export function load() {
-  if (db) return db;
+// Blank by default — real data only. Set KOLEX_SEED=1 to populate demo
+// campaigns for a showcase deployment.
+const wantSeed = () => /^(1|true|yes|on|demo)$/i.test(process.env.KOLEX_SEED || "");
+
+// ─────────────────────────── File backend ───────────────────────────
+
+function fileLoad() {
   let raw;
   try {
     raw = fs.readFileSync(DB_PATH, "utf8");
   } catch (err) {
     if (err.code !== "ENOENT") {
-      // The file exists but the OS couldn't read it (permissions, etc.). Do NOT
-      // overwrite it — surface the problem instead of silently wiping data.
+      // Exists but unreadable (permissions, etc.). Do NOT overwrite it.
       throw new Error(
         `kolex: cannot read data file ${path.resolve(DB_PATH)}: ${err.message}. ` +
           `Refusing to start empty so your data isn't clobbered.`,
       );
     }
-    // Genuinely first boot — no file yet.
-    db = structuredClone(EMPTY);
+    db = structuredClone(EMPTY); // genuinely first boot
     if (wantSeed()) seed(db);
-    save();
-    return db;
+    fileSave();
+    return;
   }
   try {
-    db = { ...EMPTY, ...JSON.parse(raw) };
+    db = { ...structuredClone(EMPTY), ...JSON.parse(raw) };
   } catch (err) {
-    // The file exists but is corrupt. NEVER blindly overwrite it — back it up
-    // first so the data is recoverable, then start fresh.
+    // Corrupt file: back it up before starting fresh, never silently wipe.
     const backup = `${DB_PATH}.corrupt-${Date.now()}`;
     try {
       fs.copyFileSync(DB_PATH, backup);
-      console.error(
-        `[kolex] data file is corrupt (${err.message}). Backed up to ${backup} before starting fresh.`,
-      );
+      console.error(`[kolex] data file corrupt (${err.message}). Backed up to ${backup}.`);
     } catch {
       throw new Error(
-        `kolex: data file ${path.resolve(DB_PATH)} is corrupt and could not be backed up. ` +
-          `Refusing to overwrite it. Fix or move the file, then restart.`,
+        `kolex: data file ${path.resolve(DB_PATH)} is corrupt and couldn't be backed up. ` +
+          `Refusing to overwrite it. Move the file, then restart.`,
       );
     }
     db = structuredClone(EMPTY);
     if (wantSeed()) seed(db);
-    save();
+    fileSave();
   }
+}
+
+function fileSave() {
+  if (!db) return;
+  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
+  const tmp = `${DB_PATH}.tmp`;
+  fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
+  fs.renameSync(tmp, DB_PATH);
+}
+
+// ─────────────────────────── Postgres backend ───────────────────────────
+
+let pool = null;
+let writeChain = Promise.resolve();
+
+const pgNeedsSsl = () =>
+  process.env.PGSSLMODE !== "disable" && !/@(localhost|127\.0\.0\.1|::1)[:/]/.test(DATABASE_URL);
+
+async function pgInit() {
+  const { default: pg } = await import("pg");
+  pool = new pg.Pool({
+    connectionString: DATABASE_URL,
+    ssl: pgNeedsSsl() ? { rejectUnauthorized: false } : undefined,
+    max: 8,
+  });
+  // One row holds the whole document. Simple, durable, and a clean seam to
+  // normalize into real tables later without touching endpoint code.
+  await pool.query(
+    "CREATE TABLE IF NOT EXISTS kolex_state (id int PRIMARY KEY, doc jsonb NOT NULL, updated_at timestamptz NOT NULL DEFAULT now())",
+  );
+  const { rows } = await pool.query("SELECT doc FROM kolex_state WHERE id = 1");
+  if (rows.length) {
+    db = { ...structuredClone(EMPTY), ...rows[0].doc };
+  } else {
+    db = structuredClone(EMPTY);
+    if (wantSeed()) seed(db);
+    await pgWrite();
+  }
+}
+
+/** Ordered write-through: each save queues behind the previous one. */
+function pgWrite() {
+  if (!db) return Promise.resolve();
+  const snapshot = JSON.stringify(db);
+  writeChain = writeChain
+    .then(() =>
+      pool.query(
+        "INSERT INTO kolex_state (id, doc, updated_at) VALUES (1, $1::jsonb, now()) " +
+          "ON CONFLICT (id) DO UPDATE SET doc = EXCLUDED.doc, updated_at = now()",
+        [snapshot],
+      ),
+    )
+    .catch((err) => console.error(`[kolex] postgres write failed: ${err.message}`));
+  return writeChain;
+}
+
+// ─────────────────────────── Unified API ───────────────────────────
+
+/** Initialize the store once, at server startup (must be awaited). */
+export async function init() {
+  if (db) return db;
+  if (usePg) await pgInit();
+  else fileLoad();
   return db;
+}
+
+/** Synchronous accessor used everywhere. Returns the cached document. */
+export function load() {
+  if (db) return db;
+  if (usePg) {
+    throw new Error("kolex: database not initialized — await init() before serving requests");
+  }
+  fileLoad(); // file backend can load lazily/synchronously (keeps tests simple)
+  return db;
+}
+
+/**
+ * Persist the current state. Returns a Promise that resolves once the write is
+ * durable (awaited by money-critical paths; fire-and-forget elsewhere, with a
+ * flush on shutdown). The file backend writes synchronously.
+ */
+export function save() {
+  if (!db) return Promise.resolve();
+  if (usePg) return pgWrite();
+  fileSave();
+  return Promise.resolve();
+}
+
+/** Await all pending Postgres writes (no-op for the file backend). */
+export async function flush() {
+  if (usePg) await writeChain;
+}
+
+export async function reset() {
+  db = structuredClone(EMPTY);
+  if (wantSeed()) seed(db);
+  await save();
+  return db;
+}
+
+/** Close the connection pool (after flushing). */
+export async function close() {
+  await flush();
+  if (pool) {
+    await pool.end();
+    pool = null;
+  }
 }
 
 /** Snapshot of record counts, for the startup diagnostic line. */
@@ -85,25 +200,6 @@ export function stats() {
     earners: Object.keys(d.earnings).length,
     payouts: d.payouts.length,
   };
-}
-
-export function save() {
-  if (!db) return;
-  fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
-  const tmp = `${DB_PATH}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
-  fs.renameSync(tmp, DB_PATH);
-}
-
-// Blank by default — real data only. Set KOLEX_SEED=1 to populate demo
-// campaigns for a showcase deployment.
-const wantSeed = () => /^(1|true|yes|on|demo)$/i.test(process.env.KOLEX_SEED || "");
-
-export function reset() {
-  db = structuredClone(EMPTY);
-  if (wantSeed()) seed(db);
-  save();
-  return db;
 }
 
 // ─── Seed inventory so the auction/leaderboard is alive on first boot ──

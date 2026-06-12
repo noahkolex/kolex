@@ -35,6 +35,37 @@ test("a mutation is durably written to disk (survives a restart)", async () => {
   fs.rmSync(dbFile, { force: true });
 });
 
+// Opt-in: exercises the real Postgres backend across a simulated restart.
+// Run with KOLEX_TEST_DATABASE_URL=postgres://… (a throwaway DB).
+test("postgres backend persists across a restart", {
+  skip: process.env.KOLEX_TEST_DATABASE_URL ? false : "set KOLEX_TEST_DATABASE_URL to run",
+}, async () => {
+  const prev = process.env.DATABASE_URL;
+  process.env.DATABASE_URL = process.env.KOLEX_TEST_DATABASE_URL;
+  process.env.PGSSLMODE = process.env.PGSSLMODE || "disable";
+  try {
+    const boot = async () => {
+      const m = await import(`../server/db.mjs?pg=${Date.now()}-${Math.random()}`);
+      await m.init(); // connect the pool before any read/write
+      return m;
+    };
+    // Run 1: write, then close the pool (simulate a stop).
+    let db = await boot();
+    await db.reset(); // start clean
+    db.load().advertisers.push({ id: "adv_pg_test", email: "pg@test.com", createdAt: 1 });
+    await db.save();
+    await db.close();
+    // Run 2: fresh boot reads it back.
+    db = await boot();
+    assert.ok(db.load().advertisers.some((a) => a.id === "adv_pg_test"), "data survived restart");
+    await db.reset(); // leave the table clean
+    await db.close();
+  } finally {
+    if (prev === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = prev;
+  }
+});
+
 test("a corrupt data file is backed up, never silently wiped", async () => {
   const dbFile = path.join(os.tmpdir(), `kolex-corrupt-${process.pid}-${Date.now()}.json`);
   fs.writeFileSync(dbFile, "{ this is : not valid json ");
