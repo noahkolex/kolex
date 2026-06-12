@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Set up payouts · Kolex (test mode)</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+</head>
+<body>
+  <main class="wrap narrow" style="padding-top:64px;max-width:460px">
+    <div class="card">
+      <span class="eyebrow">Stripe Connect · test mode</span>
+      <h1 style="font-size:24px;font-weight:600;letter-spacing:-.02em;margin:10px 0 4px">Connect your payout account</h1>
+      <p class="muted" style="margin-top:0;font-size:13px">This mock onboarding stands in for Stripe Connect Express until live keys are configured. No real bank details are collected.</p>
+      <div class="row" style="border-top:1px solid var(--rule);margin-top:14px;padding-top:14px">
+        <span class="muted">Connected account</span><span id="account" class="mono"></span>
+      </div>
+      <button class="btn btn-primary btn-lg" id="finish" style="width:100%;justify-content:center;margin-top:14px">Complete onboarding</button>
+      <button class="btn btn-ghost" id="cancel" style="width:100%;justify-content:center;margin-top:8px">Cancel</button>
+      <div id="err" class="errors hide" style="margin-top:12px"></div>
+    </div>
+  </main>
+  <script type="module">
+    import { api, store } from "/assets/app.js";
+    const q = new URLSearchParams(location.search);
+    const account = q.get("account") || "";
+    const ret = q.get("return") || "/portal?connected=1";
+    document.getElementById("account").textContent = account.slice(0, 20);
+    document.getElementById("cancel").addEventListener("click", () => (location.href = "/portal"));
+    document.getElementById("finish").addEventListener("click", async () => {
+      const btn = document.getElementById("finish");
+      btn.disabled = true;
+      try {
+        await api("/api/stub/complete-connect", { method: "POST", token: store.get("usrToken") });
+        location.href = ret;
+      } catch (e) {
+        const el = document.getElementById("err");
+        el.textContent = e.message;
+        el.classList.remove("hide");
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>

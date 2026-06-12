@@ -37,8 +37,9 @@
       <div class="card center" style="margin-top:22px">
         <span class="eyebrow" style="justify-content:center">Available to withdraw</span>
         <div class="mono" id="pending" style="font-size:44px;font-weight:600;color:var(--positive);margin:8px 0">$0.00</div>
+        <div id="payout-method" style="margin:6px 0 12px;font-size:13px"></div>
         <button class="btn btn-primary btn-lg" id="payout">Withdraw</button>
-        <div class="muted" id="payout-note" style="font-size:12px;margin-top:10px">Prototype payout. Moves your balance to "paid".</div>
+        <div class="muted" id="payout-note" style="font-size:12px;margin-top:10px">Payouts are sent to your connected Stripe account.</div>
       </div>
 
       <div class="stats-strip" id="usr-stats" style="margin-top:22px"></div>
@@ -84,7 +85,7 @@
         $("dash").classList.remove("hide");
         $("who").textContent = data.email;
         $("pending").textContent = money(data.pendingUsd);
-        $("payout").disabled = data.pendingUsd <= 0;
+        renderPayoutMethod(data);
         if (linked) {
           $("linked").textContent = `✓ Linked this browser (device ${linked.slice(0, 8)}). Earnings will appear here.`;
           $("linked").classList.remove("hide");
@@ -104,6 +105,37 @@
 
     function showLogin() { $("dash").classList.add("hide"); $("login").classList.remove("hide"); }
 
+    function renderPayoutMethod(data) {
+      const pm = $("payout-method");
+      if (data.payoutsReady) {
+        pm.innerHTML = '<span style="color:var(--positive)">✓ Payouts enabled</span> · <a href="#" id="reconnect">manage</a>';
+        const enough = data.pendingUsd >= data.minPayoutUsd;
+        $("payout").disabled = !enough;
+        // Only nag about the minimum when there's a sub-minimum balance sitting
+        // there. With $0 pending (e.g. right after a payout) keep it neutral so
+        // a "Paid out!" confirmation isn't clobbered.
+        $("payout-note").textContent = data.pendingUsd > 0 && !enough
+          ? `Minimum payout is ${money(data.minPayoutUsd)}. You have ${money(data.pendingUsd)}.`
+          : "Payouts are sent to your connected Stripe account.";
+        $("reconnect")?.addEventListener("click", (e) => { e.preventDefault(); startConnect(); });
+      } else {
+        pm.innerHTML = '<button class="btn btn-gold" id="connect" style="width:100%;justify-content:center">Set up payouts</button>'
+          + '<div class="muted" style="margin-top:8px">Connect a payout account to withdraw your earnings.</div>';
+        $("payout").disabled = true;
+        $("payout-note").textContent = "Set up payouts to enable withdrawals.";
+        $("connect").addEventListener("click", startConnect);
+      }
+    }
+
+    async function startConnect() {
+      try {
+        const r = await api("/api/portal/connect", { method: "POST", token: store.get("usrToken") });
+        location.href = r.url; // Stripe Connect onboarding (or the mock page in stub mode)
+      } catch (e) {
+        $("payout-note").textContent = e.message;
+      }
+    }
+
     $("signin").addEventListener("click", async () => {
       $("login-err").classList.add("hide");
       try {
@@ -121,6 +153,7 @@
     $("payout").addEventListener("click", async () => {
       const token = store.get("usrToken");
       $("payout").disabled = true;
+      let resultNote = null;
       try {
         const r = await api("/api/portal/payout", { method: "POST", token });
         // 🎉 cash-register moment
@@ -128,14 +161,16 @@
         const rect = $("payout").getBoundingClientRect();
         for (let i = 0; i < 4; i++) setTimeout(() => coinBurst(rect.left + rect.width / 2, rect.top, 18), i * 120);
         const amt = r.paidUsd || r.queuedUsd || 0;
-        $("payout-note").textContent = r.payout?.status === "paid"
+        resultNote = r.payout?.status === "paid"
           ? `🎉 Paid out ${money(amt)}! It's on its way.`
           : `Withdrawal of ${money(amt)} queued. It'll arrive shortly.`;
       } catch (e) {
-        $("payout-note").textContent = e.message;
+        resultNote = e.message;
       } finally {
-        $("payout").disabled = false;
-        loadDash();
+        // Refresh balances first, THEN show the result so renderPayoutMethod
+        // (which runs inside loadDash) can't overwrite the confirmation.
+        await loadDash();
+        if (resultNote) $("payout-note").textContent = resultNote;
       }
     });
 

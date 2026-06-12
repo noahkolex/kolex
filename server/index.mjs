@@ -24,6 +24,9 @@ import {
   createCheckout,
   verifyWebhook,
   createPayout,
+  createConnectAccount,
+  createAccountLink,
+  getAccountStatus,
   stripeStatus,
   isStub,
 } from "./stripe.mjs";
@@ -366,8 +369,17 @@ app.post("/api/advertiser/campaigns/:id/checkout", requireKind("advertiser"), as
 });
 
 // User portal: earnings summary across the account's linked devices.
-app.get("/api/portal/summary", requireKind("user"), (req, res) => {
+app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
   const db = load();
+  const me = db.users.find((u) => u.id === req.session.id);
+  // Live mode: when the user returns from onboarding, confirm with Stripe that
+  // their connected account can now receive transfers, then mark them ready.
+  if (!isStub() && me?.stripeAccountId && !me.payoutsReady) {
+    try {
+      const st = await getAccountStatus(me.stripeAccountId);
+      if (st.payoutsEnabled) { me.payoutsReady = true; save(); }
+    } catch { /* leave as not-ready; the portal shows "finish setup" */ }
+  }
   const devices = db.devices.filter((d) => d.userId === req.session.id);
   let impressions = 0, clicks = 0, pendingUsd = 0, paidUsd = 0;
   for (const dev of devices) {
@@ -387,8 +399,63 @@ app.get("/api/portal/summary", requireKind("user"), (req, res) => {
     pendingUsd,
     paidUsd,
     minPayoutUsd: config.minPayoutUsd,
+    payoutMethod: me?.stripeAccountId ? "stripe" : null,
+    payoutsReady: !!me?.payoutsReady,
     payouts: db.payouts.filter((p) => p.userId === req.session.id),
   });
+});
+
+// Start (or resume) Stripe Connect onboarding so this earner can receive money.
+// Returns an onboarding URL to redirect the browser to. Stub → instant mock.
+app.post("/api/portal/connect", requireKind("user"), async (req, res) => {
+  const db = load();
+  const me = db.users.find((u) => u.id === req.session.id);
+  if (!me) return res.status(404).json({ error: "account not found" });
+  try {
+    if (!me.stripeAccountId) {
+      const acct = await createConnectAccount({ email: me.email });
+      me.stripeAccountId = acct.id;
+      me.payoutsReady = false;
+      save();
+    }
+    const base = publicBase(req);
+    const link = await createAccountLink({
+      accountId: me.stripeAccountId,
+      returnUrl: `${base}/portal?connected=1`,
+      refreshUrl: `${base}/portal?connect=retry`,
+    });
+    res.json({ url: link.url });
+  } catch (err) {
+    res.status(502).json({ error: `Couldn't start payout setup: ${err.message}` });
+  }
+});
+
+// Stub-only: the mock onboarding page calls this to mark the earner ready,
+// mirroring what completing real Stripe Connect onboarding would do.
+app.post("/api/stub/complete-connect", requireKind("user"), (req, res) => {
+  if (!isStub()) return res.status(404).json({ error: "not available" });
+  const db = load();
+  const me = db.users.find((u) => u.id === req.session.id);
+  if (!me) return res.status(404).json({ error: "account not found" });
+  if (!me.stripeAccountId) me.stripeAccountId = newId("acct_stub");
+  me.payoutsReady = true;
+  save();
+  res.json({ ok: true });
+});
+
+// Stub-only: give a device a pending balance so payouts are testable instantly
+// (no need to sit through real impressions to clear the minimum).
+app.post("/api/stub/seed-earnings", (req, res) => {
+  if (!isStub()) return res.status(404).json({ error: "not available" });
+  const db = load();
+  const deviceId = String(req.body?.deviceId ?? "").trim();
+  const amountUsd = Math.max(0, Math.min(10_000, Number(req.body?.amountUsd) || 0));
+  if (!deviceId) return res.status(400).json({ error: "deviceId required" });
+  const e = (db.earnings[deviceId] ??= { impressions: 0, clicks: 0, pendingUsd: 0, paidUsd: 0 });
+  e.pendingUsd += amountUsd;
+  e.impressions += Math.round(amountUsd * 100); // plausible-looking counters
+  save();
+  res.json({ ok: true, deviceId, pendingUsd: e.pendingUsd });
 });
 
 // Link a device (from the extension "Cash out" flow) to the logged-in user.
@@ -437,7 +504,14 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
     .map((d) => ({ deviceId: d.deviceId, amt: db.earnings[d.deviceId]?.pendingUsd ?? 0 }))
     .filter((s) => s.amt > 0);
   const total = snapshot.reduce((s, x) => s + x.amt, 0);
+  const me = db.users.find((u) => u.id === userId);
   try {
+    if (!me?.payoutsReady) {
+      return res.status(400).json({
+        error: "Set up payouts before withdrawing.",
+        needsConnect: true,
+      });
+    }
     if (total < config.minPayoutUsd) {
       return res.status(400).json({
         error: `Minimum payout is $${config.minPayoutUsd.toFixed(2)}. You have $${total.toFixed(2)}.`,
@@ -449,7 +523,11 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
 
     let result;
     try {
-      result = await createPayout({ amountUsd: total, email: req.session.email });
+      result = await createPayout({
+        amountUsd: total,
+        email: req.session.email,
+        destination: me.stripeAccountId,
+      });
     } catch (err) {
       // Restore the balance — the money never moved.
       for (const s of snapshot) db.earnings[s.deviceId].pendingUsd += s.amt;
@@ -532,6 +610,7 @@ const PAGES = {
   "/portal": "portal.html",
   "/reset": "reset.html",
   "/mock-checkout": "mock-checkout.html",
+  "/mock-connect": "mock-connect.html",
   "/terms": "terms.html",
   "/privacy": "privacy.html",
   "/logos": "logos.html",

@@ -86,6 +86,8 @@ export async function createPayout({ amountUsd, email, destination }) {
     return { id: id("po_stub"), status: "paid", amountCents };
   }
   if (config.stripe.enablePayouts && destination) {
+    // Move funds from the platform balance to the earner's connected account.
+    // Their Express account then auto-pays out to their bank.
     const transfer = await stripe().transfers.create({
       amount: amountCents,
       currency: config.stripe.currency,
@@ -96,6 +98,45 @@ export async function createPayout({ amountUsd, email, destination }) {
   }
   // No Connect destination configured — record for manual/queued settlement.
   return { id: id("po_queued"), status: "queued", amountCents };
+}
+
+// ── Stripe Connect (Express) onboarding so earners can actually receive money ──
+
+/** Create an Express connected account for an earner. Stub returns a fake id. */
+export async function createConnectAccount({ email }) {
+  if (isStub()) return { id: id("acct_stub") };
+  const account = await stripe().accounts.create({
+    type: "express",
+    email,
+    business_type: "individual",
+    capabilities: { transfers: { requested: true } },
+    metadata: { kolex: "earner" },
+  });
+  return { id: account.id };
+}
+
+/** Onboarding link the earner completes to enable payouts. Stub → mock page. */
+export async function createAccountLink({ accountId, returnUrl, refreshUrl }) {
+  if (isStub()) {
+    const root = returnUrl.split("?")[0].replace(/\/[^/]*$/, "");
+    return {
+      url: `${root}/mock-connect?account=${encodeURIComponent(accountId)}&return=${encodeURIComponent(returnUrl)}`,
+    };
+  }
+  const link = await stripe().accountLinks.create({
+    account: accountId,
+    type: "account_onboarding",
+    return_url: returnUrl,
+    refresh_url: refreshUrl,
+  });
+  return { url: link.url };
+}
+
+/** Whether a connected account can receive transfers yet (live only). */
+export async function getAccountStatus(accountId) {
+  if (isStub()) return { payoutsEnabled: true };
+  const a = await stripe().accounts.retrieve(accountId);
+  return { payoutsEnabled: !!a.payouts_enabled && a.capabilities?.transfers === "active" };
 }
 
 export function stripeStatus() {

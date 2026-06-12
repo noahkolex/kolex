@@ -158,6 +158,18 @@ test("FLOW 6 — user links device, sees earnings, and cashes out", async () => 
   assert.ok(Math.abs(sum.body.pendingUsd - 2.04) < 1e-6);
   assert.equal(sum.body.impressions, 1);
   assert.equal(sum.body.clicks, 1);
+  assert.equal(sum.body.payoutsReady, false, "must connect a payout account first");
+
+  // Withdrawing before connecting a payout account is blocked.
+  const blocked = await post("/api/portal/payout", undefined, auth);
+  assert.equal(blocked.status, 400);
+  assert.equal(blocked.body.needsConnect, true);
+
+  // Complete (mock) Stripe Connect onboarding, then cash out.
+  await post("/api/stub/complete-connect", undefined, auth);
+  const ready = await get("/api/portal/summary", auth);
+  assert.equal(ready.body.payoutsReady, true);
+  assert.equal(ready.body.payoutMethod, "stripe");
 
   const payout = await post("/api/portal/payout", undefined, auth);
   assert.equal(payout.status, 200, JSON.stringify(payout.body));
@@ -180,6 +192,7 @@ test("FLOW 7 — payout below the minimum is rejected", async () => {
   const login = await post("/api/auth", { email: "small@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV2 }, auth);
+  await post("/api/stub/complete-connect", undefined, auth); // payout account ready
   const payout = await post("/api/portal/payout", undefined, auth);
   assert.equal(payout.status, 400);
   assert.match(payout.body.error, /Minimum payout/);

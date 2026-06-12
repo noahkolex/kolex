@@ -178,6 +178,46 @@ it serves. Earnings settle as the extension posts impression/click events,
 **capped at each campaign's paid budget**, and users cash out (minimum
 enforced; real payouts via Connect when configured).
 
+### Payout flow (and how to test it)
+
+Earners are paid via **Stripe Connect (Express)**. An earner links their
+browser to their account, completes one-time Connect onboarding (a connected
+account that can receive transfers), then withdraws — which moves their share
+from the platform balance to their connected account via a Stripe **Transfer**.
+Withdrawals are blocked until a payout account is connected, locked per-user so
+a balance can't be paid twice, and only credited as `paid` once the transfer
+settles (otherwise recorded as `queued`).
+
+**Test it in one command** (stub mode, no Stripe keys):
+
+```bash
+npm run test:payout
+```
+
+It drives the whole journey over the real API and prints each step: earn →
+link device → withdraw-is-blocked → connect → withdraw → balance moves to paid.
+
+**Test it by hand in the browser** (stub mode):
+
+```bash
+STRIPE_MODE=stub npm start                 # no keys needed
+# give a device a balance so you don't have to wait for real impressions:
+curl -X POST localhost:4000/api/stub/seed-earnings \
+  -H 'content-type: application/json' -d '{"deviceId":"my-test-device","amountUsd":25}'
+# then open the portal pre-linked to that device:
+open 'http://localhost:4000/portal?device=my-test-device&connect=1'
+```
+
+Sign in (any email + an 8+ char password creates the account), click **Set up
+payouts** (the mock onboarding completes instantly), then **Withdraw**.
+
+**Live test mode** (real Stripe): set a `sk_test_…` key and
+`STRIPE_ENABLE_PAYOUTS=1`. Two prerequisites on the Stripe side: enable
+**Connect** in the dashboard (otherwise `Set up payouts` returns *"You can only
+create new accounts if you've signed up for Connect"*), and keep some test
+balance available for transfers. Onboarding uses Stripe's test data; the
+connected account is stored on the user and used as the transfer destination.
+
 ### Connecting the extension to a backend
 
 The extension's endpoints are injected at build time and overridable at
@@ -192,11 +232,12 @@ KOLEX_API_BASE=http://localhost:4000/v1 KOLEX_SITE_BASE=http://localhost:4000 np
 ### Tests
 
 ```bash
-npm test            # 35 extension-core unit tests (jsdom)
-npm run test:server # 40 payment-flow + adversarial + rate-limit tests
-npm run test:web    # browser drives advertise → checkout → pay → live
-npm run test:browser# 6 real-Chromium spinner-replacement fixtures
+npm test            # 38 extension-core unit tests (jsdom)
+npm run test:server # 52 payment-flow + auth/reset + adversarial + rate-limit tests
+npm run test:web    # browser drives advertise → pay → live, and earn → connect → cash out
+npm run test:browser# 8 real-Chromium spinner-replacement fixtures
 npm run test:ext    # REAL extension in Chrome (xvfb) talks to a live server
+npm run test:payout # end-to-end payout walkthrough (prints each step)
 npm run test:all    # everything
 ```
 
@@ -226,11 +267,13 @@ API surface:
 | `GET /r/:adId?d=device` | browser | record click, 302 to advertiser |
 | `GET /api/auction` | public | leaderboard + stats for the landing page |
 | `POST /api/ads` | public | quick ad submission (creates advertiser, enters auction) |
-| `POST /api/login` | public | email login (user or advertiser) |
+| `POST /api/auth` | public | email + password sign-in/create (user or advertiser) |
+| `POST /api/auth/forgot` · `/reset` | public | request a reset link · set a new password |
 | `GET /api/advertiser/campaigns` | advertiser | campaign stats |
-| `GET /api/portal/summary` | user | earnings across linked devices |
+| `GET /api/portal/summary` | user | earnings + payout readiness across linked devices |
 | `POST /api/portal/link-device` | user | link an extension device to the account |
-| `POST /api/portal/payout` | user | withdraw pending balance |
+| `POST /api/portal/connect` | user | start Stripe Connect onboarding (enables payouts) |
+| `POST /api/portal/payout` | user | withdraw pending balance to the connected account |
 
 Settlement mirrors the extension's economics exactly: an impression bills
 `bid/1000`, a click bills `50×` that, and **50% of every billed dollar** is

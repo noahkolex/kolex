@@ -110,6 +110,19 @@ try {
   const pendingTxt = await page.locator("#pending").textContent();
   ok("earned balance shows in the portal", /\$[1-9]/.test(pendingTxt), pendingTxt);
 
+  // Payouts require connecting an account first: Withdraw is gated until then.
+  ok("withdraw is disabled before connecting a payout account", await page.locator("#payout").isDisabled());
+  ok("a 'Set up payouts' button is shown", await page.locator("#connect").isVisible());
+
+  // Complete (mock) Stripe Connect onboarding.
+  await page.click("#connect");
+  await page.waitForSelector("#finish", { timeout: 5000 });
+  ok("mock Stripe Connect onboarding opens", await page.locator("#finish").isVisible());
+  await page.click("#finish");
+  await page.waitForSelector("#dash:not(.hide)", { timeout: 5000 });
+  await page.waitForTimeout(400);
+  ok("payouts enabled after onboarding", (await page.locator("#payout-method").textContent()).includes("enabled"));
+
   await page.click("#payout");
   await page.waitForTimeout(800);
   const note = await page.locator("#payout-note").textContent();

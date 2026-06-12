@@ -202,6 +202,7 @@ test("ADV: payout below minimum is rejected", async () => {
   const login = await post("/api/auth", { email: "below@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV }, auth);
+  await post("/api/stub/complete-connect", undefined, auth);
   const payout = await post("/api/portal/payout", undefined, auth);
   assert.equal(payout.status, 400);
   assert.match(payout.body.error, /Minimum payout/);
@@ -217,6 +218,7 @@ test("ADV: exact pending->paid transfer on payout", async () => {
   const login = await post("/api/auth", { email: "exact@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV }, auth);
+  await post("/api/stub/complete-connect", undefined, auth);
   const payout = await post("/api/portal/payout", undefined, auth);
   assert.equal(payout.status, 200, JSON.stringify(payout.body));
   assert.ok(Math.abs(payout.body.paidUsd - 2.04) < 1e-9);
@@ -235,6 +237,7 @@ test("ADV: double-payout (sequential) does not pay twice", async () => {
   const login = await post("/api/auth", { email: "double@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV }, auth);
+  await post("/api/stub/complete-connect", undefined, auth);
   const first = await post("/api/portal/payout", undefined, auth);
   assert.equal(first.status, 200);
   const second = await post("/api/portal/payout", undefined, auth);
@@ -255,6 +258,7 @@ test("ADV: concurrent double-payout must not pay twice (race condition probe)", 
   const login = await post("/api/auth", { email: "race@me.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${login.body.token}` };
   await post("/api/portal/link-device", { deviceId: DEV }, auth);
+  await post("/api/stub/complete-connect", undefined, auth);
   // Fire many payouts concurrently.
   await Promise.all(Array.from({ length: 10 }, () => post("/api/portal/payout", undefined, auth)));
   const db = load();
