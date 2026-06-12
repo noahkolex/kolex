@@ -146,7 +146,7 @@
         : `You need ${money(min)} to cash out — you have ${money(data.pendingUsd)}`;
 
       if (data.payoutsReady) {
-        pm.innerHTML = '<span style="color:var(--positive)">✓ Payouts enabled</span> · <a href="#" id="reconnect">manage</a>';
+        pm.innerHTML = '<span style="color:var(--positive)">✓ Payouts enabled</span> · <a href="#" id="reconnect">Manage</a>';
         $("payout").disabled = !enough;
         // Only nag about the minimum when there's a sub-minimum balance sitting
         // there. With $0 pending (e.g. right after a payout) keep it neutral so
