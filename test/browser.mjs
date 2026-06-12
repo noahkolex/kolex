@@ -142,5 +142,46 @@ await run("claude-filmstrip", "claude-filmstrip.html");
 await run("claude-streaming", "claude-streaming.html");
 await run("chatgpt", "chatgpt.html");
 
+// Image-loader exception: the ad must NOT cover a big image-generation
+// placeholder. Here the native spinner STAYS (we don't replace it); the ad
+// docks above the composer, clear of the image.
+async function runImageLoader() {
+  console.log(`\n▶ gemini-image  (gemini-image.html)`);
+  const browser = await chromium.launch({ args: ["--no-sandbox"] });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await page.goto(pathToFileURL(path.join(DIR, "fixtures", "gemini-image.html")).href);
+  await page.waitForTimeout(6500);
+
+  const g = await page.evaluate(() => {
+    const line = document.querySelector("kolex-ad")?.shadowRoot?.querySelector(".line");
+    const lb = line?.getBoundingClientRect();
+    const img = document.querySelector(".image-area")?.getBoundingClientRect();
+    const spinner = document.querySelector(".img-spinner");
+    const spinnerVisible = spinner
+      ? getComputedStyle(spinner).visibility !== "hidden" && spinner.getBoundingClientRect().width > 0
+      : false;
+    const input = document.querySelector("[contenteditable], textarea")?.getBoundingClientRect();
+    const intersects = (a, b) => a && b && !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom);
+    return {
+      adVisible: !!line && line.classList.contains("visible"),
+      overlapsImage: intersects(lb && { left: lb.left, right: lb.right, top: lb.top, bottom: lb.bottom }, img && { left: img.left, right: img.right, top: img.top, bottom: img.bottom }),
+      overlapsInput: intersects(lb, input),
+      imageSpinnerStillVisible: spinnerVisible,
+    };
+  });
+  await page.screenshot({ path: path.join(OUT, "kolex-gemini-image.png") });
+
+  ok("no page errors", errors.length === 0, errors[0] || "");
+  ok("ad still serves (docked, not blank)", g.adVisible);
+  ok("ad does NOT cover the image placeholder", g.overlapsImage === false);
+  ok("ad does NOT cover the input", g.overlapsInput === false);
+  ok("the image's own spinner is left UNTOUCHED", g.imageSpinnerStillVisible === true);
+  console.log(`  📸 ${path.join(OUT, "kolex-gemini-image.png")}`);
+  await browser.close();
+}
+await runImageLoader();
+
 console.log(`\n${failures === 0 ? "ALL CHECKS PASSED" : failures + " CHECK(S) FAILED"}`);
 process.exit(failures === 0 ? 0 : 1);

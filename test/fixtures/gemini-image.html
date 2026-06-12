@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Gemini image-generation fixture (large image loader)</title>
+  <style>
+    body { margin: 0; min-height: 100vh; background: #1b1c1d; color: #e3e3e3;
+      font: 16px/1.6 -apple-system, system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 24px 160px; }
+    .user { margin: 0 0 24px; font-weight: 600; }
+    /* A BIG image-generation placeholder with a small spinner in the middle.
+       The ad must NOT cover this — it's an image loading, not a text spinner. */
+    .image-area {
+      width: 440px; height: 440px; border-radius: 16px; aspect-ratio: 1 / 1;
+      background: linear-gradient(110deg, #2a2b2c 25%, #3a3b3d 50%, #2a2b2c 75%);
+      background-size: 200% 100%; animation: shimmer 1.6s linear infinite;
+      display: flex; align-items: center; justify-content: center;
+    }
+    @keyframes shimmer { to { background-position: -200% 0; } }
+    .img-spinner { width: 36px; height: 36px; border-radius: 50%;
+      border: 3px solid rgba(255,255,255,0.2); border-top-color: #8ab4f8;
+      animation: spin 0.9s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .composer { position: fixed; bottom: 0; left: 0; right: 0; padding: 16px 24px 26px;
+      display: flex; justify-content: center; background: linear-gradient(transparent, #1b1c1d 35%); }
+    .composer .box { width: min(720px, 84vw); background: #2a2b2c; border: 1px solid #3c3d3f;
+      border-radius: 26px; padding: 14px 18px; }
+    .composer [contenteditable] { outline: none; color: #e3e3e3; min-height: 24px; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="user">Generate a picture of a cat astronaut</div>
+    <div class="image-area" id="image-area" data-test-id="generated-image">
+      <div class="img-spinner"></div>
+    </div>
+  </main>
+  <div class="composer">
+    <div class="box">
+      <div contenteditable="true" id="input" data-placeholder="Enter a prompt for Gemini"></div>
+      <button id="stop" aria-label="Stop response" style="display:inline-block">stop</button>
+    </div>
+  </div>
+
+  <script>
+    window.__KOLEX_SITE = {
+      surface: "gemini",
+      busySelectors: ['button[aria-label="Stop response"]', '.image-area'],
+      spinnerSelectors: [],
+    };
+  </script>
+  <script src="./harness.js"></script>
+  <script src="../../extension/content.js"></script>
+</body>
+</html>

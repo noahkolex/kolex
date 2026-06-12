@@ -424,7 +424,10 @@ export class SpinnerSuppressor {
     // clip box BEFORE the size check, then climb to the label row.
     const resolved = new Set([...animated].map((el) => this.resolveIndicatorBox(el)));
     const plausible = [...resolved].filter(
-      (el) => this.isPlausibleIndicator(el) && !this.isInBodyText(el),
+      (el) =>
+        this.isPlausibleIndicator(el) &&
+        !this.isInBodyText(el) &&
+        !this.isImageLoader(el), // never replace an image/media loading placeholder
     );
     const inMain = plausible.filter((el) => main !== null && main.contains(el));
     for (const el of inMain.length > 0 ? inMain : plausible) {
@@ -581,6 +584,49 @@ export class SpinnerSuppressor {
     if (parent) {
       const own = (el.textContent ?? "").trim().length;
       if ((parent.textContent ?? "").trim().length - own > 100) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Is this spinner sitting inside an IMAGE / media loading placeholder?
+   * When you ask an AI to generate or load an image, it shows a big shimmering
+   * box (often with a small spinner in the middle). That box is large and the
+   * ad must NEVER cover it — replacing an image loader is wrong. We detect it
+   * by walking up to a near ancestor that is a large, square-ish, mostly-empty
+   * region or an obvious media element, and exclude the candidate so the ad
+   * falls back to docking above the composer instead.
+   */
+  private isImageLoader(el: StyledElement): boolean {
+    const win = (el.ownerDocument as Document | null)?.defaultView;
+    let node: StyledElement | null = el;
+    for (let i = 0; i < 6 && node; i++, node = node.parentElement as StyledElement | null) {
+      const r = node.getBoundingClientRect?.();
+      if (!r) continue;
+      // Big in BOTH dimensions — an image area, not a one-line text spinner.
+      if (r.width < 200 || r.height < 180) continue;
+
+      const tag = node.localName;
+      const cls = `${node.getAttribute?.("class") ?? ""} ${node.getAttribute?.("data-test-id") ?? ""}`;
+      const role = node.getAttribute?.("role") ?? "";
+      const isMediaTag = ["img", "canvas", "figure", "picture", "video"].includes(tag);
+      const isMediaClass = /image|imagen|media|photo|picture|thumbnail|gallery|attachment|canvas|generated|artifact|render/i.test(cls);
+      let aspect = "auto";
+      try {
+        aspect = win?.getComputedStyle?.(node)?.aspectRatio || "auto";
+      } catch {
+        /* ignore */
+      }
+      const ratio = r.width / r.height;
+      const squareish = ratio >= 0.5 && ratio <= 2.2;
+      const littleText = (node.textContent ?? "").trim().length < 40;
+      const hasMediaChild = !!node.querySelector?.("img, canvas, picture, video, [role='img']");
+
+      if (isMediaTag || role === "img" || isMediaClass || (aspect !== "auto" && aspect !== "")) return true;
+      // A big, square-ish, near-empty region during a wait state reads as a
+      // loading image placeholder even without explicit media hints.
+      if (squareish && littleText && (hasMediaChild || aspect !== "auto")) return true;
+      if (squareish && littleText && r.width >= 240 && r.height >= 220) return true;
     }
     return false;
   }
