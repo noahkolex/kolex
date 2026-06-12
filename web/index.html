@@ -140,8 +140,10 @@
       }
       if (empty) empty.style.display = "none";
       const fresh = recent.filter((e) => !seen.has(keyOf(e)));
+      // Only touch the DOM when something actually changed — re-rendering
+      // identical (stale) data every poll is what caused the flicker.
+      if (!firstLoad && fresh.length === 0) return;
       for (const e of recent) seen.add(keyOf(e));
-      // Rebuild the feed (most recent first), flag the new ones.
       feed.querySelectorAll(".feed-item:not(#feed-empty)").forEach((n) => n.remove());
       for (const e of recent) feed.appendChild(itemEl(e, fresh.includes(e)));
       if (!firstLoad && fresh.length) ding();

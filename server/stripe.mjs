@@ -155,16 +155,47 @@ export async function createAccountLink({ accountId, returnUrl, refreshUrl }) {
 }
 
 /**
- * Whether a connected account can receive money yet (live only). Ready as soon
- * as it can receive transfers OR payouts — we don't require BOTH, so a freshly
- * onboarded account isn't stuck on "Set up payouts" while one capability lags.
+ * Map Stripe's machine requirement keys to the plain-English things a person
+ * actually has to provide, deduped. (Stripe lists granular fields like
+ * `individual.dob.year`; the user just needs to know "Date of birth".)
+ */
+export function friendlyRequirements(keys = []) {
+  const out = new Set();
+  for (const k of keys) {
+    if (k.startsWith("external_account")) out.add("Bank account or debit card");
+    else if (/tos_acceptance/.test(k)) out.add("Accept Stripe's terms of service");
+    else if (/(first_name|last_name|representative|relationship)/.test(k)) out.add("Representative's name");
+    else if (/\.dob\b|\.dob\./.test(k)) out.add("Date of birth");
+    else if (/address/.test(k)) out.add("Home address");
+    else if (/(ssn|id_number)/.test(k)) out.add("SSN / tax ID");
+    else if (/verification\.document/.test(k)) out.add("Photo ID");
+    else if (/verification\.additional_document/.test(k)) out.add("Additional ID document");
+    else if (/phone|email/.test(k)) out.add("Contact details");
+    else if (/business_profile|company/.test(k)) out.add("Business details");
+    else out.add(k.replace(/[._]/g, " ")); // fall back to a readable version
+  }
+  return [...out];
+}
+
+/**
+ * Rich status of a connected account (live only). Reports whether payouts are
+ * truly enabled, plus the exact info Stripe still needs and any restriction
+ * reason — so the portal can show the user precisely what's blocking them.
  */
 export async function getAccountStatus(accountId) {
-  if (isStub()) return { payoutsEnabled: true };
+  if (isStub()) {
+    return { payoutsEnabled: true, requirements: [], disabledReason: null, detailsSubmitted: true };
+  }
   const a = await stripe().accounts.retrieve(accountId);
+  const req = a.requirements || {};
+  const due = [...new Set([...(req.currently_due || []), ...(req.past_due || []), ...(req.errors?.map((e) => e.requirement) || [])])];
   const transfersActive = a.capabilities?.transfers === "active";
   return {
-    payoutsEnabled: !!a.payouts_enabled || transfersActive,
+    // Truly ready only when Stripe will actually release payouts AND we can
+    // transfer to the account. (Not loosened — a restricted account is NOT ready.)
+    payoutsEnabled: !!a.payouts_enabled && transfersActive,
+    requirements: friendlyRequirements(due),
+    disabledReason: req.disabled_reason || null,
     detailsSubmitted: !!a.details_submitted,
   };
 }

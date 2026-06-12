@@ -65,7 +65,7 @@
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, store, qp, chaching, coinBurst, ding, animateCount } from "/assets/app.js";
+    import { api, money, num, mountNav, store, qp, chaching, coinBurst, ding, animateCount, escapeHtml } from "/assets/app.js";
     mountNav("/portal");
 
     const $ = (id) => document.getElementById(id);
@@ -145,16 +145,29 @@
         ? `Cash out ${money(data.pendingUsd)}`
         : `You need ${money(min)} to cash out — you have ${money(data.pendingUsd)}`;
 
-      if (data.payoutsReady) {
+      const po = data.payout || { hasAccount: !!data.payoutMethod, ready: data.payoutsReady, requirements: [] };
+      if (po.ready) {
         pm.innerHTML = '<span style="color:var(--positive)">✓ Payouts enabled</span> · <a href="#" id="reconnect">Manage</a>';
         $("payout").disabled = !enough;
-        // Only nag about the minimum when there's a sub-minimum balance sitting
-        // there. With $0 pending (e.g. right after a payout) keep it neutral so
-        // a "Paid out!" confirmation isn't clobbered.
         $("payout-note").textContent = data.pendingUsd > 0 && !enough
           ? `Minimum payout is ${money(data.minPayoutUsd)}. You have ${money(data.pendingUsd)}.`
           : "Payouts are sent to your connected Stripe account.";
         $("reconnect")?.addEventListener("click", (e) => { e.preventDefault(); startConnect(); });
+      } else if (po.hasAccount) {
+        // Account exists but Stripe has it RESTRICTED — show exactly what's missing.
+        const reqs = (po.requirements || []);
+        const list = reqs.length
+          ? `<ul style="margin:8px 0 0;padding-left:18px">${reqs.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>`
+          : "";
+        const why = po.disabledReason ? `<div class="muted" style="margin-top:6px;font-size:12px">Stripe status: ${escapeHtml(po.disabledReason)}</div>` : "";
+        pm.innerHTML =
+          `<div class="errors" style="text-align:left;margin-bottom:10px">
+             <b>⚠️ Payouts are paused.</b> Stripe needs more information before it can send your money${reqs.length ? ":" : "."}${list}${why}
+           </div>
+           <button class="btn btn-gold" id="connect" style="width:100%;justify-content:center">Finish payout setup →</button>`;
+        $("payout").disabled = true;
+        $("payout-note").textContent = "Finish payout setup to enable withdrawals.";
+        $("connect").addEventListener("click", startConnect);
       } else {
         pm.innerHTML = '<button class="btn btn-gold" id="connect" style="width:100%;justify-content:center">Set up payouts</button>'
           + '<div class="muted" style="margin-top:8px">Connect a payout account to withdraw your earnings.</div>';

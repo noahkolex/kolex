@@ -37,6 +37,9 @@
         ✓ Payment received. Your campaign is live in the auction.
       </div>
 
+      <!-- Surfaces Stripe configuration problems so payments aren't silently broken -->
+      <div id="stripe-banner" class="errors hide" style="margin-top:18px;text-align:left"></div>
+
       <div class="stats-strip" id="adv-stats" style="margin-top:22px"></div>
 
       <table class="board" style="margin-top:8px">
@@ -67,10 +70,26 @@
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, store } from "/assets/app.js";
+    import { api, money, num, mountNav, store, escapeHtml } from "/assets/app.js";
     mountNav();
 
     const $ = (id) => document.getElementById(id);
+
+    // Surface Stripe configuration problems so payments can't fail silently.
+    async function checkStripe() {
+      let s;
+      try { s = await api("/api/stripe-config"); } catch { return; }
+      const b = $("stripe-banner");
+      let msg = "";
+      if (s.mode === "stub") {
+        msg = "<b>⚠️ Test mode.</b> Payments run in stub mode — no real card is charged and campaigns activate via a mock checkout. Set <code>STRIPE_SECRET_KEY</code> to take real payments.";
+      } else if (!s.webhookConfigured) {
+        msg = "<b>⚠️ Stripe webhook not configured.</b> Paid campaigns won't activate automatically. Set <code>STRIPE_WEBHOOK_SECRET</code> and point a webhook at <code>/webhooks/stripe</code>.";
+      }
+      if (msg) { b.innerHTML = msg; b.classList.remove("hide"); }
+      else b.classList.add("hide");
+    }
+    checkStripe();
 
     async function loadDash() {
       const token = store.get("advToken");

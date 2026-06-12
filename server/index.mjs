@@ -472,13 +472,31 @@ app.post("/api/advertiser/campaigns/:id/checkout", requireKind("advertiser"), as
 app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
   const db = load();
   const me = db.users.find((u) => u.id === req.session.id);
-  // Live mode: when the user returns from onboarding, confirm with Stripe that
-  // their connected account can now receive transfers, then mark them ready.
-  if (!isStub() && me?.stripeAccountId && !me.payoutsReady) {
+  // Live mode: ALWAYS reflect Stripe's current view of the account, so a
+  // restriction (missing bank / ToS / name) shows up immediately and a
+  // previously-"ready" account flips back if Stripe pauses it.
+  let payout = {
+    hasAccount: !!me?.stripeAccountId,
+    ready: !!me?.payoutsReady,
+    requirements: [],
+    disabledReason: null,
+  };
+  if (me?.stripeAccountId) {
     try {
       const st = await getAccountStatus(me.stripeAccountId);
-      if (st.payoutsEnabled) { me.payoutsReady = true; save(); }
-    } catch { /* leave as not-ready; the portal shows "finish setup" */ }
+      payout = {
+        hasAccount: true,
+        ready: st.payoutsEnabled,
+        requirements: st.requirements || [],
+        disabledReason: st.disabledReason || null,
+      };
+      if (me.payoutsReady !== st.payoutsEnabled) {
+        me.payoutsReady = st.payoutsEnabled;
+        await save();
+      }
+    } catch {
+      /* Stripe unreachable: keep the stored flag, no requirement detail. */
+    }
   }
   const devices = db.devices.filter((d) => d.userId === req.session.id);
   let impressions = 0, clicks = 0, pendingUsd = 0, paidUsd = 0;
@@ -500,7 +518,8 @@ app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
     paidUsd,
     minPayoutUsd: config.minPayoutUsd,
     payoutMethod: me?.stripeAccountId ? "stripe" : null,
-    payoutsReady: !!me?.payoutsReady,
+    payoutsReady: payout.ready,
+    payout, // { hasAccount, ready, requirements:[…], disabledReason }
     payouts: db.payouts.filter((p) => p.userId === req.session.id),
   });
 });
