@@ -281,16 +281,11 @@
         return;
       }
       // A "gate" can block the withdraw button while still letting the user set
-      // up their payout method (so they're ready the moment it lifts).
+      // up their payout method (so they're ready the moment it lifts). Kolex is
+      // live, so the only gates are the new-account holding period and a global
+      // pause — the $10 minimum + payout setup are handled below.
       let gateBanner = "", gateNote = "", gateWhy = "";
-      if (data.prelaunch) {
-        const bonusLine = data.bonusUsd > 0
-          ? ` Your <b>${money(data.bonusUsd)}</b> welcome bonus is locked in and unlocks the moment you start earning.`
-          : "";
-        gateBanner = `<div class="success" style="text-align:left;padding:12px 14px;margin-bottom:10px"><b>🚀 We launch on the Chrome Web Store in a couple days.</b> Install the extension then to start earning, and cash-outs open right after.${bonusLine} We'll email you the second it's live.</div>`;
-        gateNote = "Cash-outs open at launch.";
-        gateWhy = "Kolex is rolling out on the Chrome Web Store, and cash-outs open right after launch. Your balance is safe and keeps growing in the meantime.";
-      } else if (!data.matured && data.payoutUnlocksAt) {
+      if (!data.matured && data.payoutUnlocksAt) {
         const when = new Date(data.payoutUnlocksAt);
         const days = Math.max(1, Math.ceil((data.payoutUnlocksAt - Date.now()) / 86400000));
         gateBanner = `<div class="success" style="text-align:left;padding:12px 14px;margin-bottom:10px"><b>⏳ Payouts begin 2 days after you create your account.</b> Your balance is safe and keeps growing. You can cash out on <b>${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</b> (about ${days} day${days === 1 ? "" : "s"}). Set up your payout account now so you're ready.</div>`;

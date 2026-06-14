@@ -29,7 +29,8 @@
       "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -i x-ads/kolex-waitlist-9x16-raw.mp4 -t 10 -c copy x-ads/kolex-waitlist-9x16.mp4 -y)",
       "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-10s.mp4 -frames:v 1 x-ads/still-waitlist.png -y)",
       "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-9x16.mp4 -frames:v 1 x-ads/still-waitlist-9x16.png -y)",
-      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-9x16.mp4 -frames:v 1 -vf scale=-1:960 /tmp/kolex-check/url-check.png -y)"
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-9x16.mp4 -frames:v 1 -vf scale=-1:960 /tmp/kolex-check/url-check.png -y)",
+      "Bash(grep -vE '^\\\\s*$')"
     ]
   }
 }
