@@ -1,0 +1,31 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ffprobe *)",
+      "Bash(command -v ffmpeg)",
+      "Bash(mdfind -name ffprobe)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -i ~/Desktop/trim.mov)",
+      "Bash(mkdir -p /tmp/kolex-ref)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -i ~/Desktop/trim.mov -vf \"fps=1/4,scale=864:-1\" /tmp/kolex-ref/frame-%02d.png)",
+      "Bash(npx hyperframes *)",
+      "Bash(python3 -)",
+      "Bash(node /Users/insanity/.claude/skills/hyperframes/scripts/animation-map.mjs /Users/insanity/kolex/promo-video --out /Users/insanity/kolex/promo-video/.hyperframes/anim-map)",
+      "Bash(node /Users/insanity/.claude/skills/hyperframes/scripts/animation-map.mjs . --out .hyperframes/anim-map)",
+      "Bash(/usr/local/bin/ffmpeg -version)",
+      "Bash(curl -sL \"https://evermeet.cx/ffmpeg/getrelease/ffprobe/zip\" -o ffprobe.zip)",
+      "Bash(unzip -o -q ffprobe.zip)",
+      "Bash(cp /tmp/ffprobe /usr/local/bin/ffprobe)",
+      "Bash(xattr -d com.apple.quarantine /usr/local/bin/ffprobe)",
+      "Bash(/usr/local/bin/ffprobe -version)",
+      "WebFetch(domain:incompetech.com)",
+      "WebSearch",
+      "Bash(curl -sL -A Mozilla/5.0 https://freepd.com/ -o /tmp/freepd.html)",
+      "Skill(browse)",
+      "Bash(curl -sL -A \"Mozilla/5.0\" \"https://upload.wikimedia.org/wikipedia/commons/e/e1/Google_Chrome_icon_%28February_2022%29.svg\" -o assets/chrome.svg)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -y -ss 4 -t 20 -i one-night-gamble.mp3 -i sfx/slot-wheel.mp3 -i sfx/coin-win.mp3 -i sfx/coins-clink.mp3 -i sfx/coins-clink.mp3 -i sfx/score-counter.mp3 -i sfx/gold-coin.mp3 -i sfx/money-bag.mp3 -i sfx/coins-handling.mp3 -filter_complex ' *)",
+      "Bash(cp mix-gamble-subtle.mp3 /Users/insanity/kolex/promo-video/audio/kolex-music.mp3)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -y -i sfx/score-counter.mp3 -i sfx/coins-clink.mp3 -i sfx/coin-win.mp3 -i sfx/coins-clink.mp3 -i sfx/money-bag.mp3 -i sfx/coins-handling.mp3 -f lavfi -t 10 -i anullsrc=r=44100:cl=stereo -filter_complex ' *)",
+      "Bash(cp sfx-10s.mp3 /Users/insanity/kolex/promo-video/audio/)"
+    ]
+  }
+}

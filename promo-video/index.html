@@ -1,0 +1,745 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      @font-face { font-family: "Geist"; font-style: normal; font-weight: 400; src: url("fonts/geist-400.woff2") format("woff2"); }
+      @font-face { font-family: "Geist"; font-style: normal; font-weight: 500; src: url("fonts/geist-500.woff2") format("woff2"); }
+      @font-face { font-family: "Geist"; font-style: normal; font-weight: 600; src: url("fonts/geist-600.woff2") format("woff2"); }
+      @font-face { font-family: "Geist"; font-style: normal; font-weight: 700; src: url("fonts/geist-700.woff2") format("woff2"); }
+      @font-face { font-family: "Geist"; font-style: normal; font-weight: 800; src: url("fonts/geist-800.woff2") format("woff2"); }
+      @font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 500; src: url("fonts/geist-mono-500.woff2") format("woff2"); }
+      @font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 600; src: url("fonts/geist-mono-600.woff2") format("woff2"); }
+      @font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 700; src: url("fonts/geist-mono-700.woff2") format("woff2"); }
+      @font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 800; src: url("fonts/geist-mono-800.woff2") format("woff2"); }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #0a0e0c;
+        font-family: "Geist", sans-serif;
+        color: #eaf6ef;
+      }
+      .mono { font-family: "Geist Mono", monospace; font-variant-numeric: tabular-nums; }
+
+      .scene {
+        position: absolute; top: 0; left: 0;
+        width: 1920px; height: 1080px; overflow: hidden;
+        background: #0a0e0c;
+      }
+      #scene1 { z-index: 1; }
+      #scene2 { z-index: 2; opacity: 0; }
+      #scene3 { z-index: 3; opacity: 0; }
+      #scene4 { z-index: 4; opacity: 0; }
+      #flash {
+        position: absolute; inset: 0; z-index: 50;
+        background: #eafff4; opacity: 0; pointer-events: none;
+      }
+
+      /* shared decoratives */
+      .glow { position: absolute; border-radius: 50%; filter: blur(90px); }
+      .corner { position: absolute; width: 34px; height: 34px; opacity: 0.5; }
+      .corner.tl { top: 44px; left: 44px; border-top: 2px solid #5e6e65; border-left: 2px solid #5e6e65; }
+      .corner.tr { top: 44px; right: 44px; border-top: 2px solid #5e6e65; border-right: 2px solid #5e6e65; }
+      .corner.bl { bottom: 44px; left: 44px; border-bottom: 2px solid #5e6e65; border-left: 2px solid #5e6e65; }
+      .corner.br { bottom: 44px; right: 44px; border-bottom: 2px solid #5e6e65; border-right: 2px solid #5e6e65; }
+      .eyebrow {
+        display: inline-flex; align-items: center; gap: 12px;
+        font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 19px; letter-spacing: 3px; text-transform: uppercase; color: #16e0a3;
+      }
+      .eyebrow .dot {
+        width: 11px; height: 11px; border-radius: 50%;
+        background: #16e0a3; box-shadow: 0 0 14px #16e0a3;
+      }
+
+      /* ───────────── Scene 1: THE WAIT ───────────── */
+      #s1-glow {
+        width: 1100px; height: 700px; left: 410px; top: 190px;
+        background: rgba(22, 224, 163, 0.13);
+      }
+      #s1-ghost {
+        position: absolute; right: -150px; bottom: 60px;
+        font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 280px; letter-spacing: -0.02em;
+        color: #5e6e65; opacity: 0.13; white-space: nowrap;
+      }
+      .s1-rule { position: absolute; left: 120px; right: 120px; height: 2px; background: rgba(255,255,255,0.13); }
+      #s1-rule-top { top: 118px; }
+      #s1-rule-bot { bottom: 118px; }
+      #s1-meta {
+        position: absolute; top: 86px; left: 120px;
+        font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 18px; letter-spacing: 4px; color: #8a9a91;
+      }
+      #s1-meta-r {
+        position: absolute; top: 86px; right: 120px;
+        font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 18px; letter-spacing: 4px; color: #8a9a91;
+      }
+      #s1-chatwrap {
+        position: absolute; left: 0; right: 0; top: 190px;
+        display: flex; justify-content: center;
+      }
+      #s1-chat {
+        width: 1000px; background: #131a16;
+        border: 2px solid rgba(255,255,255,0.09); border-radius: 22px;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 0 80px rgba(22,224,163,0.08);
+        padding-bottom: 40px;
+      }
+      #s1-chrome {
+        display: flex; align-items: center; gap: 9px;
+        padding: 22px 28px; border-bottom: 2px solid rgba(255,255,255,0.07);
+      }
+      #s1-chrome .cdot { width: 14px; height: 14px; border-radius: 50%; }
+      #s1-chrome .cdot:nth-child(1) { background: #ff5c5c; opacity: 0.75; }
+      #s1-chrome .cdot:nth-child(2) { background: #ffc53d; opacity: 0.75; }
+      #s1-chrome .cdot:nth-child(3) { background: #16e0a3; opacity: 0.75; }
+      #s1-chrome .url {
+        margin-left: 16px; font-family: "Geist Mono", monospace;
+        font-size: 17px; color: #8a9a91; letter-spacing: 0.5px;
+      }
+      #s1-body { padding: 38px 44px 0; display: flex; flex-direction: column; gap: 30px; }
+      #s1-bubble {
+        align-self: flex-end; max-width: 620px;
+        background: #1a241e; border-radius: 18px; padding: 21px 28px;
+        font-size: 26px; line-height: 1.5; color: #eaf6ef;
+      }
+      #s1-thinkrow {
+        align-self: flex-start; display: flex; align-items: center; gap: 13px;
+      }
+      .think-dot {
+        width: 12px; height: 12px; border-radius: 50%;
+        background: #eaf6ef; opacity: 0.25; display: inline-block;
+      }
+      #s1-think-label { font-size: 27px; font-weight: 500; color: #b7c6bd; }
+      #s1-tsec {
+        font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 23px; color: #8a9a91; font-variant-numeric: tabular-nums;
+      }
+      #s1-punch {
+        position: absolute; left: 0; right: 0; top: 690px; text-align: center;
+        font-size: 88px; font-weight: 800; letter-spacing: -0.035em;
+      }
+      #s1-punch .zero {
+        font-family: "Geist Mono", monospace; color: #8a9a91;
+        letter-spacing: -0.02em;
+      }
+
+      /* ───────────── Scene 2: THE FLIP ───────────── */
+      #scene2 {
+        background:
+          radial-gradient(900px 560px at 86% 6%, rgba(22,224,163,0.14), rgba(22,224,163,0) 65%),
+          radial-gradient(760px 520px at 4% 96%, rgba(155,107,255,0.11), rgba(155,107,255,0) 60%),
+          #0a0e0c;
+      }
+      #s2-grid {
+        position: absolute; inset: 0; opacity: 0.13;
+        background-image: radial-gradient(rgba(234,246,239,0.5) 1.5px, rgba(234,246,239,0) 1.5px);
+        background-size: 56px 56px;
+      }
+      .s2-ghostfloat {
+        position: absolute;
+        font-family: "Geist Mono", monospace; font-weight: 700; font-size: 34px;
+        color: #16e0a3; opacity: 0.3; text-shadow: 0 0 18px rgba(22,224,163,0.35);
+      }
+      #s2-gf1 { left: 110px; top: 905px; }
+      #s2-gf2 { left: 350px; top: 975px; color: #ffc53d; text-shadow: 0 0 18px rgba(255,197,61,0.35); }
+      #s2-gf3 { left: 650px; top: 935px; }
+      #s2-c1 { left: 180px; top: 760px; } #s2-c2 { left: 520px; top: 860px; }
+      #s2-c3 { left: 80px; top: 980px; } #s2-c4 { left: 760px; top: 1000px; }
+      #s2-c5 { left: 420px; top: 700px; }
+      #s2-brand { display: flex; align-items: center; gap: 16px; }
+      #s2-brand svg { width: 52px; height: 52px; filter: drop-shadow(0 0 14px rgba(22,224,163,0.4)); }
+      #s2-brand .bword { font-size: 42px; font-weight: 800; letter-spacing: -0.03em; }
+      #s2-left {
+        position: absolute; left: 0; top: 0; width: 44%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 0 60px 60px 120px; gap: 30px;
+      }
+      #s2-h1 {
+        font-size: 96px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.02;
+      }
+      #s2-h1 .pop {
+        background: linear-gradient(120deg, #1cf2b1, #ffd96b 60%, #9b6bff);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      #s2-h1 .w { display: inline-block; }
+      #s2-sub {
+        font-family: "Geist Mono", monospace; font-weight: 500;
+        font-size: 24px; color: #9fb2a8; line-height: 1.6; max-width: 540px;
+      }
+      #s2-right {
+        position: absolute; right: 0; top: 0; width: 56%; height: 100%;
+        display: flex; align-items: center; justify-content: center;
+        padding-right: 90px;
+      }
+      #s2-chat {
+        width: 880px; background: #131a16;
+        border: 2px solid rgba(255,255,255,0.09); border-radius: 22px;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 0 80px rgba(22,224,163,0.08);
+        padding: 0 0 38px;
+      }
+      #s2-chrome {
+        display: flex; align-items: center; gap: 9px;
+        padding: 22px 28px; border-bottom: 2px solid rgba(255,255,255,0.07);
+      }
+      #s2-chrome .cdot { width: 14px; height: 14px; border-radius: 50%; background: #1a241e; }
+      #s2-chrome .cdot:nth-child(1) { background: #ff5c5c; opacity: 0.75; }
+      #s2-chrome .cdot:nth-child(2) { background: #ffc53d; opacity: 0.75; }
+      #s2-chrome .cdot:nth-child(3) { background: #16e0a3; opacity: 0.75; }
+      #s2-chrome .url {
+        margin-left: 16px; font-family: "Geist Mono", monospace;
+        font-size: 17px; color: #8a9a91; letter-spacing: 0.5px;
+      }
+      #s2-body { padding: 36px 40px 0; display: flex; flex-direction: column; gap: 26px; }
+      #s2-bubble {
+        align-self: flex-end; max-width: 560px;
+        background: #1a241e; border-radius: 18px; padding: 20px 26px;
+        font-size: 24px; line-height: 1.5; color: #eaf6ef;
+      }
+      #s2-adline {
+        align-self: flex-start; display: flex; align-items: center; gap: 14px;
+        background: #ffffff; color: #0f1216;
+        border-radius: 14px; padding: 17px 22px;
+        box-shadow: 0 14px 44px rgba(0,0,0,0.5), 0 0 56px rgba(22,224,163,0.22);
+        font-size: 21px; font-weight: 600; white-space: nowrap;
+      }
+      #s2-adline .adot {
+        width: 11px; height: 11px; border-radius: 50%; background: #16e0a3; flex: none;
+      }
+      #s2-adline .adtag {
+        font-family: "Geist Mono", monospace; font-weight: 700;
+        font-size: 15px; letter-spacing: 1.6px; color: #0fb783;
+      }
+      #s2-adline .bn { font-weight: 800; }
+      #s2-adline .cp { color: #51565e; font-weight: 500; }
+      #s2-adline .earn {
+        font-family: "Geist Mono", monospace; font-weight: 700;
+        font-size: 19px; color: #0fb783; font-variant-numeric: tabular-nums;
+      }
+      #s2-adline .pend {
+        font-family: "Geist Mono", monospace; font-weight: 700;
+        font-size: 19px; color: #a87908; font-variant-numeric: tabular-nums;
+      }
+      #s2-progresswrap {
+        margin: 22px 40px 0; height: 5px; border-radius: 3px;
+        background: rgba(255,255,255,0.07); overflow: hidden;
+      }
+      #s2-progress {
+        width: 100%; height: 100%; background: #16e0a3;
+        transform-origin: left center; transform: scaleX(0);
+        box-shadow: 0 0 12px rgba(22,224,163,0.6);
+      }
+      #s2-progresslabel {
+        margin: 14px 40px 0; font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 16px; letter-spacing: 2.6px; color: #8a9a91;
+      }
+      .s2-stream { font-size: 21px; color: #8a9a91; }
+
+      /* ───────────── Scene 3: THE PROOF ───────────── */
+      #scene3 {
+        background:
+          radial-gradient(880px 560px at 90% 92%, rgba(255,197,61,0.12), rgba(255,197,61,0) 62%),
+          radial-gradient(800px 520px at 6% 8%, rgba(22,224,163,0.12), rgba(22,224,163,0) 62%),
+          #0a0e0c;
+      }
+      #s3-ghost {
+        position: absolute; right: 40px; top: -90px;
+        font-weight: 800; font-size: 460px; color: #16e0a3; opacity: 0.12;
+        letter-spacing: -0.04em;
+      }
+      .coin {
+        position: absolute; width: 16px; height: 16px; border-radius: 50%;
+        background: #ffc53d; filter: blur(2px); opacity: 0;
+        box-shadow: 0 0 18px rgba(255,197,61,0.8);
+      }
+      #c1 { left: 1120px; top: 700px; } #c2 { left: 1280px; top: 820px; }
+      #c3 { left: 1700px; top: 740px; } #c4 { left: 1560px; top: 900px; }
+      #c5 { left: 1200px; top: 920px; } #c6 { left: 1790px; top: 860px; }
+      #s3-left {
+        position: absolute; left: 0; top: 0; width: 52%; height: 100%;
+        display: flex; flex-direction: column; justify-content: center;
+        padding: 0 40px 40px 120px; gap: 30px;
+      }
+      #s3-h1 { font-size: 108px; font-weight: 800; letter-spacing: -0.035em; line-height: 1.02; }
+      #s3-h1 .gold {
+        background: linear-gradient(180deg, #ffd96b, #f0a800);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+        display: inline-block;
+        filter: drop-shadow(0 0 30px rgba(255,197,61,0.35));
+      }
+      #s3-sub {
+        font-family: "Geist Mono", monospace; font-weight: 500;
+        font-size: 25px; color: #9fb2a8; line-height: 1.6; max-width: 600px;
+      }
+      #s3-right {
+        position: absolute; right: 0; top: 0; width: 48%; height: 100%;
+        display: flex; align-items: center; justify-content: center; padding-right: 100px;
+      }
+      #s3-popup {
+        width: 520px; background: #131a16;
+        border: 2px solid rgba(255,255,255,0.1); border-radius: 22px;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.65), 0 0 90px rgba(22,224,163,0.12);
+        padding: 28px 30px 30px;
+      }
+      #s3-pophead { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+      #s3-pophead .mark { width: 34px; height: 34px; border-radius: 9px; }
+      #s3-pophead .name { font-weight: 800; font-size: 25px; letter-spacing: -0.03em; }
+      #s3-toggle {
+        margin-left: auto; width: 56px; height: 30px; border-radius: 16px;
+        background: #16e0a3; position: relative;
+      }
+      #s3-toggle::after {
+        content: ""; position: absolute; right: 4px; top: 4px;
+        width: 22px; height: 22px; border-radius: 50%; background: #052016;
+      }
+      #s3-earnlabel {
+        font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 16px; letter-spacing: 3px; color: #8a9a91; text-transform: uppercase;
+        display: flex; align-items: center; gap: 9px;
+      }
+      #s3-earnlabel::before {
+        content: ""; width: 8px; height: 8px; border-radius: 50%;
+        background: #16e0a3; box-shadow: 0 0 9px #16e0a3;
+      }
+      #s3-amount {
+        font-family: "Geist Mono", monospace; font-weight: 800;
+        font-size: 78px; color: #16e0a3; letter-spacing: -0.02em;
+        text-shadow: 0 0 32px rgba(22,224,163,0.4);
+        font-variant-numeric: tabular-nums; margin: 8px 0 4px;
+      }
+      #s3-earning-now {
+        font-family: "Geist Mono", monospace; font-weight: 700; font-size: 18px;
+        color: #16e0a3; font-variant-numeric: tabular-nums;
+      }
+      #s3-stats { display: flex; gap: 12px; margin: 24px 0; }
+      .s3-cell {
+        flex: 1; background: #1a241e; border: 1px solid rgba(255,255,255,0.07);
+        border-radius: 13px; padding: 16px 8px; text-align: center;
+      }
+      .s3-cell b {
+        display: block; font-family: "Geist Mono", monospace; font-weight: 800;
+        font-size: 30px; color: #eaf6ef; font-variant-numeric: tabular-nums;
+      }
+      .s3-cell span {
+        display: block; margin-top: 7px; font-family: "Geist Mono", monospace;
+        font-weight: 600; font-size: 13px; letter-spacing: 1.6px; color: #8a9a91;
+      }
+      #s3-cashout {
+        width: 100%; padding: 19px 0; border-radius: 13px; text-align: center;
+        background: linear-gradient(180deg, #1cf2b1, #0fb783);
+        color: #052016; font-weight: 800; font-size: 24px;
+        box-shadow: 0 8px 30px rgba(22,224,163,0.35);
+      }
+      #s3-footer {
+        margin-top: 18px; padding-top: 16px; border-top: 1px solid rgba(255,255,255,0.08);
+        font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 14px; letter-spacing: 2px; color: #8a9a91; text-align: center;
+      }
+
+      /* ───────────── Scene 4: THE CTA ───────────── */
+      #scene4 {
+        background:
+          radial-gradient(1000px 640px at 50% 0%, rgba(22,224,163,0.13), rgba(22,224,163,0) 62%),
+          radial-gradient(820px 560px at 50% 108%, rgba(155,107,255,0.12), rgba(155,107,255,0) 60%),
+          #0a0e0c;
+      }
+      #s4-meta {
+        position: absolute; bottom: 70px; left: 0; right: 0; text-align: center;
+        font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 17px; letter-spacing: 4px; color: #8a9a91;
+      }
+      #s4-center {
+        position: absolute; inset: 0;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: 28px; padding-bottom: 50px;
+      }
+      #s4-markwrap { position: relative; width: 170px; height: 170px; }
+      #s4-mark {
+        width: 170px; height: 170px;
+        filter: drop-shadow(0 0 50px rgba(22,224,163,0.45));
+      }
+      #s4-ring {
+        position: absolute; left: -45px; top: -45px; width: 260px; height: 260px;
+        border: 3px solid rgba(22,224,163,0.7); border-radius: 50%; opacity: 0;
+      }
+      #s4-word { display: flex; font-size: 110px; font-weight: 800; letter-spacing: -0.035em; }
+      #s4-word span { display: inline-block; }
+      #s4-h1 { font-size: 68px; font-weight: 800; letter-spacing: -0.03em; }
+      #s4-h1 .pop {
+        background: linear-gradient(120deg, #1cf2b1, #ffd96b 60%, #9b6bff);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
+      }
+      #s4-cta {
+        margin-top: 10px; padding: 19px 42px; border-radius: 16px;
+        background: linear-gradient(180deg, #1cf2b1, #0fb783);
+        color: #052016; font-weight: 800; font-size: 28px;
+        box-shadow: 0 10px 40px rgba(22,224,163,0.4);
+        display: flex; align-items: center; gap: 15px;
+      }
+      #s4-cta img { width: 38px; height: 38px; display: block; }
+      #s4-c1 { left: 360px; top: 760px; } #s4-c2 { left: 560px; top: 880px; }
+      #s4-c3 { left: 1340px; top: 800px; } #s4-c4 { left: 1530px; top: 700px; }
+      #s4-c5 { left: 300px; top: 560px; } #s4-c6 { left: 1620px; top: 920px; }
+      .s4-ghostdollar {
+        position: absolute; font-weight: 800; font-size: 230px;
+        color: #16e0a3; opacity: 0.12; letter-spacing: -0.04em;
+      }
+      #s4-gd1 { left: 80px; top: 120px; }
+      #s4-gd2 { right: 90px; bottom: 60px; color: #ffc53d; }
+      #s4-url {
+        font-family: "Geist Mono", monospace; font-weight: 600;
+        font-size: 23px; letter-spacing: 3px; color: #9fb2a8;
+      }
+    </style>
+  </head>
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="20"
+      data-width="1920"
+      data-height="1080"
+    >
+      <!-- ════════ SCENE 1: THE WAIT ════════ -->
+      <div id="scene1" class="scene">
+        <div id="s1-glow" class="glow" data-layout-ignore></div>
+        <div id="s1-ghost" data-layout-allow-overflow>$0.00</div>
+        <div id="s1-rule-top" class="s1-rule"></div>
+        <div id="s1-rule-bot" class="s1-rule"></div>
+        <div id="s1-meta">EVERY AI · EVERY PROMPT · EVERY DAY</div>
+        <div id="s1-meta-r">UNPAID SINCE 2022</div>
+        <div class="corner tl"></div><div class="corner tr"></div>
+        <div class="corner bl"></div><div class="corner br"></div>
+        <div id="s1-chatwrap">
+          <div id="s1-chat">
+            <div id="s1-chrome">
+              <span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>
+              <span class="url">claude.ai/chat</span>
+            </div>
+            <div id="s1-body">
+              <div id="s1-bubble">Write me a 10 page report on the Wizard of Oz</div>
+              <div id="s1-thinkrow">
+                <span class="think-dot"></span><span class="think-dot"></span><span class="think-dot"></span>
+                <span id="s1-think-label">Thinking...</span>
+                <span id="s1-tsec">0s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div id="s1-punch">This wait pays you <span class="zero">$0.00</span></div>
+      </div>
+
+      <!-- ════════ SCENE 2: THE FLIP ════════ -->
+      <div id="scene2" class="scene">
+        <div id="s2-grid" data-layout-ignore></div>
+        <div id="s2-gf1" class="s2-ghostfloat" data-layout-allow-overflow>+$0.0007</div>
+        <div id="s2-gf2" class="s2-ghostfloat" data-layout-allow-overflow>+$0.0014</div>
+        <div id="s2-gf3" class="s2-ghostfloat" data-layout-allow-overflow>+$0.0007</div>
+        <div id="s2-c1" class="coin" data-layout-ignore></div><div id="s2-c2" class="coin" data-layout-ignore></div>
+        <div id="s2-c3" class="coin" data-layout-ignore></div><div id="s2-c4" class="coin" data-layout-ignore></div>
+        <div id="s2-c5" class="coin" data-layout-ignore></div>
+        <div id="s2-left">
+          <div id="s2-brand">
+            <svg viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+              <rect width="256" height="256" rx="56" fill="#16E0A3"></rect>
+              <path d="M66.616 51.836 L67.015 51.703 L125.47 110.157 L129.997 116.016 L133.193 121.076 L135.59 125.603 L137.987 131.995 L139.851 141.582 L139.851 150.636 L139.318 154.897 L137.72 161.821 L135.856 167.147 L131.595 175.936 L123.872 189.517 L118.812 199.637 L114.818 206.561 L114.152 207.227 L70.078 207.094 L113.353 173.406 L114.285 172.207 L114.551 170.876 L114.551 166.881 L112.954 162.62 L109.625 158.759 L100.038 153.699 L92.581 150.503 L86.19 146.508 L83.526 144.378 L79.132 139.984 L77.268 137.587 L74.339 133.06 L71.942 128.266 L70.344 123.739 L70.344 122.94 L71.01 122.807 L73.14 124.405 L77.934 127.068 L99.771 136.655 L106.163 140.117 L106.562 139.984 L102.168 135.856 L96.309 131.329 L78.2 118.812 L74.206 115.35 L70.344 111.223 L66.083 105.097 L62.621 97.907 L60.757 90.983 L60.224 85.923 L60.358 82.861 L61.689 83.393 L67.814 89.518 L73.407 94.046 L96.842 110.557 L106.163 117.747 L106.695 118.013 L106.828 117.614 L102.301 112.554 L78.6 89.385 L71.409 80.597 L68.214 74.472 L65.817 66.216 L65.284 59.292 L65.551 59.026 L65.551 55.83 L66.483 51.969Z M167.014 89.385 L170.077 89.252 L174.87 90.584 L178.066 92.448 L180.995 95.643 L186.588 95.91 L189.784 96.709 L192.713 98.307 L195.509 101.369 L188.985 103.1 L183.659 106.03 L179.797 109.891 L177.4 114.152 L175.802 119.478 L175.802 137.054 L175.27 141.848 L174.205 146.642 L172.607 151.701 L169.145 159.424 L165.683 164.751 L162.487 168.745 L155.163 175.536 L148.239 180.063 L141.848 183.259 L135.989 185.656 L132.794 186.721 L131.728 186.721 L131.595 186.055 L134.791 180.729 L140.117 170.077 L141.715 166.082 L143.845 159.158 L145.177 150.37 L145.177 142.114 L144.378 136.256 L142.248 128.533 L140.916 125.071 L138.519 120.543 L138.519 119.478 L148.106 104.299 L145.044 103.366 L141.582 101.236 L139.584 98.972 L138.519 96.842 L144.511 96.709 L147.707 96.176 L151.968 94.845 L161.022 90.85 L164.218 89.785 L166.881 89.518Z" fill="#0F1216" fill-rule="evenodd"></path>
+            </svg>
+            <span class="bword">kolex</span>
+          </div>
+          <div id="s2-h1">
+            <span class="w">The</span> <span class="w">wait</span><br />
+            <span class="w">now</span> <span class="w pop">pays.</span>
+          </div>
+          <div id="s2-sub">One sponsored line while your AI thinks. You keep 50% of the winning bid.</div>
+        </div>
+        <div id="s2-right" data-layout-allow-overflow>
+          <div id="s2-chat">
+            <div id="s2-chrome">
+              <span class="cdot"></span><span class="cdot"></span><span class="cdot"></span>
+              <span class="url">claude.ai/chat</span>
+            </div>
+            <div id="s2-body">
+              <div id="s2-bubble">Write me a 10 page report on the Wizard of Oz</div>
+              <div id="s2-adline">
+                <span class="adot"></span>
+                <span class="adtag">AD</span>
+                <span class="bn">Linear</span>
+                <span class="cp">The issue tracker teams actually love</span>
+                <span class="earn" id="s2-earn">$12.97 earned</span>
+                <span class="pend" id="s2-pend">+$0.0210</span>
+              </div>
+              <div class="s2-stream" id="s2-stream1">Searching the web...</div>
+              <div class="s2-stream" id="s2-stream2">Drafting section 1 of 10...</div>
+            </div>
+            <div id="s2-progresswrap"><div id="s2-progress"></div></div>
+            <div id="s2-progresslabel">1 IMPRESSION = 5 SECONDS OF WAITING</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ SCENE 3: THE PROOF ════════ -->
+      <div id="scene3" class="scene">
+        <div id="s3-ghost" data-layout-allow-overflow>$</div>
+        <div id="c1" class="coin" data-layout-ignore></div><div id="c2" class="coin" data-layout-ignore></div>
+        <div id="c3" class="coin" data-layout-ignore></div><div id="c4" class="coin" data-layout-ignore></div>
+        <div id="c5" class="coin" data-layout-ignore></div><div id="c6" class="coin" data-layout-ignore></div>
+        <div id="s3-left" data-layout-allow-overflow>
+          <div class="eyebrow"><span class="dot"></span>your cut</div>
+          <div id="s3-h1">You keep<br /><span class="gold" id="s3-fifty">50%.</span></div>
+          <div id="s3-sub">Of every ad dollar your waiting sells. Cash out from $10, paid via Stripe.</div>
+        </div>
+        <div id="s3-right">
+          <div id="s3-popup">
+            <div id="s3-pophead">
+              <svg class="mark" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                <rect width="256" height="256" rx="56" fill="#16E0A3"></rect>
+                <path d="M66.616 51.836 L67.015 51.703 L125.47 110.157 L129.997 116.016 L133.193 121.076 L135.59 125.603 L137.987 131.995 L139.851 141.582 L139.851 150.636 L139.318 154.897 L137.72 161.821 L135.856 167.147 L131.595 175.936 L123.872 189.517 L118.812 199.637 L114.818 206.561 L114.152 207.227 L70.078 207.094 L113.353 173.406 L114.285 172.207 L114.551 170.876 L114.551 166.881 L112.954 162.62 L109.625 158.759 L100.038 153.699 L92.581 150.503 L86.19 146.508 L83.526 144.378 L79.132 139.984 L77.268 137.587 L74.339 133.06 L71.942 128.266 L70.344 123.739 L70.344 122.94 L71.01 122.807 L73.14 124.405 L77.934 127.068 L99.771 136.655 L106.163 140.117 L106.562 139.984 L102.168 135.856 L96.309 131.329 L78.2 118.812 L74.206 115.35 L70.344 111.223 L66.083 105.097 L62.621 97.907 L60.757 90.983 L60.224 85.923 L60.358 82.861 L61.689 83.393 L67.814 89.518 L73.407 94.046 L96.842 110.557 L106.163 117.747 L106.695 118.013 L106.828 117.614 L102.301 112.554 L78.6 89.385 L71.409 80.597 L68.214 74.472 L65.817 66.216 L65.284 59.292 L65.551 59.026 L65.551 55.83 L66.483 51.969Z M167.014 89.385 L170.077 89.252 L174.87 90.584 L178.066 92.448 L180.995 95.643 L186.588 95.91 L189.784 96.709 L192.713 98.307 L195.509 101.369 L188.985 103.1 L183.659 106.03 L179.797 109.891 L177.4 114.152 L175.802 119.478 L175.802 137.054 L175.27 141.848 L174.205 146.642 L172.607 151.701 L169.145 159.424 L165.683 164.751 L162.487 168.745 L155.163 175.536 L148.239 180.063 L141.848 183.259 L135.989 185.656 L132.794 186.721 L131.728 186.721 L131.595 186.055 L134.791 180.729 L140.117 170.077 L141.715 166.082 L143.845 159.158 L145.177 150.37 L145.177 142.114 L144.378 136.256 L142.248 128.533 L140.916 125.071 L138.519 120.543 L138.519 119.478 L148.106 104.299 L145.044 103.366 L141.582 101.236 L139.584 98.972 L138.519 96.842 L144.511 96.709 L147.707 96.176 L151.968 94.845 L161.022 90.85 L164.218 89.785 L166.881 89.518Z" fill="#0F1216" fill-rule="evenodd"></path>
+              </svg>
+              <span class="name">kolex</span>
+              <div id="s3-toggle"></div>
+            </div>
+            <div id="s3-earnlabel">your earnings</div>
+            <div id="s3-amount">$0.00</div>
+            <div id="s3-earning-now">+$0.0166 earning now</div>
+            <div id="s3-stats">
+              <div class="s3-cell"><b id="s3-imp">0</b><span>IMPRESSIONS</span></div>
+              <div class="s3-cell"><b id="s3-clk">0</b><span>CLICKS</span></div>
+              <div class="s3-cell"><b id="s3-ads">0</b><span>LIVE ADS</span></div>
+            </div>
+            <div id="s3-cashout">Cash out →</div>
+            <div id="s3-footer">LINKED · PAID VIA STRIPE</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════ SCENE 4: THE CTA ════════ -->
+      <div id="scene4" class="scene">
+        <div id="s4-gd1" class="s4-ghostdollar" data-layout-allow-overflow>$</div>
+        <div id="s4-gd2" class="s4-ghostdollar" data-layout-allow-overflow>$</div>
+        <div id="s4-c1" class="coin" data-layout-ignore></div><div id="s4-c2" class="coin" data-layout-ignore></div>
+        <div id="s4-c3" class="coin" data-layout-ignore></div><div id="s4-c4" class="coin" data-layout-ignore></div>
+        <div id="s4-c5" class="coin" data-layout-ignore></div><div id="s4-c6" class="coin" data-layout-ignore></div>
+        <div id="s4-meta">CHROME · CHATGPT · CLAUDE · GEMINI · GROK</div>
+        <div id="s4-center">
+          <div id="s4-markwrap">
+            <div id="s4-ring" data-layout-allow-overflow></div>
+            <svg id="s4-mark" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+              <rect width="256" height="256" rx="56" fill="#16E0A3"></rect>
+              <path d="M66.616 51.836 L67.015 51.703 L125.47 110.157 L129.997 116.016 L133.193 121.076 L135.59 125.603 L137.987 131.995 L139.851 141.582 L139.851 150.636 L139.318 154.897 L137.72 161.821 L135.856 167.147 L131.595 175.936 L123.872 189.517 L118.812 199.637 L114.818 206.561 L114.152 207.227 L70.078 207.094 L113.353 173.406 L114.285 172.207 L114.551 170.876 L114.551 166.881 L112.954 162.62 L109.625 158.759 L100.038 153.699 L92.581 150.503 L86.19 146.508 L83.526 144.378 L79.132 139.984 L77.268 137.587 L74.339 133.06 L71.942 128.266 L70.344 123.739 L70.344 122.94 L71.01 122.807 L73.14 124.405 L77.934 127.068 L99.771 136.655 L106.163 140.117 L106.562 139.984 L102.168 135.856 L96.309 131.329 L78.2 118.812 L74.206 115.35 L70.344 111.223 L66.083 105.097 L62.621 97.907 L60.757 90.983 L60.224 85.923 L60.358 82.861 L61.689 83.393 L67.814 89.518 L73.407 94.046 L96.842 110.557 L106.163 117.747 L106.695 118.013 L106.828 117.614 L102.301 112.554 L78.6 89.385 L71.409 80.597 L68.214 74.472 L65.817 66.216 L65.284 59.292 L65.551 59.026 L65.551 55.83 L66.483 51.969Z M167.014 89.385 L170.077 89.252 L174.87 90.584 L178.066 92.448 L180.995 95.643 L186.588 95.91 L189.784 96.709 L192.713 98.307 L195.509 101.369 L188.985 103.1 L183.659 106.03 L179.797 109.891 L177.4 114.152 L175.802 119.478 L175.802 137.054 L175.27 141.848 L174.205 146.642 L172.607 151.701 L169.145 159.424 L165.683 164.751 L162.487 168.745 L155.163 175.536 L148.239 180.063 L141.848 183.259 L135.989 185.656 L132.794 186.721 L131.728 186.721 L131.595 186.055 L134.791 180.729 L140.117 170.077 L141.715 166.082 L143.845 159.158 L145.177 150.37 L145.177 142.114 L144.378 136.256 L142.248 128.533 L140.916 125.071 L138.519 120.543 L138.519 119.478 L148.106 104.299 L145.044 103.366 L141.582 101.236 L139.584 98.972 L138.519 96.842 L144.511 96.709 L147.707 96.176 L151.968 94.845 L161.022 90.85 L164.218 89.785 L166.881 89.518Z" fill="#0F1216" fill-rule="evenodd"></path>
+            </svg>
+          </div>
+          <div id="s4-word">
+            <span>k</span><span>o</span><span>l</span><span>e</span><span>x</span>
+          </div>
+          <div id="s4-h1">Get <span class="pop">paid</span> for waiting.</div>
+          <div id="s4-cta"><img src="assets/chrome.svg" alt="" />Add to Chrome, free</div>
+          <div id="s4-url">kolex.ai</div>
+        </div>
+      </div>
+
+      <div id="flash"></div>
+
+      <audio
+        id="music"
+        data-start="0"
+        data-duration="20"
+        data-track-index="2"
+        data-volume="1"
+        src="audio/kolex-music.mp3"
+      ></audio>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      var tl = gsap.timeline({ paused: true });
+
+      /* ════════ SCENE 1: THE HOOK (0 - 4.6) ════════ */
+      tl.fromTo(".s1-rule", { scaleX: 0 }, { scaleX: 1, duration: 0.6, ease: "expo.out", stagger: 0.1 }, 0.15);
+      tl.fromTo("#s1-meta", { opacity: 0, x: -24 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 0.3);
+      tl.fromTo("#s1-meta-r", { opacity: 0, x: 24 }, { opacity: 1, x: 0, duration: 0.5, ease: "power2.out" }, 0.4);
+      tl.fromTo(".corner", { opacity: 0 }, { opacity: 0.5, duration: 0.4, ease: "sine.out", stagger: 0.06 }, 0.25);
+
+      // the chat window rises: you know this app
+      tl.fromTo("#s1-chatwrap", { opacity: 0, y: 64, scale: 0.96 }, { opacity: 1, y: 0, scale: 1, duration: 0.6, ease: "power3.out" }, 0.3);
+
+      // the question lands
+      tl.fromTo("#s1-bubble", { opacity: 0, y: -26, scale: 0.9 }, { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.5)" }, 0.8);
+
+      // ...and the AI starts thinking
+      tl.fromTo("#s1-thinkrow", { opacity: 0, x: -22 }, { opacity: 1, x: 0, duration: 0.45, ease: "power2.out" }, 1.45);
+      tl.to(".think-dot", { opacity: 1, scale: 1.2, duration: 0.26, ease: "sine.inOut", yoyo: true, repeat: 10, stagger: 0.17 }, 1.7);
+      var s1t = { v: 0 };
+      tl.to(s1t, {
+        v: 14, duration: 2.7, ease: "none", snap: { v: 1 },
+        onUpdate: function () {
+          document.getElementById("s1-tsec").textContent = Math.round(s1t.v) + "s";
+        }
+      }, 1.7);
+
+      // the punchline slams
+      tl.fromTo("#s1-punch", { opacity: 0, scale: 1.45, y: 12 }, { opacity: 1, scale: 1, y: 0, duration: 0.45, ease: "power4.out" }, 2.55);
+
+      // glow breathes
+      tl.fromTo("#s1-glow", { scale: 1 }, { scale: 1.08, duration: 2.2, ease: "sine.inOut", yoyo: true, repeat: 1 }, 0.2);
+
+      // ghost $0.00 drifts
+      tl.fromTo("#s1-ghost", { x: 0 }, { x: -46, duration: 4.4, ease: "none" }, 0.2);
+
+      /* ──── T1 (4.6): zoom through into the product ──── */
+      tl.to("#scene1", { scale: 2.5, opacity: 0, filter: "blur(8px)", duration: 0.45, ease: "power3.in" }, 4.6);
+      tl.fromTo("#scene2",
+        { scale: 0.5, opacity: 0, filter: "blur(8px)" },
+        { scale: 1, opacity: 1, filter: "blur(0px)", duration: 0.45, ease: "power3.out" }, 4.75);
+      tl.set("#scene1", { visibility: "hidden" }, 5.25);
+
+      /* ════════ SCENE 2: THE FLIP (4.6 - 11.0) ════════ */
+      tl.fromTo("#s2-brand", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.55, ease: "power3.out" }, 5.0);
+      tl.fromTo("#s2-h1 .w", { opacity: 0, x: -60 }, { opacity: 1, x: 0, duration: 0.7, ease: "expo.out", stagger: 0.09 }, 5.15);
+      tl.fromTo("#s2-sub", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 5.7);
+
+      // chat card swings in from the right with a slight 3D tilt
+      tl.set("#s2-chat", { transformPerspective: 1400, rotationY: -7 }, 0);
+      tl.fromTo("#s2-right", { opacity: 0, x: 140 }, { opacity: 1, x: 0, duration: 0.8, ease: "power3.out" }, 5.1);
+      tl.fromTo("#s2-bubble", { opacity: 0, y: -26, scale: 0.92 }, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: "back.out(1.4)" }, 5.6);
+
+      // THE adline pill snaps in
+      tl.fromTo("#s2-adline", { opacity: 0, scale: 0.6 }, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(2)" }, 6.1);
+      tl.to(".adot", { opacity: 0.3, duration: 0.5, ease: "sine.inOut", yoyo: true, repeat: 8 }, 6.6);
+
+      // streamed response lines
+      tl.fromTo("#s2-stream1", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 7.6);
+      tl.fromTo("#s2-stream2", { opacity: 0, y: 14 }, { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" }, 9.0);
+
+      // earnings tick up in discrete cents
+      var earn = { e: 12.97 };
+      tl.to(earn, {
+        e: 13.06, duration: 4.4, ease: "steps(9)",
+        onUpdate: function () {
+          document.getElementById("s2-earn").textContent = "$" + earn.e.toFixed(2) + " earned";
+        }
+      }, 6.4);
+      var pend = { p: 0.021 };
+      tl.to(pend, {
+        p: 0.0282, duration: 4.4, ease: "none",
+        onUpdate: function () {
+          document.getElementById("s2-pend").textContent = "+$" + pend.p.toFixed(4);
+        }
+      }, 6.4);
+
+      // impression progress bar fills (5s of waiting = 1 impression)
+      tl.fromTo("#s2-progress", { scaleX: 0 }, { scaleX: 1, duration: 4.4, ease: "none" }, 6.4);
+      tl.fromTo("#s2-progresslabel", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "sine.out" }, 6.6);
+
+      // bg ghost amounts drift up the whole scene
+      tl.fromTo(".s2-ghostfloat", { y: 60 }, { y: -110, duration: 6.4, ease: "none", stagger: 0.4 }, 4.6);
+
+      // gold coins drift up while the counter ticks
+      [["#s2-c1", 6.6], ["#s2-c2", 7.2], ["#s2-c3", 7.9], ["#s2-c4", 8.6], ["#s2-c5", 9.3]].forEach(function (c) {
+        tl.fromTo(c[0], { opacity: 0, y: 40 }, {
+          keyframes: [
+            { opacity: 0.55, y: -60, duration: 1.1, ease: "sine.out" },
+            { opacity: 0, y: -140, duration: 1.0, ease: "sine.in" }
+          ]
+        }, c[1]);
+      });
+
+      /* ──── T2 (11.0): vertical push up to the receipts ──── */
+      tl.to("#scene2", { y: -1080, duration: 0.5, ease: "power3.inOut" }, 11.0);
+      tl.fromTo("#scene3", { y: 1080, opacity: 1 }, { y: 0, duration: 0.5, ease: "power3.inOut" }, 11.0);
+      tl.set("#scene2", { visibility: "hidden" }, 11.55);
+
+      /* ════════ SCENE 3: THE PROOF (11.0 - 15.4) ════════ */
+      tl.fromTo("#s3-left .eyebrow", { opacity: 0, x: -40 }, { opacity: 1, x: 0, duration: 0.5, ease: "power3.out" }, 11.35);
+      tl.fromTo("#s3-h1", { opacity: 0, x: -70 }, { opacity: 1, x: 0, duration: 0.7, ease: "expo.out" }, 11.45);
+      tl.fromTo("#s3-fifty", { scale: 1.6 }, { scale: 1, duration: 0.55, ease: "power4.out" }, 11.7);
+      tl.fromTo("#s3-sub", { opacity: 0, y: 26 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 11.95);
+
+      // popup rises with overshoot
+      tl.fromTo("#s3-right", { opacity: 0, y: 130 }, { opacity: 1, y: 0, duration: 0.7, ease: "back.out(1.2)" }, 11.4);
+
+      // the money counts up
+      var amt = { v: 0 };
+      tl.to(amt, {
+        v: 13.07, duration: 1.4, ease: "power1.out",
+        onUpdate: function () {
+          document.getElementById("s3-amount").textContent = "$" + amt.v.toFixed(2);
+        }
+      }, 11.9);
+
+      // stat cells stamp in and count
+      tl.fromTo(".s3-cell", { opacity: 0, scale: 1.15 }, { opacity: 1, scale: 1, duration: 0.45, ease: "power4.out", stagger: 0.11 }, 12.3);
+      var st = { a: 0, b: 0, c: 0 };
+      tl.to(st, {
+        a: 1251, b: 37, c: 4, duration: 0.9, ease: "power1.out", snap: { a: 1, b: 1, c: 1 },
+        onUpdate: function () {
+          document.getElementById("s3-imp").textContent = Math.round(st.a).toLocaleString("en-US");
+          document.getElementById("s3-clk").textContent = Math.round(st.b);
+          document.getElementById("s3-ads").textContent = Math.round(st.c);
+        }
+      }, 12.45);
+
+      // cash out button begs to be pressed
+      tl.fromTo("#s3-cashout", { opacity: 0, y: 18 }, { opacity: 1, y: 0, duration: 0.5, ease: "back.out(1.7)" }, 12.8);
+      tl.to("#s3-cashout", { scale: 1.035, duration: 0.55, ease: "sine.inOut", yoyo: true, repeat: 3 }, 13.3);
+      tl.fromTo("#s3-footer", { opacity: 0 }, { opacity: 1, duration: 0.5, ease: "sine.out" }, 13.1);
+
+      // gold coins drift up
+      [["#c1", 11.5], ["#c2", 11.9], ["#c3", 12.3], ["#c4", 12.7], ["#c5", 13.1], ["#c6", 13.5]].forEach(function (c) {
+        tl.fromTo(c[0], { opacity: 0, y: 40 }, {
+          keyframes: [
+            { opacity: 0.55, y: -55, duration: 1.1, ease: "sine.out" },
+            { opacity: 0, y: -130, duration: 1.0, ease: "sine.in" }
+          ]
+        }, c[1]);
+      });
+
+      // ghost $ drifts
+      tl.fromTo("#s3-ghost", { x: 0, opacity: 0 }, { x: -30, opacity: 0.12, duration: 4.4, ease: "none" }, 11.0);
+
+      /* ──── T3 (15.4): overexposure money-flash into the brand card ──── */
+      tl.to("#scene3", { filter: "brightness(1.5)", scale: 1.03, duration: 0.2, ease: "power1.in" }, 15.4);
+      tl.to("#scene3", { filter: "brightness(3)", scale: 1.06, duration: 0.2, ease: "power2.in" }, 15.6);
+      tl.to("#flash", { opacity: 0.5, duration: 0.25, ease: "power1.in" }, 15.55);
+      tl.to("#flash", { opacity: 1, duration: 0.15, ease: "power2.in" }, 15.8);
+      tl.set("#scene3", { opacity: 0, visibility: "hidden", filter: "brightness(1)", scale: 1 }, 15.95);
+      tl.set("#scene4", { opacity: 1 }, 15.95);
+      tl.to("#flash", { opacity: 0, duration: 0.35, ease: "power2.out" }, 15.97);
+
+      /* ════════ SCENE 4: THE CTA (15.4 - 20.0) ════════ */
+      tl.fromTo("#s4-markwrap", { opacity: 0, scale: 2.2 }, { opacity: 1, scale: 1, duration: 0.5, ease: "power4.out" }, 16.05);
+      tl.fromTo("#s4-ring", { opacity: 0.8, scale: 0.6 }, { opacity: 0, scale: 1.6, duration: 0.8, ease: "power2.out" }, 16.3);
+      tl.fromTo("#s4-word span", { opacity: 0, y: 44 }, { opacity: 1, y: 0, duration: 0.55, ease: "expo.out", stagger: 0.045 }, 16.35);
+      tl.fromTo("#s4-h1", { opacity: 0, y: 28 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 16.7);
+      tl.fromTo("#s4-cta", { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.55, ease: "back.out(1.7)" }, 17.0);
+      tl.fromTo("#s4-url", { opacity: 0 }, { opacity: 1, duration: 0.6, ease: "sine.out" }, 17.4);
+      tl.fromTo("#s4-meta", { opacity: 0, y: 16 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.out" }, 17.2);
+
+      // logo glow breathes on the hold
+      tl.to("#s4-mark", { scale: 1.04, duration: 1.0, ease: "sine.inOut", yoyo: true, repeat: 1 }, 17.2);
+
+      // ghost dollars drift in the corners
+      tl.fromTo("#s4-gd1", { opacity: 0, y: 30 }, { opacity: 0.12, y: -10, duration: 1.4, ease: "power1.out" }, 16.4);
+      tl.fromTo("#s4-gd2", { opacity: 0, y: 30 }, { opacity: 0.12, y: -10, duration: 1.4, ease: "power1.out" }, 16.7);
+
+      // coins rain upward around the brand card
+      [["#s4-c1", 16.6], ["#s4-c2", 17.1], ["#s4-c3", 16.8], ["#s4-c4", 17.4], ["#s4-c5", 17.7], ["#s4-c6", 18.0]].forEach(function (c) {
+        tl.fromTo(c[0], { opacity: 0, y: 40 }, {
+          keyframes: [
+            { opacity: 0.55, y: -55, duration: 1.0, ease: "sine.out" },
+            { opacity: 0, y: -120, duration: 0.9, ease: "sine.in" }
+          ]
+        }, c[1]);
+      });
+
+      // final fade to black (allowed: last scene only)
+      tl.to("#s4-center, #s4-meta, .s4-ghostdollar", { opacity: 0, duration: 0.7, ease: "power1.in" }, 19.2);
+      tl.set("#s4-center, #s4-meta, .s4-ghostdollar", { opacity: 0, visibility: "hidden" }, 19.92);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

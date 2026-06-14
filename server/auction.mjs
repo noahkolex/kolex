@@ -64,7 +64,9 @@ export function liveCampaigns() {
 export function leaderboard() {
   const db = load();
   return db.campaigns
-    .slice()
+    // Public board shows only LIVE (paid, serving) campaigns — never unpaid
+    // drafts or completed ones.
+    .filter((c) => c.status === "active")
     .sort((a, b) => b.bidPerBlock - a.bidPerBlock || b.spendUsd - a.spendUsd)
     .map((c, i) => ({
       rank: i + 1,

@@ -8,3 +8,4 @@ kolex-extension.zip
 node_modules/
 server/data/db.json
 server/data/db.json.*
+.gstack/
