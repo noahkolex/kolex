@@ -19,12 +19,13 @@
         <p class="sub" style="margin-left:auto;margin-right:auto">Say the name out loud and it tells you what it does: <i>collects</i>. Kolex turns the "thinking…" spinner on ChatGPT, Claude, Gemini, and Grok into one sponsored line, and you keep <b>50% of the ad money</b>, automatically.</p>
 
         <div class="ticker" id="ticker">
-          <span class="label">💸 paid out to users</span>
+          <span class="label">📈 projected earnings / active user / month</span>
           <span class="amount" id="ticker-amount">$0.00</span>
+          <span class="label" id="ticker-sub" style="margin-top:6px;opacity:.8"></span>
         </div>
 
         <div class="cta-row" style="justify-content:center;margin-top:26px">
-          <a class="btn btn-primary btn-lg" href="#install">Add to Chrome, free 🤑</a>
+          <a class="btn btn-primary btn-lg" href="#" id="waitlist-cta">Add to Chrome, free 🤑</a>
           <a class="btn btn-ghost btn-lg" href="/advertise">Advertise on Kolex</a>
         </div>
       </div>
@@ -116,9 +117,68 @@
 
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/advertise">Advertise</a><a href="/portal">Cash out</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div></footer>
 
+  <!-- Waitlist modal (shown until the extension is live on the Chrome Web Store). -->
+  <div class="modal" id="waitlist-modal" hidden>
+    <div class="modal-card" style="max-width:420px">
+      <button class="modal-x" id="waitlist-x" title="Close">×</button>
+      <h3 style="margin:0 0 6px">Get early access 🤑</h3>
+      <p class="muted" style="font-size:14px;margin:0 0 16px">Kolex is rolling out on the Chrome Web Store. Drop your email and we'll send your install link the moment it's live.</p>
+      <form id="waitlist-form">
+        <div class="field"><input type="email" id="waitlist-email" placeholder="you@email.com" required autocomplete="email"></div>
+        <button class="btn btn-primary btn-lg" type="submit" id="waitlist-submit" style="width:100%;margin-top:10px">Join the waitlist</button>
+        <p class="muted center" id="waitlist-msg" style="font-size:13px;margin:10px 0 0;min-height:18px"></p>
+      </form>
+    </div>
+  </div>
+
   <script type="module">
     import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago, escapeHtml } from "/assets/app.js";
     mountNav("/");
+
+    // ── Waitlist (until the extension is live on the Chrome Web Store) ──
+    // TODO: replace with the real Chrome Web Store URL once published, or swap
+    // this endpoint for your own Formspree form id (https://formspree.io/f/XXXX).
+    const FORMSPREE = "https://formspree.io/f/REPLACE_ME";
+    const wlModal = document.getElementById("waitlist-modal");
+    const wlMsg = document.getElementById("waitlist-msg");
+    const openWaitlist = (e) => {
+      if (e) e.preventDefault();
+      wlModal.hidden = false;
+      wlMsg.textContent = "";
+      setTimeout(() => document.getElementById("waitlist-email").focus(), 50);
+    };
+    const closeWaitlist = () => { wlModal.hidden = true; };
+    document.getElementById("waitlist-cta").addEventListener("click", openWaitlist);
+    document.getElementById("waitlist-x").addEventListener("click", closeWaitlist);
+    wlModal.addEventListener("click", (e) => { if (e.target === wlModal) closeWaitlist(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !wlModal.hidden) closeWaitlist(); });
+    document.getElementById("waitlist-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("waitlist-email").value.trim();
+      const btn = document.getElementById("waitlist-submit");
+      if (!email) return;
+      btn.disabled = true;
+      wlMsg.style.color = "";
+      wlMsg.textContent = "Adding you…";
+      try {
+        const r = await fetch(FORMSPREE, {
+          method: "POST",
+          headers: { "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({ email, source: "kolex.ai waitlist" }),
+        });
+        if (!r.ok) throw new Error("bad status");
+        wlMsg.style.color = "var(--green, #34d399)";
+        wlMsg.textContent = "You're on the list! We'll email your install link. 🎉";
+        if (isSoundOn()) chaching();
+        document.getElementById("waitlist-email").value = "";
+        setTimeout(closeWaitlist, 1800);
+      } catch {
+        wlMsg.style.color = "#ff8a8a";
+        wlMsg.textContent = "Hmm, that didn't go through. Try again in a sec.";
+      } finally {
+        btn.disabled = false;
+      }
+    });
 
     const soundBtn = document.getElementById("sound");
     const syncSound = () => (soundBtn.textContent = isSoundOn() ? "🔊" : "🔇");
@@ -134,17 +194,8 @@
     let firstLoad = true;
 
     function renderActivity({ totals, recent }) {
-      // Real running total of money paid out to users.
-      if (totals.paidOutUsd !== lastTotal) {
-        animateCount(amtEl, lastTotal, totals.paidOutUsd, firstLoad ? 1100 : 600);
-        if (!firstLoad && totals.paidOutUsd > lastTotal) {
-          ticker.classList.remove("flash"); void ticker.offsetWidth; ticker.classList.add("flash");
-          const r = ticker.getBoundingClientRect();
-          coinBurst(r.left + r.width / 2, r.top + 20, 12);
-          chaching();
-        }
-        lastTotal = totals.paidOutUsd;
-      }
+      // (Ticker is now the projected-per-user figure, set from the live top bid
+      // in renderRate — not the paid-out total.)
       // Real recent events.
       if (recent.length === 0) {
         if (empty) empty.style.display = "";
@@ -205,6 +256,17 @@
       document.getElementById("rate-foot").innerHTML = live
         ? `Based on the current top bid of <b>${money(bid, false)}/1,000 impressions</b>. The rate rises as advertisers bid higher.`
         : `No brands are bidding right now, so this uses a sample <b>${money(bid, false)}/1,000</b> bid. When the auction is live you earn 50% of the real top bid.`;
+
+      // Hero ticker: projected monthly earnings for an active user, from the
+      // same rate × a typical amount of daily AI waiting.
+      const DAILY_MIN = 15;
+      const monthly = perMin * DAILY_MIN * 30;
+      if (Math.abs(monthly - lastTotal) > 0.005) {
+        animateCount(amtEl, lastTotal, monthly, lastTotal === 0 ? 1100 : 600);
+        lastTotal = monthly;
+      }
+      document.getElementById("ticker-sub").textContent =
+        `${live ? "at the current top bid" : "sample bid"} · ~${DAILY_MIN} min/day of waiting`;
     }
 
     function renderBoard(leaderboard, stats) {

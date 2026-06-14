@@ -67,13 +67,36 @@
     </div>
   </main>
 
+  <!-- Edit-campaign modal -->
+  <div id="edit-modal" class="modal hide">
+    <div class="modal-card">
+      <div style="display:flex;align-items:center;gap:10px"><span class="eyebrow">Edit campaign</span><span class="spacer" style="flex:1"></span><button class="modal-x" id="edit-cancel">✕</button></div>
+      <div style="background:var(--elev);border:1px solid var(--rule);border-radius:8px;padding:20px;display:flex;justify-content:center;margin:14px 0">
+        <div class="adline" id="edit-preview"></div>
+      </div>
+      <div id="edit-err" class="errors hide"></div>
+      <div class="field"><label>Ad copy <span id="edit-count" class="muted">0/60</span></label><input type="text" id="edit-text" maxlength="60" /></div>
+      <div class="field"><label>Destination URL</label><input type="url" id="edit-url" /></div>
+      <div class="row2">
+        <div class="field"><label>Accent color</label><input type="text" id="edit-accent" maxlength="7" /></div>
+        <div class="field"><label>Logo</label>
+          <input type="file" id="edit-logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+          <div class="hint"><a href="#" id="edit-logo-clear">Remove logo</a> · under 64KB</div>
+        </div>
+      </div>
+      <button class="btn btn-primary btn-lg" id="edit-save" style="width:100%;justify-content:center;margin-top:6px">Save changes</button>
+    </div>
+  </div>
+
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, store, escapeHtml } from "/assets/app.js";
+    import { api, money, num, mountNav, store, escapeHtml, renderAdline } from "/assets/app.js";
     mountNav();
 
     const $ = (id) => document.getElementById(id);
+    let campaigns = [];          // last-loaded campaigns, for edit lookups
+    let editId = null, editLogo = null, editBrand = "";
 
     // Surface Stripe configuration problems so payments can't fail silently.
     async function checkStripe() {
@@ -99,6 +122,7 @@
         $("login").classList.add("hide");
         $("dash").classList.remove("hide");
         $("who").textContent = data.email;
+        campaigns = data.campaigns;
         const totalImp = data.campaigns.reduce((s, c) => s + c.impressions, 0);
         const totalClk = data.campaigns.reduce((s, c) => s + c.clicks, 0);
         $("adv-stats").innerHTML = [
@@ -107,11 +131,14 @@
           ["Clicks", num(totalClk)],
           ["Total spend", money(data.totalSpendUsd)],
         ].map(([l, v]) => `<div class="stat-chip"><b>${v}</b><span>${l}</span></div>`).join("");
+        const bx = 'style="padding:4px 10px;font-size:11px;margin-left:6px"';
+        const editBtn = (c) => `<button class="btn btn-ghost" ${bx} data-edit="${c.id}">Edit</button>`;
         const statusCell = (c) => {
-          if (c.status === "active") return '<span class="pill live">Live</span>';
-          if (c.status === "completed") return '<span class="pill done">Done</span>';
+          if (c.status === "active") return `<span class="pill live">Live</span>${editBtn(c)}`;
+          if (c.status === "completed") return `<span class="pill done">Done</span>${editBtn(c)}`;
           return `<span class="pill unpaid">Unpaid</span>
-                  <button class="btn btn-gold" style="padding:4px 10px;font-size:11px;margin-left:6px" data-pay="${c.id}">Pay now</button>`;
+                  <button class="btn btn-gold" ${bx} data-pay="${c.id}">Pay now</button>${editBtn(c)}
+                  <button class="btn btn-ghost" ${bx} data-del="${c.id}">Delete</button>`;
         };
         $("adv-body").innerHTML = data.campaigns.length ? data.campaigns
           .sort((a, b) => (b.status === "active") - (a.status === "active") || b.bidPerBlock - a.bidPerBlock)
@@ -133,6 +160,16 @@
               method: "POST", token: store.get("advToken"),
             });
             location.href = r.checkoutUrl;
+          });
+        }
+        for (const btn of document.querySelectorAll("[data-edit]")) {
+          btn.addEventListener("click", () => openEdit(campaigns.find((c) => c.id === btn.dataset.edit)));
+        }
+        for (const btn of document.querySelectorAll("[data-del]")) {
+          btn.addEventListener("click", async () => {
+            if (!confirm("Delete this unpaid draft? This can't be undone.")) return;
+            await api(`/api/advertiser/campaigns/${btn.dataset.del}`, { method: "DELETE", token: store.get("advToken") });
+            loadDash();
           });
         }
       } catch {
@@ -172,6 +209,45 @@
       } catch (e) {
         $("pw-err").textContent = e.message;
         $("pw-err").classList.remove("hide");
+      }
+    });
+
+    // ── Edit-campaign modal ──
+    function editPreview() {
+      renderAdline($("edit-preview"), { brand: editBrand, text: $("edit-text").value, accent: $("edit-accent").value, iconDataUrl: editLogo });
+      $("edit-count").textContent = $("edit-text").value.length + "/60";
+    }
+    function openEdit(c) {
+      if (!c) return;
+      editId = c.id; editBrand = c.brand; editLogo = c.iconDataUrl || null;
+      $("edit-text").value = c.text; $("edit-url").value = c.url; $("edit-accent").value = c.accent || "#16E0A3";
+      $("edit-err").classList.add("hide");
+      editPreview();
+      $("edit-modal").classList.remove("hide");
+    }
+    const closeEdit = () => $("edit-modal").classList.add("hide");
+    ["edit-text", "edit-accent"].forEach((id) => $(id).addEventListener("input", editPreview));
+    $("edit-cancel").addEventListener("click", closeEdit);
+    $("edit-modal").addEventListener("click", (e) => { if (e.target.id === "edit-modal") closeEdit(); });
+    $("edit-logo").addEventListener("change", (e) => {
+      const f = e.target.files[0]; if (!f) return;
+      if (f.size > 64 * 1024) { alert("Logo must be under 64KB."); e.target.value = ""; return; }
+      const r = new FileReader(); r.onload = () => { editLogo = r.result; editPreview(); }; r.readAsDataURL(f);
+    });
+    $("edit-logo-clear").addEventListener("click", (e) => { e.preventDefault(); editLogo = null; $("edit-logo").value = ""; editPreview(); });
+    $("edit-save").addEventListener("click", async () => {
+      $("edit-err").classList.add("hide");
+      try {
+        await api(`/api/advertiser/campaigns/${editId}`, {
+          method: "PATCH", token: store.get("advToken"),
+          body: { text: $("edit-text").value, url: $("edit-url").value, accent: $("edit-accent").value, iconDataUrl: editLogo },
+        });
+        closeEdit();
+        loadDash();
+      } catch (err) {
+        const list = err.data?.errors || [err.message];
+        $("edit-err").innerHTML = list.map((x) => `<div>${x}</div>`).join("");
+        $("edit-err").classList.remove("hide");
       }
     });
 

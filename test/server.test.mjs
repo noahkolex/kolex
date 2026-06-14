@@ -12,6 +12,7 @@ import fs from "node:fs";
 process.env.KOLEX_ENV_FILE = "/dev/null";
 process.env.STRIPE_MODE = "stub";
 process.env.KOLEX_MIN_PAYOUT_USD = "0.10";
+process.env.KOLEX_PAYOUT_MATURATION_DAYS = "0"; // exercise the core money flow without the holding period
 process.env.KOLEX_DB = path.join(os.tmpdir(), `kolex-test-${process.pid}-${Date.now()}.json`);
 
 const { app } = await import("../server/index.mjs");

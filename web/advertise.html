@@ -115,6 +115,27 @@
     }
     ["brand", "text", "accent", "bid", "blocks"].forEach((id) => $(id).addEventListener("input", refresh));
 
+    // Persist the form so going back from Stripe Checkout restores everything
+    // (never the password). Saved on every edit; restored on load.
+    const DRAFT_KEY = "advDraft";
+    function saveDraft() {
+      store.set(DRAFT_KEY, JSON.stringify({
+        brand: $("brand").value, email: $("email").value, text: $("text").value,
+        url: $("url").value, accent: $("accent").value, logo: logoData,
+        bid: $("bid").value, blocks: $("blocks").value,
+      }));
+    }
+    function restoreDraft() {
+      let d; try { d = JSON.parse(store.get(DRAFT_KEY) || "null"); } catch { d = null; }
+      if (!d) return;
+      for (const id of ["brand", "email", "text", "url", "accent", "bid", "blocks"]) {
+        if (d[id] != null && d[id] !== "") $(id).value = d[id];
+      }
+      if (d.logo) logoData = d.logo;
+    }
+    $("form").addEventListener("input", saveDraft);
+    restoreDraft();
+
     // Rank preview against the live auction.
     api("/api/auction").then(({ leaderboard }) => {
       const update = () => {
@@ -131,7 +152,7 @@
       if (!file) { logoData = null; refresh(); return; }
       if (file.size > 64 * 1024) { alert("Logo must be under 64KB."); e.target.value = ""; return; }
       const r = new FileReader();
-      r.onload = () => { logoData = r.result; refresh(); };
+      r.onload = () => { logoData = r.result; refresh(); saveDraft(); };
       r.readAsDataURL(file);
     });
 

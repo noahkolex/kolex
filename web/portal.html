@@ -194,12 +194,21 @@
         $("payout-note").textContent = "Withdrawals are disabled for this account.";
         return;
       }
-      if (data.payoutsHalted) {
-        pm.innerHTML = '<div class="errors" style="text-align:left;color:#ffd089;border-color:rgba(255,197,61,.5);background:rgba(255,197,61,.1)"><b>⏸ Payouts are paused.</b> We\'ve temporarily halted cash-outs while we review unusual activity. Your balance is safe and will be available when payouts resume.</div>';
-        $("payout").disabled = true;
-        $("payout-note").textContent = "Cash-outs are paused for now. Your balance is safe.";
-        return;
+      // A "gate" can block the withdraw button while still letting the user set
+      // up their payout method (so they're ready the moment it lifts). Banner is
+      // prepended to whatever the payout-method UI renders below.
+      let gateBanner = "", gateNote = "";
+      if (!data.matured && data.payoutUnlocksAt) {
+        // New accounts have a short holding period before they can cash out.
+        const when = new Date(data.payoutUnlocksAt);
+        const days = Math.max(1, Math.ceil((data.payoutUnlocksAt - Date.now()) / 86400000));
+        gateBanner = `<div class="success" style="text-align:left;padding:12px 14px;margin-bottom:10px"><b>⏳ Payouts begin 2 days after you create your account.</b> Your balance is safe and keeps growing. You can cash out on <b>${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</b> (about ${days} day${days === 1 ? "" : "s"}). Set up your payout account now so you're ready.</div>`;
+        gateNote = "Your earnings keep accruing until then.";
+      } else if (data.payoutsHalted) {
+        gateBanner = '<div class="success" style="text-align:left;padding:12px 14px;margin-bottom:10px"><b>Cash-outs are processing on a brief delay right now.</b> Your balance is safe and keeps growing — check back shortly.</div>';
+        gateNote = "Your balance is safe.";
       }
+
       if (po.ready) {
         pm.innerHTML = '<span style="color:var(--positive)">✓ Payouts enabled</span> · <a href="#" id="reconnect">Manage</a>';
         $("payout").disabled = !enough;
@@ -228,6 +237,16 @@
         $("payout").disabled = true;
         $("payout-note").textContent = "Set up payouts to enable withdrawals.";
         $("connect").addEventListener("click", startConnect);
+      }
+
+      // A maturation/halt gate overrides: keep payout-method setup visible above,
+      // but the withdraw button stays disabled with the gate's explanation.
+      if (gateBanner) {
+        pm.innerHTML = gateBanner + pm.innerHTML;
+        $("connect")?.addEventListener("click", startConnect);
+        $("reconnect")?.addEventListener("click", (e) => { e.preventDefault(); startConnect(); });
+        $("payout").disabled = true;
+        $("payout-note").textContent = gateNote;
       }
     }
 

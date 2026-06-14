@@ -16,6 +16,7 @@ process.env.KOLEX_MIN_PAYOUT_USD = "0.10";
 process.env.KOLEX_HOURLY_CAP_USD = "0";
 process.env.KOLEX_MAX_IMPRESSIONS_PER_MIN = "100000000";
 process.env.KOLEX_MAX_EVENTS_PER_BATCH = "100000";
+process.env.KOLEX_PAYOUT_MATURATION_DAYS = "0"; // these probe the payout math, not the holding period
 process.env.KOLEX_DB = path.join(os.tmpdir(), `kolex-adv-${process.pid}-${Date.now()}.json`);
 
 const { app } = await import("../server/index.mjs");

@@ -492,6 +492,44 @@ app.post("/api/advertiser/campaigns/:id/checkout", requireKind("advertiser"), as
   }
 });
 
+// Edit a campaign's creative (text / destination / accent / logo) after the
+// fact — works for live campaigns too. Bid and budget are NOT editable here.
+app.patch("/api/advertiser/campaigns/:id", requireKind("advertiser"), async (req, res) => {
+  const db = load();
+  const c = db.campaigns.find((x) => x.id === req.params.id && x.advertiserId === req.session.id);
+  if (!c) return res.status(404).json({ error: "campaign not found" });
+  const b = req.body ?? {};
+  const errors = [];
+  const text = String(b.text ?? "").trim();
+  if (text.length < 3 || text.length > 60) errors.push("Ad copy must be 3–60 characters.");
+  if (!/^https:\/\/.+/.test(String(b.url ?? ""))) errors.push("Destination must be an https:// URL.");
+  if (b.accent && !/^#[0-9a-fA-F]{6}$/.test(String(b.accent))) errors.push("Accent must be a #rrggbb color.");
+  const hasIcon = typeof b.iconDataUrl === "string" && b.iconDataUrl.length > 0;
+  if (hasIcon && !/^data:image\/(png|jpeg|jpg|webp|svg\+xml);/.test(b.iconDataUrl)) errors.push("Logo must be a PNG, JPG, WebP, or SVG image.");
+  if (hasIcon && b.iconDataUrl.length > 90_000) errors.push("Logo must be under 64KB.");
+  if (errors.length) return res.status(400).json({ errors });
+  c.text = text.slice(0, 60);
+  c.url = String(b.url).trim();
+  if (b.accent) c.accent = String(b.accent);
+  if (b.iconDataUrl === null) c.iconDataUrl = undefined; // explicit clear
+  else if (hasIcon) c.iconDataUrl = b.iconDataUrl;
+  await save();
+  res.json({ ok: true, campaign: c });
+});
+
+// Delete an UNPAID draft campaign (paid/live campaigns can't be deleted).
+app.delete("/api/advertiser/campaigns/:id", requireKind("advertiser"), async (req, res) => {
+  const db = load();
+  const i = db.campaigns.findIndex((x) => x.id === req.params.id && x.advertiserId === req.session.id);
+  if (i === -1) return res.status(404).json({ error: "campaign not found" });
+  if (db.campaigns[i].status === "active") {
+    return res.status(400).json({ error: "Live campaigns can't be deleted." });
+  }
+  db.campaigns.splice(i, 1);
+  await save();
+  res.json({ ok: true });
+});
+
 // User portal: earnings summary across the account's linked devices.
 app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
   const db = load();
@@ -552,6 +590,8 @@ app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
     payout, // { hasAccount, ready, requirements:[…], disabledReason }
     payoutsHalted: config.payoutsHalted,
     suspended: !!db.banned[req.session.id],
+    payoutUnlocksAt: payoutUnlocksAt(me),
+    matured: Date.now() >= payoutUnlocksAt(me),
     payouts: db.payouts.filter((p) => p.userId === req.session.id),
   });
 });
@@ -672,6 +712,11 @@ async function cachedAccountStatus(accountId) {
   return value;
 }
 
+// When (ms) an account's payouts unlock — signup + the maturation window.
+function payoutUnlocksAt(account) {
+  return (account?.createdAt || 0) + config.payoutMaturationDays * 86_400_000;
+}
+
 // Per-user lock so concurrent payout requests can't double-spend the balance
 // across the `await` to Stripe.
 const payoutsInFlight = new Set();
@@ -689,6 +734,15 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
   // Banned accounts can't cash out.
   if (load().banned[userId]) {
     return res.status(403).json({ error: "This account is suspended. Contact support if you believe this is a mistake." });
+  }
+  // New-account holding period: payouts begin N days after signup.
+  const acct0 = load().users.find((u) => u.id === userId);
+  const unlocksAt = payoutUnlocksAt(acct0);
+  if (config.payoutMaturationDays > 0 && Date.now() < unlocksAt) {
+    return res.status(403).json({
+      error: `Payouts begin ${config.payoutMaturationDays} days after you create your account. Your balance is safe — it unlocks ${new Date(unlocksAt).toLocaleDateString()}.`,
+      unlocksAt,
+    });
   }
   if (payoutsInFlight.has(userId)) {
     return res.status(409).json({ error: "a payout is already in progress" });

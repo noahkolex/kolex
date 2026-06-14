@@ -10,6 +10,7 @@ process.env.KOLEX_ENV_FILE = "/dev/null";
 process.env.STRIPE_MODE = "stub";
 process.env.SITE_BASE = ""; // infer from request
 process.env.KOLEX_MIN_PAYOUT_USD = "0.10";
+process.env.KOLEX_PAYOUT_MATURATION_DAYS = "0"; // drive the real cash-out UX without the holding period
 process.env.KOLEX_DB = path.join(os.tmpdir(), `kolex-web-${process.pid}-${Date.now()}.json`);
 
 const { app } = await import("../server/index.mjs");
@@ -39,10 +40,14 @@ try {
   // Blank deployment: leaderboard shows the honest empty state mentioning Kolex.
   const boardText = await page.locator("#board-body").textContent();
   ok("blank leaderboard shows the Kolex/empty state", /Kolex|first to bid/i.test(boardText), boardText.slice(0, 60));
-  // Real money ticker starts at $0.00 — no fabricated figures.
+  // The hero ticker is the PROJECTED monthly earnings per active user. With no
+  // live bids it's derived from a clearly-labelled SAMPLE bid (not fabricated
+  // paid-out money), so it shows a positive figure + a "sample bid" subtitle.
   await page.waitForTimeout(1500);
   const tickerTxt = await page.locator("#ticker-amount").textContent();
-  ok("money ticker shows the REAL total ($0.00 on blank)", /\$0\.00/.test(tickerTxt), tickerTxt);
+  ok("projected-earnings ticker shows a real figure", /\$\d/.test(tickerTxt), tickerTxt);
+  const tickerSub = await page.locator("#ticker-sub").textContent();
+  ok("ticker labels the blank-board number as a sample bid", /sample bid/i.test(tickerSub), tickerSub);
   ok("activity feed shows the honest empty state", await page.locator("#feed-empty").isVisible());
   // No giant bird: every svg/img on the page is reasonably sized.
   const oversized = await page.evaluate(() =>

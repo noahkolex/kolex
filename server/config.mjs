@@ -65,6 +65,11 @@ export const config = {
   // Global payout kill-switch — set KOLEX_PAYOUTS_HALTED=1 to pause all cash-outs
   // (balances are kept; turn it back off to resume).
   payoutsHalted: bool(process.env.KOLEX_PAYOUTS_HALTED, false),
+  // New accounts can't cash out until this many days after signup — a standard
+  // holding period (also matches Stripe's ~2-day settlement and deters drive-by
+  // fraud). 0 disables it.
+  payoutMaturationDays:
+    process.env.KOLEX_PAYOUT_MATURATION_DAYS === undefined ? 2 : Number(process.env.KOLEX_PAYOUT_MATURATION_DAYS),
 
   // PostHog analytics (optional). The project API key (phc_…) is safe to expose
   // to the browser/extension, so the same key powers server + client capture.
