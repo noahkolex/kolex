@@ -232,6 +232,10 @@ section { padding: 52px 0; }
 .adline .tag { font: 700 10px var(--mono); letter-spacing: 1px; color: var(--a); }
 .adline .bn { font-weight: 800; }
 .adline .cp { color: var(--cp); font-weight: 500; overflow: hidden; text-overflow: ellipsis; }
+/* In the edit-modal preview, keep a long ad line inside the modal: let the copy
+   shrink and ellipsis instead of pushing the whole adline past the card edge. */
+#edit-preview { max-width: 100%; }
+#edit-preview .cp { min-width: 0; white-space: nowrap; }
 .adline .ar { color: var(--a); font-weight: 700; }
 
 /* ── Live activity feed ── */

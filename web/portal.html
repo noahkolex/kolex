@@ -29,6 +29,7 @@
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <div><span class="eyebrow">Your earnings</span><h1 style="font-size:26px;font-weight:600;letter-spacing:-.02em;margin:8px 0 0" id="who"></h1></div>
         <span class="spacer" style="flex:1"></span>
+        <button class="btn btn-ghost" id="pw-open">Change password</button>
         <button class="btn btn-ghost" id="logout">Sign out</button>
       </div>
 
@@ -64,16 +65,20 @@
         <p class="muted" style="font-size:12px;margin:12px 0 0">Open the Kolex extension and click <b>Cash out →</b> to link this browser.</p>
       </div>
 
-      <div class="card" style="margin-top:14px">
-        <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Change password</div>
-        <div id="pw-err" class="errors hide"></div>
-        <div id="pw-ok" class="success hide" style="padding:10px 14px;font-size:13px;margin-bottom:10px">✓ Password updated.</div>
-        <div class="field"><label>Current password</label><input type="password" id="pw-current" autocomplete="current-password" /></div>
-        <div class="field"><label>New password</label><input type="password" id="pw-new" placeholder="At least 8 characters" autocomplete="new-password" /></div>
-        <button class="btn btn-ghost" id="pw-save">Update password</button>
-      </div>
     </div>
   </main>
+
+  <!-- Change-password modal -->
+  <div id="pw-modal" class="modal hide">
+    <div class="modal-card" style="max-width:420px">
+      <div style="display:flex;align-items:center;gap:10px"><span class="eyebrow">Change password</span><span class="spacer" style="flex:1"></span><button class="modal-x" id="pw-cancel">✕</button></div>
+      <div id="pw-err" class="errors hide" style="margin-top:14px"></div>
+      <div id="pw-ok" class="success hide" style="padding:10px 14px;font-size:13px;margin:14px 0 0">✓ Password updated.</div>
+      <div class="field" style="margin-top:14px"><label>Current password</label><input type="password" id="pw-current" autocomplete="current-password" /></div>
+      <div class="field"><label>New password</label><input type="password" id="pw-new" placeholder="At least 8 characters" autocomplete="new-password" /></div>
+      <button class="btn btn-primary btn-lg" id="pw-save" style="width:100%;justify-content:center;margin-top:6px">Update password</button>
+    </div>
+  </div>
 
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
 
@@ -316,6 +321,21 @@
       }
     });
 
+    // Change-password modal open/close.
+    const openPw = () => {
+      $("pw-err").classList.add("hide");
+      $("pw-ok").classList.add("hide");
+      $("pw-current").value = "";
+      $("pw-new").value = "";
+      $("pw-modal").classList.remove("hide");
+      setTimeout(() => $("pw-current").focus(), 50);
+    };
+    const closePw = () => $("pw-modal").classList.add("hide");
+    $("pw-open").addEventListener("click", openPw);
+    $("pw-cancel").addEventListener("click", closePw);
+    $("pw-modal").addEventListener("click", (e) => { if (e.target.id === "pw-modal") closePw(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("pw-modal").classList.contains("hide")) closePw(); });
+
     $("pw-save").addEventListener("click", async () => {
       $("pw-err").classList.add("hide");
       $("pw-ok").classList.add("hide");
@@ -328,6 +348,7 @@
         $("pw-ok").classList.remove("hide");
         $("pw-current").value = "";
         $("pw-new").value = "";
+        setTimeout(closePw, 1200);
       } catch (e) {
         $("pw-err").textContent = e.message;
         $("pw-err").classList.remove("hide");

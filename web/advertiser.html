@@ -30,6 +30,7 @@
         <div><span class="eyebrow">Advertiser</span><h1 style="font-size:26px;font-weight:600;letter-spacing:-.02em;margin:8px 0 0" id="who"></h1></div>
         <span class="spacer" style="flex:1"></span>
         <a class="btn btn-primary" href="/advertise">New campaign</a>
+        <button class="btn btn-ghost" id="pw-open">Change password</button>
         <button class="btn btn-ghost" id="logout">Sign out</button>
       </div>
 
@@ -56,14 +57,6 @@
         <tbody id="adv-body"></tbody>
       </table>
 
-      <div class="card" style="margin-top:18px;max-width:460px">
-        <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Change password</div>
-        <div id="pw-err" class="errors hide"></div>
-        <div id="pw-ok" class="success hide" style="padding:10px 14px;font-size:13px;margin-bottom:10px">✓ Password updated.</div>
-        <div class="field"><label>Current password</label><input type="password" id="pw-current" autocomplete="current-password" /></div>
-        <div class="field"><label>New password</label><input type="password" id="pw-new" placeholder="At least 8 characters" autocomplete="new-password" /></div>
-        <button class="btn btn-ghost" id="pw-save">Update password</button>
-      </div>
     </div>
   </main>
 
@@ -71,8 +64,8 @@
   <div id="edit-modal" class="modal hide">
     <div class="modal-card">
       <div style="display:flex;align-items:center;gap:10px"><span class="eyebrow">Edit campaign</span><span class="spacer" style="flex:1"></span><button class="modal-x" id="edit-cancel">✕</button></div>
-      <div style="background:var(--elev);border:1px solid var(--rule);border-radius:8px;padding:20px;display:flex;justify-content:center;margin:14px 0">
-        <div class="adline" id="edit-preview"></div>
+      <div style="background:var(--elev);border:1px solid var(--rule);border-radius:8px;padding:20px;display:flex;justify-content:center;margin:14px 0;overflow:hidden">
+        <div class="adline" id="edit-preview" style="max-width:100%"></div>
       </div>
       <div id="edit-err" class="errors hide"></div>
       <div class="field"><label>Ad copy <span id="edit-count" class="muted">0/60</span></label><input type="text" id="edit-text" maxlength="60" /></div>
@@ -85,6 +78,18 @@
         </div>
       </div>
       <button class="btn btn-primary btn-lg" id="edit-save" style="width:100%;justify-content:center;margin-top:6px">Save changes</button>
+    </div>
+  </div>
+
+  <!-- Change-password modal -->
+  <div id="pw-modal" class="modal hide">
+    <div class="modal-card" style="max-width:420px">
+      <div style="display:flex;align-items:center;gap:10px"><span class="eyebrow">Change password</span><span class="spacer" style="flex:1"></span><button class="modal-x" id="pw-cancel">✕</button></div>
+      <div id="pw-err" class="errors hide" style="margin-top:14px"></div>
+      <div id="pw-ok" class="success hide" style="padding:10px 14px;font-size:13px;margin:14px 0 0">✓ Password updated.</div>
+      <div class="field" style="margin-top:14px"><label>Current password</label><input type="password" id="pw-current" autocomplete="current-password" /></div>
+      <div class="field"><label>New password</label><input type="password" id="pw-new" placeholder="At least 8 characters" autocomplete="new-password" /></div>
+      <button class="btn btn-primary btn-lg" id="pw-save" style="width:100%;justify-content:center;margin-top:6px">Update password</button>
     </div>
   </div>
 
@@ -194,6 +199,21 @@
     $("password")?.addEventListener("keydown", (e) => { if (e.key === "Enter") $("signin").click(); });
     $("logout").addEventListener("click", () => { store.del("advToken"); showLogin(); });
 
+    // Change-password modal open/close.
+    const openPw = () => {
+      $("pw-err").classList.add("hide");
+      $("pw-ok").classList.add("hide");
+      $("pw-current").value = "";
+      $("pw-new").value = "";
+      $("pw-modal").classList.remove("hide");
+      setTimeout(() => $("pw-current").focus(), 50);
+    };
+    const closePw = () => $("pw-modal").classList.add("hide");
+    $("pw-open").addEventListener("click", openPw);
+    $("pw-cancel").addEventListener("click", closePw);
+    $("pw-modal").addEventListener("click", (e) => { if (e.target.id === "pw-modal") closePw(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("pw-modal").classList.contains("hide")) closePw(); });
+
     $("pw-save").addEventListener("click", async () => {
       $("pw-err").classList.add("hide");
       $("pw-ok").classList.add("hide");
@@ -206,6 +226,7 @@
         $("pw-ok").classList.remove("hide");
         $("pw-current").value = "";
         $("pw-new").value = "";
+        setTimeout(closePw, 1200);
       } catch (e) {
         $("pw-err").textContent = e.message;
         $("pw-err").classList.remove("hide");
