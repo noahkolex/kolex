@@ -161,16 +161,24 @@
         box.innerHTML = `<b style="color:#ffd089">🎉 Your ${money(data.bonusUsd)} welcome bonus is unlocked</b> — it's included in the balance above, ready to withdraw.`;
         return;
       }
-      const r = data.bonusRequirements || { emailVerified: data.emailVerified, minutesWatched: 0, minutesRequired: 15 };
-      const watched = Math.min(r.minutesRequired, Math.floor(r.minutesWatched || 0));
+      const r = data.bonusRequirements || { emailVerified: data.emailVerified, extensionInstalled: false, minutesWatched: 0, minutesRequired: 5 };
+      const mins = r.minutesRequired;
+      const watched = Math.min(mins, Math.floor(r.minutesWatched || 0));
+      const step = (done, doneText, todoText) =>
+        `<div style="margin-top:6px">${done ? "✅ " + doneText : "⬜ " + todoText}</div>`;
       const emailRow = r.emailVerified
-        ? `<div style="margin-top:6px">✅ Email verified</div>`
+        ? step(true, "Email verified")
         : `<div style="margin-top:6px">⬜ Verify your email · <a href="#" id="resend-verify">Resend link</a> <span id="resend-msg" class="muted" style="font-size:12px"></span></div>`;
+      const installRow = step(
+        r.extensionInstalled,
+        "Kolex extension added",
+        `Add the Kolex extension to your browser <span class="muted">(at launch)</span>`,
+      );
       const watchRow = r.watchedEnough
-        ? `<div style="margin-top:4px">✅ Watched ${r.minutesRequired} minutes of ads</div>`
-        : `<div style="margin-top:4px">⬜ Watch ${r.minutesRequired} min of ads <span class="muted">(${watched}/${r.minutesRequired} min so far)</span></div>`;
+        ? step(true, `${mins} minutes of AI waiting clocked`)
+        : `<div style="margin-top:6px">⬜ Clock ${mins} minutes of AI loading time <span class="muted">— it's the waiting you'd do anyway (${watched}/${mins} min so far)</span></div>`;
       box.innerHTML =
-        `<b style="color:#ffd089">🎁 ${money(data.bonusUsd)} welcome bonus — 2 steps to unlock it</b>${emailRow}${watchRow}`;
+        `<b style="color:#ffd089">🎁 ${money(data.bonusUsd)} welcome bonus — 3 steps to unlock it</b>${emailRow}${installRow}${watchRow}`;
       $("resend-verify")?.addEventListener("click", async (e) => {
         e.preventDefault();
         const msg = $("resend-msg");

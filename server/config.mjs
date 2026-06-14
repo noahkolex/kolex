@@ -82,10 +82,11 @@ export const config = {
   waitlistCount:
     process.env.KOLEX_WAITLIST_COUNT === undefined ? 1000 : Number(process.env.KOLEX_WAITLIST_COUNT),
   // The welcome bonus only UNLOCKS (becomes withdrawable) after the earner has
-  // both verified their email AND watched this many minutes of ads. Stops drive-
-  // by signups from ever cashing the $5 without real engagement.
+  // verified their email, installed the extension, AND accumulated this many
+  // minutes of AI waiting time. Stops drive-by signups from cashing the $5
+  // without real engagement.
   bonusUnlockMinutes:
-    process.env.KOLEX_BONUS_UNLOCK_MINUTES === undefined ? 15 : Number(process.env.KOLEX_BONUS_UNLOCK_MINUTES),
+    process.env.KOLEX_BONUS_UNLOCK_MINUTES === undefined ? 5 : Number(process.env.KOLEX_BONUS_UNLOCK_MINUTES),
   // New accounts can't cash out until this many days after signup — a standard
   // holding period (also matches Stripe's ~2-day settlement and deters drive-by
   // fraud). 0 disables it.

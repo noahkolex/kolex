@@ -67,7 +67,7 @@ ${resetUrl}
 /** Branded email-verification email (HTML + plain-text). */
 export function verifyEmail(verifyUrl, bonusUsd = 0) {
   const bonusLine = bonusUsd > 0
-    ? `Verifying unlocks your $${bonusUsd.toFixed(2)} welcome bonus (along with watching 15 minutes of ads).`
+    ? `Verifying is step one toward your $${bonusUsd.toFixed(2)} welcome bonus (then add the extension at launch and clock 5 minutes of AI loading time).`
     : `Verifying keeps your account secure.`;
   const text = `Confirm your email for Kolex
 

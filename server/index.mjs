@@ -692,6 +692,7 @@ app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
     bonusLocked: bonus.bonusUsd > 0 && !bonus.unlocked,
     bonusRequirements: {
       emailVerified: bonus.emailVerified,
+      extensionInstalled: bonus.extensionInstalled,
       minutesWatched: bonus.minutesWatched,
       minutesRequired: bonus.minutesRequired,
       watchedEnough: bonus.watchedEnough,
@@ -844,14 +845,18 @@ function bonusStatus(db, user) {
   const minutesRequired = config.bonusUnlockMinutes;
   const minutesWatched = user ? userImpressions(db, user.id) / IMPRESSIONS_PER_MIN : 0;
   const emailVerified = !!user?.emailVerified;
+  // "Installed the extension" = at least one device is linked to this account
+  // (devices only get linked through the extension's connect flow).
+  const extensionInstalled = user ? db.devices.some((d) => d.userId === user.id) : false;
   const watchedEnough = minutesWatched >= minutesRequired;
   return {
     bonusUsd,
     emailVerified,
+    extensionInstalled,
     minutesWatched,
     minutesRequired,
     watchedEnough,
-    unlocked: bonusUsd > 0 && emailVerified && watchedEnough,
+    unlocked: bonusUsd > 0 && emailVerified && extensionInstalled && watchedEnough,
   };
 }
 

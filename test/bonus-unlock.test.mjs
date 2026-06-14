@@ -13,8 +13,8 @@ process.env.KOLEX_ENV_FILE = "/dev/null";
 process.env.STRIPE_MODE = "stub";
 process.env.KOLEX_MIN_PAYOUT_USD = "0.10";
 process.env.KOLEX_PAYOUT_MATURATION_DAYS = "0"; // isolate the bonus gates from the holding period
-process.env.KOLEX_BONUS_UNLOCK_MINUTES = "15"; // 15 min × 12 imp/min = 180 impressions
-// Disable the abuse caps so we can post 180 impressions in one go (the rate
+process.env.KOLEX_BONUS_UNLOCK_MINUTES = "5"; // 5 min × 12 imp/min = 60 impressions
+// Disable the abuse caps so we can post the impressions in one go (the rate
 // limiter is covered in its own suite).
 process.env.KOLEX_HOURLY_CAP_USD = "0";
 process.env.KOLEX_MAX_IMPRESSIONS_PER_MIN = "100000000";
@@ -66,22 +66,34 @@ test("new earner: bonus is granted, unverified, and locked out of the balance", 
   assert.equal(s.body.emailVerified, false);
   assert.equal(s.body.bonusUnlocked, false);
   assert.equal(s.body.bonusRequirements.emailVerified, false);
+  assert.equal(s.body.bonusRequirements.extensionInstalled, false);
   assert.equal(s.body.bonusRequirements.watchedEnough, false);
   assert.equal(s.body.withdrawableUsd, 0, "locked bonus is not withdrawable");
 });
 
-test("watching 15 min alone does NOT unlock (email still unverified)", async () => {
+test("installing (linking a device) flips the extension step before enough watching", async () => {
+  const r = await post("/api/auth", { email: "u-install@x.com", password: "pw-test-12345", kind: "user" });
+  const auth = { authorization: `Bearer ${r.body.token}` };
+  await post("/api/portal/link-device", { deviceId: "dev-install" }, auth); // no impressions yet
+  const s = await get("/api/portal/summary", auth);
+  assert.equal(s.body.bonusRequirements.extensionInstalled, true, "linked device = extension installed");
+  assert.equal(s.body.bonusRequirements.watchedEnough, false, "but nothing watched yet");
+  assert.equal(s.body.bonusUnlocked, false);
+});
+
+test("watching 5 min alone does NOT unlock (email still unverified)", async () => {
   const adId = await liveCampaign("adv1@x.com");
   const r = await post("/api/auth", { email: "u2@x.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${r.body.token}` };
   await post("/api/portal/link-device", { deviceId: "dev-watch-u2" }, auth);
-  await watch("dev-watch-u2", adId, 180); // exactly 15 minutes
+  await watch("dev-watch-u2", adId, 60); // exactly 5 minutes
 
   const s = await get("/api/portal/summary", auth);
+  assert.equal(s.body.bonusRequirements.extensionInstalled, true);
   assert.equal(s.body.bonusRequirements.watchedEnough, true);
-  assert.ok(s.body.bonusRequirements.minutesWatched >= 15);
+  assert.ok(s.body.bonusRequirements.minutesWatched >= 5);
   assert.equal(s.body.emailVerified, false);
-  assert.equal(s.body.bonusUnlocked, false, "needs BOTH gates");
+  assert.equal(s.body.bonusUnlocked, false, "still needs email verified");
   assert.ok(s.body.withdrawableUsd > 0 && s.body.withdrawableUsd === s.body.pendingUsd, "bonus excluded");
 });
 
@@ -90,35 +102,39 @@ test("verifying email alone does NOT unlock (not enough watching)", async () => 
   const r = await post("/api/auth", { email: "u3@x.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${r.body.token}` };
   await post("/api/portal/link-device", { deviceId: "dev-watch-u3" }, auth);
-  await watch("dev-watch-u3", adId, 60); // only 5 minutes
+  await watch("dev-watch-u3", adId, 24); // only 2 minutes
 
   const v = await post("/api/auth/verify", { token: tokenFromVerifyUrl(r.body.verifyUrl) });
   assert.equal(v.status, 200);
 
   const s = await get("/api/portal/summary", auth);
   assert.equal(s.body.emailVerified, true);
+  assert.equal(s.body.bonusRequirements.extensionInstalled, true);
   assert.equal(s.body.bonusRequirements.watchedEnough, false);
   assert.equal(s.body.bonusUnlocked, false);
 });
 
-test("both gates met → bonus unlocks, folds into the balance, and a payout sweeps it", async () => {
+test("all three gates met → bonus unlocks, folds into the balance, and a payout sweeps it", async () => {
   const adId = await liveCampaign("adv3@x.com");
   const r = await post("/api/auth", { email: "u4@x.com", password: "pw-test-12345", kind: "user" });
   const auth = { authorization: `Bearer ${r.body.token}` };
   await post("/api/portal/link-device", { deviceId: "dev-watch-u4" }, auth);
-  await watch("dev-watch-u4", adId, 180);
+  await watch("dev-watch-u4", adId, 60); // 5 minutes
   await post("/api/auth/verify", { token: tokenFromVerifyUrl(r.body.verifyUrl) });
 
   const s = await get("/api/portal/summary", auth);
+  assert.equal(s.body.bonusRequirements.emailVerified, true);
+  assert.equal(s.body.bonusRequirements.extensionInstalled, true);
+  assert.equal(s.body.bonusRequirements.watchedEnough, true);
   assert.equal(s.body.bonusUnlocked, true);
-  // 180 imps × $80/1000 × 0.5 = $7.20 device + $5 bonus = $12.20 withdrawable.
+  // 60 imps × $80/1000 × 0.5 = $2.40 device + $5 bonus = $7.40 withdrawable.
   assert.ok(Math.abs(s.body.withdrawableUsd - (s.body.pendingUsd + 5)) < 1e-6);
-  assert.ok(Math.abs(s.body.withdrawableUsd - 12.2) < 1e-6, `withdrawable=${s.body.withdrawableUsd}`);
+  assert.ok(Math.abs(s.body.withdrawableUsd - 7.4) < 1e-6, `withdrawable=${s.body.withdrawableUsd}`);
 
   await post("/api/stub/complete-connect", undefined, auth);
   const payout = await post("/api/portal/payout", undefined, auth);
   assert.equal(payout.status, 200, JSON.stringify(payout.body));
-  assert.ok(Math.abs(payout.body.payout.amountUsd - 12.2) < 1e-6, "payout includes the bonus");
+  assert.ok(Math.abs(payout.body.payout.amountUsd - 7.4) < 1e-6, "payout includes the bonus");
   assert.ok(Math.abs(payout.body.payout.bonusUsd - 5) < 1e-6);
 
   // Bonus is one-time: it's gone afterwards.
