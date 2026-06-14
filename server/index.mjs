@@ -237,9 +237,9 @@ app.get("/api/promo", (_req, res) => {
     spotsClaimed: total - spotsLeft,
     spotsLeft,
     waitlistCount: config.waitlistCount,
-    // Offered while pre-launch AND spots remain. When spotsLeft hits 0, this
-    // goes false and the grant gate above stops handing out the $5.
-    bonusAvailable: config.prelaunch && config.signupBonusUsd > 0 && spotsLeft > 0,
+    // Offered while spots remain (independent of pre-launch). When spotsLeft
+    // hits 0, this goes false and the grant gate stops handing out the $5.
+    bonusAvailable: config.signupBonusUsd > 0 && spotsLeft > 0,
   });
 });
 
@@ -408,7 +408,7 @@ app.post("/api/auth", loginLimiter, async (req, res) => {
   // earner accounts created before launch. Locked = shown but not withdrawable
   // on its own, so mass-signup fraud gains nothing cashable.
   let bonusUsd = 0;
-  if (result.created && kind === "user" && config.prelaunch && config.signupBonusUsd > 0) {
+  if (result.created && kind === "user" && config.signupBonusUsd > 0) {
     const db = load();
     const acct = db.users.find((u) => u.id === result.account.id);
     // First-come, first-served: grant only while spots remain. Once the shown

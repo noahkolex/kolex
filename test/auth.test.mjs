@@ -7,6 +7,7 @@ import fs from "node:fs";
 
 process.env.KOLEX_ENV_FILE = "/dev/null";
 process.env.STRIPE_MODE = "stub";
+process.env.KOLEX_PRELAUNCH = "1"; // exercise the pre-launch path (the welcome-bonus test asserts it)
 process.env.KOLEX_DB = path.join(os.tmpdir(), `kolex-auth-${process.pid}-${Date.now()}.json`);
 
 const { app } = await import("../server/index.mjs");

@@ -22,7 +22,7 @@
           <h1>Your AI's loading screen now <span class="pop">collects</span> checks.</h1>
           <p class="sub">Kolex turns the "thinking…" spinner on ChatGPT, Claude, Gemini, and Grok into one sponsored line, and you keep <b>50% of the ad money</b>, automatically.</p>
           <div class="cta-row" style="margin-top:24px">
-            <a class="btn btn-primary btn-lg has-tip" href="#" id="waitlist-cta" data-tip="Get on the waitlist. We're launching in a couple days!">Add to Chrome, free 🤑</a>
+            <a class="btn btn-primary btn-lg has-tip" id="install-cta" href="https://chromewebstore.google.com/detail/Kolex%20%E2%80%94%20get%20paid%20for%20waiting/kgkdlcbcgcncnchcmdjhhpdphofdcfki" target="_blank" rel="noopener" data-tip="Free Chrome extension — first users get a $5 bonus 🤑">Add to Chrome, free 🤑</a>
             <a class="btn btn-ghost btn-lg" href="/advertise">Advertise on Kolex</a>
           </div>
           <p class="muted" id="social-proof" style="margin-top:14px;font-size:13.5px;min-height:18px"></p>
@@ -74,6 +74,7 @@
           <div class="step"><div class="num">02</div><h3>Use your AI like normal</h3><p>Every "thinking…" moment becomes a sponsored line. The meter ticks up.</p></div>
           <div class="step"><div class="num">03</div><h3>Cash out</h3><p>Watch your balance grow in the extension, then hit <b>Cash out</b> and get paid.</p></div>
         </div>
+        <div class="center" style="margin-top:26px"><a class="btn btn-primary btn-lg" href="https://chromewebstore.google.com/detail/Kolex%20%E2%80%94%20get%20paid%20for%20waiting/kgkdlcbcgcncnchcmdjhhpdphofdcfki" target="_blank" rel="noopener">Add to Chrome, free 🤑</a></div>
       </div>
     </section>
 
@@ -137,33 +138,6 @@
 
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/advertise">Advertise</a><a href="/portal">Cash out</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div></footer>
 
-  <!-- Early-access signup (shown until the extension is live on the Web Store).
-       Creates a real account and credits a locked $5 welcome bonus. -->
-  <div class="modal" id="waitlist-modal" hidden>
-    <div class="modal-card" style="max-width:430px">
-      <button class="modal-x" id="waitlist-x" title="Close">×</button>
-      <div id="waitlist-form-wrap">
-        <span class="eyebrow">Early access</span>
-        <h3 style="margin:8px 0 6px;font-size:24px">Reserve your account, get <span style="color:var(--gold,#ffc53d)">$5 free</span> 🤑</h3>
-        <p class="muted" style="font-size:14px;margin:0 0 6px">We launch on the Chrome Web Store in a couple days. Make your account now and we'll drop <b>$5</b> in it, waiting for you the moment you start earning.</p>
-        <p id="waitlist-spots" style="font-size:13px;margin:0 0 16px;color:var(--gold,#ffc53d)"></p>
-        <form id="waitlist-form">
-          <div class="field"><label>Email</label><input type="email" id="waitlist-email" placeholder="you@email.com" required autocomplete="email"></div>
-          <div class="field"><label>Password</label><input type="password" id="waitlist-password" placeholder="At least 8 characters" required autocomplete="new-password"></div>
-          <button class="btn btn-primary btn-lg" type="submit" id="waitlist-submit" style="width:100%;margin-top:4px;justify-content:center">Claim my $5 →</button>
-          <p class="muted center" id="waitlist-msg" style="font-size:13px;margin:10px 0 0;min-height:18px"></p>
-          <p class="center muted" style="font-size:12px;margin:10px 0 0">Already have an account? <a href="/portal">Log in</a></p>
-        </form>
-      </div>
-      <div id="waitlist-done" hidden style="text-align:center;padding:8px 0">
-        <div style="font-size:44px;line-height:1">🎉</div>
-        <h3 id="waitlist-done-h" style="margin:10px 0 4px;font-size:22px">You're in! <span style="color:var(--gold,#ffc53d)" id="waitlist-bonus-amt">$5.00</span> is waiting.</h3>
-        <p class="muted" id="waitlist-done-p" style="font-size:14px;margin:0 0 14px">Check your inbox and <b>confirm your email</b> — step one to unlock your $5. Then add the extension at launch and clock 5 minutes of AI loading time (the waiting you'd do anyway). We'll email your install link.</p>
-        <a class="btn btn-primary btn-lg" href="/portal" style="width:100%;justify-content:center">Go to my account →</a>
-      </div>
-    </div>
-  </div>
-
   <script type="module">
     import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago, escapeHtml, store, track, renderAdline, pixel } from "/assets/app.js";
     // Meta Pixel: any click that heads to /advertise is an advertiser-intent signal.
@@ -179,85 +153,23 @@
       brand: "Ramp", text: "save time and money", accent: "#FFD54A",
     });
 
-    // ── Early-access signup (until the extension is live on the Web Store) ──
-    // Creates a REAL earner account and the server credits a locked $5 bonus.
-    // One funnel: this and the nav "Log in" both lead to the same account.
-    const wlModal = document.getElementById("waitlist-modal");
-    const wlMsg = document.getElementById("waitlist-msg");
-
-    // Social proof + live "$5 spots left" counter (env-backed, see /api/promo).
-    let promo = null;
+    // Social proof + live "$5 bonuses left" counter (env-backed, see /api/promo).
+    // Now live: "N+ users" rather than a waitlist; the $5 is a first-come bonus
+    // for new accounts (server caps it; once spots hit 0 it stops — see /api/promo).
     (async () => {
       try {
-        promo = await api("/api/promo");
+        const promo = await api("/api/promo");
         const line = document.getElementById("social-proof");
         const bits = [];
-        if (promo.waitlistCount > 0) bits.push(`🔥 <b>${num(promo.waitlistCount)}+</b> on the waitlist`);
-        if (promo.bonusAvailable) bits.push(`only <b>${num(promo.spotsLeft)}</b> of ${num(promo.spotsTotal)} free $${promo.bonusUsd} bonuses left`);
+        if (promo.waitlistCount > 0) bits.push(`🔥 <b>${num(promo.waitlistCount)}+</b> users`);
+        if (promo.bonusAvailable) bits.push(`only <b>${num(promo.spotsLeft)}</b> free $${promo.bonusUsd} bonuses left for new users`);
         if (line && bits.length) line.innerHTML = bits.join(" · ");
-        // Reflect the live spot count in the modal subheading.
-        const sub = document.getElementById("waitlist-spots");
-        if (sub) {
-          sub.innerHTML = promo.bonusAvailable
-            ? `Only <b>${num(promo.spotsLeft)}</b> of ${num(promo.spotsTotal)} free $${promo.bonusUsd} bonuses left — claim yours.`
-            : `Join <b>${num(promo.waitlistCount)}+</b> on the waitlist.`;
-        }
       } catch {}
     })();
 
-    const openWaitlist = (e) => {
-      if (e) e.preventDefault();
-      // Already signed in? Skip the form, go straight to the account.
-      if (store.get("usrToken")) { location.href = "/portal"; return; }
-      pixel("Lead", { content_name: "claim_5_signup" }); // opened the signup CTA
-      wlModal.hidden = false;
-      wlMsg.textContent = "";
-      setTimeout(() => document.getElementById("waitlist-email").focus(), 50);
-    };
-    const closeWaitlist = () => { wlModal.hidden = true; };
-    document.getElementById("waitlist-cta").addEventListener("click", openWaitlist);
-    document.getElementById("waitlist-x").addEventListener("click", closeWaitlist);
-    wlModal.addEventListener("click", (e) => { if (e.target === wlModal) closeWaitlist(); });
-    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !wlModal.hidden) closeWaitlist(); });
-    document.getElementById("waitlist-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const email = document.getElementById("waitlist-email").value.trim();
-      const password = document.getElementById("waitlist-password").value;
-      const btn = document.getElementById("waitlist-submit");
-      wlMsg.style.color = "";
-      if (!email) { wlMsg.style.color = "#ff8a8a"; wlMsg.textContent = "Enter your email."; return; }
-      if (password.length < 8) { wlMsg.style.color = "#ff8a8a"; wlMsg.textContent = "Pick a password of at least 8 characters."; return; }
-      btn.disabled = true;
-      wlMsg.textContent = "Reserving your account…";
-      try {
-        const r = await api("/api/auth", { method: "POST", body: { email, password, kind: "user" } });
-        store.set("usrToken", r.token);
-        track("signup_promo", { created: r.created, bonusUsd: r.bonusUsd || 0 });
-        if (r.created) pixel("CompleteRegistration", { content_name: "earner_signup", currency: "USD", value: r.bonusUsd || 0 });
-        if (r.created) {
-          // New account: celebrate the (server-confirmed) bonus and offer the account.
-          if (r.bonusUsd > 0) {
-            document.getElementById("waitlist-bonus-amt").textContent = money(r.bonusUsd);
-          } else {
-            // Spots are gone — reserve the account without promising the $5.
-            document.getElementById("waitlist-done-h").textContent = "You're in! Your spot is reserved.";
-            document.getElementById("waitlist-done-p").innerHTML = "Check your inbox and <b>confirm your email</b>. We'll email your install link the moment we launch.";
-          }
-          document.getElementById("waitlist-form-wrap").hidden = true;
-          document.getElementById("waitlist-done").hidden = false;
-          if (isSoundOn()) chaching();
-        } else {
-          // Existing account: just sign them in and send them through.
-          wlMsg.style.color = "var(--positive, #16E0A3)";
-          wlMsg.textContent = "Welcome back! Taking you to your account…";
-          setTimeout(() => (location.href = "/portal"), 700);
-        }
-      } catch (err) {
-        wlMsg.style.color = "#ff8a8a";
-        wlMsg.textContent = err?.message || "That didn't go through. Try again in a sec.";
-      } finally {
-        btn.disabled = false;
-      }
+    // Clicking "Add to Chrome" heads to the Web Store — log the install intent.
+    document.getElementById("install-cta")?.addEventListener("click", () => {
+      pixel("Lead", { content_name: "add_to_chrome" });
     });
 
     const soundBtn = document.getElementById("sound");
