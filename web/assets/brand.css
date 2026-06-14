@@ -179,7 +179,7 @@ section { padding: 52px 0; }
 .compare-col { display: flex; flex-direction: column; gap: 10px; }
 .compare-tag { display: inline-flex; align-items: center; gap: 6px; font: 700 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 .compare-tag.gold { color: var(--gold); }
-.compare-tag .brand-ico { width: 16px; height: 16px; color: #fff; flex: none; }
+.compare-tag .brand-ico { width: 16px; height: 16px; object-fit: contain; flex: none; }
 .mock {
   background: #0a0d10; border: 1px solid var(--rule); border-radius: 14px; padding: 22px 18px;
   display: flex; flex-direction: column; gap: 13px; min-height: 84px; justify-content: center;
@@ -190,13 +190,20 @@ section { padding: 52px 0; }
 .mock-line.muted { color: var(--muted2); }
 .mock .adline { max-width: 100%; align-self: flex-start; }
 .mock .adline .cp { min-width: 0; }
-/* ChatGPT-style loader: a white circle that slowly breathes (grows + contracts),
-   just like ChatGPT's generating indicator. */
+/* ChatGPT-style loader: a white circle that slowly breathes next to a shimmering
+   "Thinking…" — just like ChatGPT's generating indicator. */
+.gpt-line { display: flex; align-items: center; gap: 10px; font: 500 14px var(--mono); }
 .gpt-cursor {
-  display: inline-block; align-self: flex-start; width: 15px; height: 15px;
+  display: inline-block; flex: none; width: 14px; height: 14px;
   border-radius: 50%; background: #fff; animation: gpt-breathe 1.8s ease-in-out infinite;
 }
 @keyframes gpt-breathe { 0%, 100% { transform: scale(0.6); opacity: 0.5; } 50% { transform: scale(1); opacity: 1; } }
+.shimmer {
+  background: linear-gradient(90deg, #6a7a71 35%, #f3f7f5 50%, #6a7a71 65%);
+  background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: shimmer 1.9s linear infinite;
+}
+@keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
 .compare-cap { font-size: 13px; text-align: center; }
 
 /* Stacked before/after (Stock above, Kolex below) for the hero demo column. */
