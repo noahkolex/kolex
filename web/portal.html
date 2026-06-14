@@ -71,6 +71,14 @@
     </div>
   </main>
 
+  <!-- "Why can't I withdraw yet?" explainer -->
+  <div id="why-modal" class="modal hide">
+    <div class="modal-card" style="max-width:400px">
+      <div style="display:flex;align-items:center;gap:10px"><span class="eyebrow">Why can't I withdraw yet?</span><span class="spacer" style="flex:1"></span><button class="modal-x" id="why-x">✕</button></div>
+      <p id="why-body" style="font-size:14px;line-height:1.55;margin:14px 0 0;color:var(--ink)"></p>
+    </div>
+  </div>
+
   <!-- Change-password modal -->
   <div id="pw-modal" class="modal hide">
     <div class="modal-card" style="max-width:420px">
@@ -225,6 +233,34 @@
       }
     }
 
+    // Withdraw block state: the button stays clickable (so hover + click work),
+    // but looks disabled and explains itself. whyShort → hover tooltip,
+    // whyLong → the popup shown on click.
+    let whyLong = null;
+    function blockWithdraw(short, long) {
+      whyLong = long;
+      const b = $("payout");
+      b.classList.add("is-disabled", "has-tip");
+      b.setAttribute("aria-disabled", "true");
+      b.dataset.tip = short;
+    }
+    function enableWithdraw() {
+      whyLong = null;
+      const b = $("payout");
+      b.classList.remove("is-disabled", "has-tip");
+      b.removeAttribute("aria-disabled");
+      delete b.dataset.tip;
+    }
+    function openWhy() {
+      if (!whyLong) return;
+      $("why-body").innerHTML = whyLong;
+      $("why-modal").classList.remove("hide");
+    }
+    const closeWhy = () => $("why-modal").classList.add("hide");
+    $("why-x").addEventListener("click", closeWhy);
+    $("why-modal").addEventListener("click", (e) => { if (e.target.id === "why-modal") closeWhy(); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("why-modal").classList.contains("hide")) closeWhy(); });
+
     function renderPayoutMethod(data) {
       const pm = $("payout-method");
       const min = data.minPayoutUsd;
@@ -233,54 +269,50 @@
       const enough = balance >= min;
       const remaining = Math.max(0, min - balance);
 
-      // Always make the minimum crystal clear: a persistent line + a hover
-      // tooltip on the Withdraw button.
       $("min-hint").textContent = enough
         ? `Minimum cash out: ${money(min)}, you're over it ✓`
         : `Minimum cash out: ${money(min)} · ${money(remaining)} to go`;
-      $("payout").title = enough
-        ? `Cash out ${money(balance)}`
-        : `You need ${money(min)} to cash out. You have ${money(balance)}`;
 
       const po = data.payout || { hasAccount: !!data.payoutMethod, ready: data.payoutsReady, requirements: [] };
       if (data.suspended) {
         pm.innerHTML = '<div class="errors" style="text-align:left"><b>Account suspended.</b> This account was flagged for unusual activity. Email <a href="mailto:support@kolex.ai">support@kolex.ai</a> if you think this is a mistake.</div>';
-        $("payout").disabled = true;
         $("payout-note").textContent = "Withdrawals are disabled for this account.";
+        blockWithdraw("Account suspended", "This account was flagged for unusual activity, so withdrawals are turned off. If you think that's a mistake, email <a href='mailto:support@kolex.ai'>support@kolex.ai</a> and we'll take a look.");
         return;
       }
       // A "gate" can block the withdraw button while still letting the user set
-      // up their payout method (so they're ready the moment it lifts). Banner is
-      // prepended to whatever the payout-method UI renders below.
-      let gateBanner = "", gateNote = "";
+      // up their payout method (so they're ready the moment it lifts).
+      let gateBanner = "", gateNote = "", gateWhy = "";
       if (data.prelaunch) {
-        // Pre-launch: the extension isn't on the Web Store yet, so there's
-        // nothing to cash out. Set the warm "we're almost live" expectation.
         const bonusLine = data.bonusUsd > 0
           ? ` Your <b>${money(data.bonusUsd)}</b> welcome bonus is locked in and unlocks the moment you start earning.`
           : "";
         gateBanner = `<div class="success" style="text-align:left;padding:12px 14px;margin-bottom:10px"><b>🚀 We launch on the Chrome Web Store in a couple days.</b> Install the extension then to start earning, and cash-outs open right after.${bonusLine} We'll email you the second it's live.</div>`;
         gateNote = "Cash-outs open at launch.";
+        gateWhy = "Kolex is rolling out on the Chrome Web Store, and cash-outs open right after launch. Your balance is safe and keeps growing in the meantime.";
       } else if (!data.matured && data.payoutUnlocksAt) {
-        // New accounts have a short holding period before they can cash out.
         const when = new Date(data.payoutUnlocksAt);
         const days = Math.max(1, Math.ceil((data.payoutUnlocksAt - Date.now()) / 86400000));
         gateBanner = `<div class="success" style="text-align:left;padding:12px 14px;margin-bottom:10px"><b>⏳ Payouts begin 2 days after you create your account.</b> Your balance is safe and keeps growing. You can cash out on <b>${when.toLocaleDateString(undefined, { month: "short", day: "numeric" })}</b> (about ${days} day${days === 1 ? "" : "s"}). Set up your payout account now so you're ready.</div>`;
         gateNote = "Your earnings keep accruing until then.";
+        gateWhy = `New accounts have a short holding period — payouts begin <b>2 days after you sign up</b> (a standard fraud check). You'll be able to withdraw on <b>${when.toLocaleDateString(undefined, { month: "long", day: "numeric" })}</b>, about ${days} day${days === 1 ? "" : "s"} from now. Your balance is safe and keeps growing until then.`;
       } else if (data.payoutsHalted) {
         gateBanner = '<div class="success" style="text-align:left;padding:12px 14px;margin-bottom:10px"><b>Cash-outs are processing on a brief delay right now.</b> Your balance is safe and keeps growing — check back shortly.</div>';
         gateNote = "Your balance is safe.";
+        gateWhy = "We've briefly paused cash-outs while we review some unusual activity. Your balance is completely safe and you'll be able to withdraw again shortly.";
       }
 
       if (po.ready) {
         pm.innerHTML = '<span style="color:var(--positive)">✓ Payouts enabled</span> · <a href="#" id="reconnect">Manage</a>';
-        $("payout").disabled = !enough;
-        $("payout-note").textContent = balance > 0 && !enough
-          ? `Minimum payout is ${money(data.minPayoutUsd)}. You have ${money(balance)}.`
-          : "Payouts are sent to your connected Stripe account.";
+        if (enough) {
+          enableWithdraw();
+          $("payout-note").textContent = "Payouts are sent to your connected Stripe account.";
+        } else {
+          $("payout-note").textContent = `Minimum payout is ${money(min)}. You have ${money(balance)}.`;
+          blockWithdraw(`${money(remaining)} to go`, `You can withdraw once your balance reaches the <b>${money(min)}</b> minimum. You're at <b>${money(balance)}</b> right now — keep using your AI and the meter ticks up. ${data.bonusUsd > 0 ? "Your $" + Number(data.bonusUsd).toFixed(0) + " welcome bonus is also waiting to unlock." : ""}`);
+        }
         $("reconnect")?.addEventListener("click", (e) => { e.preventDefault(); startConnect(); });
       } else if (po.hasAccount) {
-        // Account exists but Stripe has it RESTRICTED — show exactly what's missing.
         const reqs = (po.requirements || []);
         const list = reqs.length
           ? `<ul style="margin:8px 0 0;padding-left:18px">${reqs.map((r) => `<li>${escapeHtml(r)}</li>`).join("")}</ul>`
@@ -291,25 +323,25 @@
              <b>⚠️ Payouts are paused.</b> Stripe needs more information before it can send your money${reqs.length ? ":" : "."}${list}${why}
            </div>
            <button class="btn btn-gold" id="connect" style="width:100%;justify-content:center">Finish payout setup →</button>`;
-        $("payout").disabled = true;
         $("payout-note").textContent = "Finish payout setup to enable withdrawals.";
+        blockWithdraw("Finish payout setup", `Stripe needs a bit more information before it can send your money${reqs.length ? ":" : "."}${list} Tap <b>Finish payout setup</b> above to complete it.`);
         $("connect").addEventListener("click", startConnect);
       } else {
         pm.innerHTML = '<button class="btn btn-gold" id="connect" style="width:100%;justify-content:center">Set up payouts</button>'
           + '<div class="muted" style="margin-top:8px">Connect a payout account to withdraw your earnings.</div>';
-        $("payout").disabled = true;
         $("payout-note").textContent = "Set up payouts to enable withdrawals.";
+        blockWithdraw("Set up payouts first", "You need to connect a payout account before you can withdraw — it takes about two minutes. Tap <b>Set up payouts</b> above, and your money lands in your bank from there.");
         $("connect").addEventListener("click", startConnect);
       }
 
-      // A maturation/halt gate overrides: keep payout-method setup visible above,
-      // but the withdraw button stays disabled with the gate's explanation.
+      // A maturation/halt/launch gate overrides: keep payout-method setup visible
+      // above, but the withdraw button stays blocked with the gate's reason.
       if (gateBanner) {
         pm.innerHTML = gateBanner + pm.innerHTML;
         $("connect")?.addEventListener("click", startConnect);
         $("reconnect")?.addEventListener("click", (e) => { e.preventDefault(); startConnect(); });
-        $("payout").disabled = true;
         $("payout-note").textContent = gateNote;
+        blockWithdraw(gateNote, gateWhy);
       }
     }
 
@@ -340,6 +372,12 @@
     $("logout").addEventListener("click", () => { store.del("usrToken"); showLogin(); });
 
     $("payout").addEventListener("click", async () => {
+      // Blocked? Explain why instead of attempting a withdrawal.
+      if ($("payout").getAttribute("aria-disabled") === "true") {
+        track("withdraw_blocked_click");
+        openWhy();
+        return;
+      }
       const token = store.get("usrToken");
       track("withdraw_click");
       $("payout").disabled = true;

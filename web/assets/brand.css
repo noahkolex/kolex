@@ -65,6 +65,9 @@ img { max-width: 100%; }
 .nav .spacer { flex: 1; }
 .nav a.navlink { color: var(--muted); font-weight: 600; font-size: 14px; white-space: nowrap; }
 .nav a.navlink:hover, .nav a.navlink.on { color: var(--ink); }
+/* Looks disabled but stays interactive, so hover/click can explain why. */
+.btn.is-disabled { opacity: 0.5; box-shadow: none; cursor: help; }
+.btn.is-disabled:hover { transform: none; }
 .nav .cta-short { display: none; }
 .nav .nav-cta { white-space: nowrap; }
 
