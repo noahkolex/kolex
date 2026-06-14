@@ -163,9 +163,9 @@ section { padding: 52px 0; }
 .compare-tag { font: 700 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 .compare-tag.gold { color: var(--gold); }
 .mock {
-  background: #0a0d10; border: 1px solid var(--rule); border-radius: 14px; padding: 18px 16px;
-  display: flex; flex-direction: column; gap: 13px; min-height: 150px; justify-content: center;
-  overflow: hidden; font: 500 13.5px var(--mono); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  background: #0a0d10; border: 1px solid var(--rule); border-radius: 14px; padding: 22px 18px;
+  display: flex; flex-direction: column; gap: 13px; min-height: 84px; justify-content: center;
+  overflow: hidden; font: 500 14px var(--mono); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 .compare-col.win .mock { border-color: rgba(255, 197, 61, 0.4); box-shadow: 0 12px 38px rgba(255, 197, 61, 0.1); }
 .mock-line { color: #cdd6dd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
