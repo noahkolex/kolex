@@ -65,6 +65,14 @@ export const config = {
   // Global payout kill-switch — set KOLEX_PAYOUTS_HALTED=1 to pause all cash-outs
   // (balances are kept; turn it back off to resume).
   payoutsHalted: bool(process.env.KOLEX_PAYOUTS_HALTED, false),
+  // Pre-launch mode: the extension isn't on the Chrome Web Store yet. Drives the
+  // "we launch in a couple days" messaging and gates cash-outs site-wide. Turn
+  // off (KOLEX_PRELAUNCH=0) on launch day.
+  prelaunch: bool(process.env.KOLEX_PRELAUNCH, true),
+  // Early-access welcome bonus credited once when a NEW earner account signs up
+  // during pre-launch. It's LOCKED (shown separately, never withdrawable on its
+  // own) so mass-signup fraud can't cash it out. 0 disables it.
+  signupBonusUsd: process.env.KOLEX_SIGNUP_BONUS_USD === undefined ? 5 : Number(process.env.KOLEX_SIGNUP_BONUS_USD),
   // New accounts can't cash out until this many days after signup — a standard
   // holding period (also matches Stripe's ~2-day settlement and deters drive-by
   // fraud). 0 disables it.

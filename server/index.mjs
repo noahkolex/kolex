@@ -369,7 +369,7 @@ app.post("/api/stub/complete-checkout", (req, res) => {
 
 // Sign in or create an account (email + password). One endpoint: existing
 // email requires the correct password; a new email creates the account.
-app.post("/api/auth", loginLimiter, (req, res) => {
+app.post("/api/auth", loginLimiter, async (req, res) => {
   const email = String(req.body?.email ?? "").toLowerCase().trim();
   const password = String(req.body?.password ?? "");
   const kind = req.body?.kind === "advertiser" ? "advertiser" : "user";
@@ -384,8 +384,24 @@ app.post("/api/auth", loginLimiter, (req, res) => {
   } catch (e) {
     return res.status(e.status || 400).json({ error: e.error || "Authentication failed." });
   }
+  // Early-access promo: credit a one-time, LOCKED welcome bonus to brand-new
+  // earner accounts created before launch. Locked = shown but not withdrawable
+  // on its own, so mass-signup fraud gains nothing cashable.
+  let bonusUsd = 0;
+  if (result.created && kind === "user" && config.prelaunch && config.signupBonusUsd > 0) {
+    const db = load();
+    const acct = db.users.find((u) => u.id === result.account.id);
+    if (acct && !acct.bonusUsd) {
+      acct.bonusUsd = config.signupBonusUsd;
+      acct.bonusReason = "early-access";
+      acct.bonusGrantedAt = Date.now();
+      bonusUsd = config.signupBonusUsd;
+      await save();
+      capture("signup_bonus_granted", { distinctId: email, properties: { amountUsd: bonusUsd } });
+    }
+  }
   capture(result.created ? "account_created" : "signed_in", { distinctId: email, properties: { kind } });
-  res.json({ token: createSession(kind, result.account), email, kind, created: result.created });
+  res.json({ token: createSession(kind, result.account), email, kind, created: result.created, bonusUsd });
 });
 
 // Request a password reset. Always 200 (never reveals whether the email is
@@ -592,6 +608,11 @@ app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
     suspended: !!db.banned[req.session.id],
     payoutUnlocksAt: payoutUnlocksAt(me),
     matured: Date.now() >= payoutUnlocksAt(me),
+    // Early-access welcome bonus — shown separately, LOCKED until launch, and
+    // deliberately NOT part of pendingUsd (the withdrawable balance).
+    bonusUsd: me?.bonusUsd || 0,
+    bonusLocked: !!me?.bonusUsd, // released post-launch once real earning starts
+    prelaunch: config.prelaunch,
     payouts: db.payouts.filter((p) => p.userId === req.session.id),
   });
 });

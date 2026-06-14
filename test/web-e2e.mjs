@@ -11,6 +11,7 @@ process.env.STRIPE_MODE = "stub";
 process.env.SITE_BASE = ""; // infer from request
 process.env.KOLEX_MIN_PAYOUT_USD = "0.10";
 process.env.KOLEX_PAYOUT_MATURATION_DAYS = "0"; // drive the real cash-out UX without the holding period
+process.env.KOLEX_PRELAUNCH = "0"; // post-launch: cash-outs are open (the prelaunch gate is unit-tested separately)
 process.env.KOLEX_DB = path.join(os.tmpdir(), `kolex-web-${process.pid}-${Date.now()}.json`);
 
 const { app } = await import("../server/index.mjs");

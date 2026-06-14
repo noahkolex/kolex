@@ -147,3 +147,31 @@ test("submitting an ad requires the advertiser's correct password", async () => 
   assert.equal(wrong.status, 401, "wrong password can't submit under that email");
   assert.ok(wrong.body.errors?.[0] && /password/i.test(wrong.body.errors[0]));
 });
+
+test("pre-launch: a NEW earner account gets a one-time, locked $5 welcome bonus", async () => {
+  const r = await post("/api/auth", { email: "bonus@x.com", password: "bonuspass123", kind: "user" });
+  assert.equal(r.body.created, true);
+  assert.equal(r.body.bonusUsd, 5, "signup returns the granted bonus");
+  const auth = { authorization: `Bearer ${r.body.token}` };
+
+  const s = await get("/api/portal/summary", auth);
+  assert.equal(s.body.bonusUsd, 5);
+  assert.equal(s.body.bonusLocked, true);
+  assert.equal(s.body.prelaunch, true);
+  // Crucially, the bonus is NOT in the withdrawable balance (anti-fraud).
+  assert.equal(s.body.pendingUsd, 0, "bonus must not be withdrawable");
+});
+
+test("the welcome bonus is granted only once (no re-credit on later logins)", async () => {
+  const again = await post("/api/auth", { email: "bonus@x.com", password: "bonuspass123", kind: "user" });
+  assert.equal(again.body.created, false);
+  assert.equal(again.body.bonusUsd, 0, "logging back in grants nothing new");
+  const s = await get("/api/portal/summary", { authorization: `Bearer ${again.body.token}` });
+  assert.equal(s.body.bonusUsd, 5, "still just the original $5");
+});
+
+test("advertisers do NOT get the earner signup bonus", async () => {
+  const r = await post("/api/auth", { email: "adv-nobonus@x.com", password: "advpass12345", kind: "advertiser" });
+  assert.equal(r.body.created, true);
+  assert.equal(r.body.bonusUsd, 0);
+});

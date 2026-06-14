@@ -117,32 +117,45 @@
 
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/advertise">Advertise</a><a href="/portal">Cash out</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div></footer>
 
-  <!-- Waitlist modal (shown until the extension is live on the Chrome Web Store). -->
+  <!-- Early-access signup (shown until the extension is live on the Web Store).
+       Creates a real account and credits a locked $5 welcome bonus. -->
   <div class="modal" id="waitlist-modal" hidden>
-    <div class="modal-card" style="max-width:420px">
+    <div class="modal-card" style="max-width:430px">
       <button class="modal-x" id="waitlist-x" title="Close">×</button>
-      <h3 style="margin:0 0 6px">Get early access 🤑</h3>
-      <p class="muted" style="font-size:14px;margin:0 0 16px">Kolex is rolling out on the Chrome Web Store. Drop your email and we'll send your install link the moment it's live.</p>
-      <form id="waitlist-form">
-        <div class="field"><input type="email" id="waitlist-email" placeholder="you@email.com" required autocomplete="email"></div>
-        <button class="btn btn-primary btn-lg" type="submit" id="waitlist-submit" style="width:100%;margin-top:10px">Join the waitlist</button>
-        <p class="muted center" id="waitlist-msg" style="font-size:13px;margin:10px 0 0;min-height:18px"></p>
-      </form>
+      <div id="waitlist-form-wrap">
+        <span class="eyebrow">Early access</span>
+        <h3 style="margin:8px 0 6px;font-size:24px">Reserve your account, get <span style="color:var(--gold,#ffc53d)">$5 free</span> 🤑</h3>
+        <p class="muted" style="font-size:14px;margin:0 0 16px">We launch on the Chrome Web Store in a couple days. Make your account now and we'll drop <b>$5</b> in it, waiting for you the moment you start earning.</p>
+        <form id="waitlist-form">
+          <div class="field"><label>Email</label><input type="email" id="waitlist-email" placeholder="you@email.com" required autocomplete="email"></div>
+          <div class="field"><label>Password</label><input type="password" id="waitlist-password" placeholder="At least 8 characters" required autocomplete="new-password"></div>
+          <button class="btn btn-primary btn-lg" type="submit" id="waitlist-submit" style="width:100%;margin-top:4px;justify-content:center">Claim my $5 →</button>
+          <p class="muted center" id="waitlist-msg" style="font-size:13px;margin:10px 0 0;min-height:18px"></p>
+          <p class="center muted" style="font-size:12px;margin:10px 0 0">Already have an account? <a href="/portal">Log in</a></p>
+        </form>
+      </div>
+      <div id="waitlist-done" hidden style="text-align:center;padding:8px 0">
+        <div style="font-size:44px;line-height:1">🎉</div>
+        <h3 style="margin:10px 0 4px;font-size:22px">You're in! <span style="color:var(--gold,#ffc53d)" id="waitlist-bonus-amt">$5.00</span> is waiting.</h3>
+        <p class="muted" style="font-size:14px;margin:0 0 18px">Your account is reserved. We'll email you the install link the second we launch, and your bonus unlocks as soon as you start earning.</p>
+        <a class="btn btn-primary btn-lg" href="/portal" style="width:100%;justify-content:center">Go to my account →</a>
+      </div>
     </div>
   </div>
 
   <script type="module">
-    import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago, escapeHtml } from "/assets/app.js";
+    import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago, escapeHtml, store, track } from "/assets/app.js";
     mountNav("/");
 
-    // ── Waitlist (until the extension is live on the Chrome Web Store) ──
-    // Formspree waitlist endpoint. Swap for the real Chrome Web Store URL once
-    // the extension is published.
-    const FORMSPREE = "https://formspree.io/f/mgobdzoa";
+    // ── Early-access signup (until the extension is live on the Web Store) ──
+    // Creates a REAL earner account and the server credits a locked $5 bonus.
+    // One funnel: this and the nav "Log in" both lead to the same account.
     const wlModal = document.getElementById("waitlist-modal");
     const wlMsg = document.getElementById("waitlist-msg");
     const openWaitlist = (e) => {
       if (e) e.preventDefault();
+      // Already signed in? Skip the form, go straight to the account.
+      if (store.get("usrToken")) { location.href = "/portal"; return; }
       wlModal.hidden = false;
       wlMsg.textContent = "";
       setTimeout(() => document.getElementById("waitlist-email").focus(), 50);
@@ -155,26 +168,32 @@
     document.getElementById("waitlist-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const email = document.getElementById("waitlist-email").value.trim();
+      const password = document.getElementById("waitlist-password").value;
       const btn = document.getElementById("waitlist-submit");
-      if (!email) return;
-      btn.disabled = true;
       wlMsg.style.color = "";
-      wlMsg.textContent = "Adding you…";
+      if (!email) { wlMsg.style.color = "#ff8a8a"; wlMsg.textContent = "Enter your email."; return; }
+      if (password.length < 8) { wlMsg.style.color = "#ff8a8a"; wlMsg.textContent = "Pick a password of at least 8 characters."; return; }
+      btn.disabled = true;
+      wlMsg.textContent = "Reserving your account…";
       try {
-        const r = await fetch(FORMSPREE, {
-          method: "POST",
-          headers: { "content-type": "application/json", accept: "application/json" },
-          body: JSON.stringify({ email, source: "kolex.ai waitlist" }),
-        });
-        if (!r.ok) throw new Error("bad status");
-        wlMsg.style.color = "var(--green, #34d399)";
-        wlMsg.textContent = "You're on the list! We'll email your install link. 🎉";
-        if (isSoundOn()) chaching();
-        document.getElementById("waitlist-email").value = "";
-        setTimeout(closeWaitlist, 1800);
-      } catch {
+        const r = await api("/api/auth", { method: "POST", body: { email, password, kind: "user" } });
+        store.set("usrToken", r.token);
+        track("signup_promo", { created: r.created, bonusUsd: r.bonusUsd || 0 });
+        if (r.created) {
+          // New account: celebrate the (server-confirmed) bonus and offer the account.
+          if (r.bonusUsd > 0) document.getElementById("waitlist-bonus-amt").textContent = money(r.bonusUsd);
+          document.getElementById("waitlist-form-wrap").hidden = true;
+          document.getElementById("waitlist-done").hidden = false;
+          if (isSoundOn()) chaching();
+        } else {
+          // Existing account: just sign them in and send them through.
+          wlMsg.style.color = "var(--positive, #16E0A3)";
+          wlMsg.textContent = "Welcome back! Taking you to your account…";
+          setTimeout(() => (location.href = "/portal"), 700);
+        }
+      } catch (err) {
         wlMsg.style.color = "#ff8a8a";
-        wlMsg.textContent = "Hmm, that didn't go through. Try again in a sec.";
+        wlMsg.textContent = err?.message || "That didn't go through. Try again in a sec.";
       } finally {
         btn.disabled = false;
       }

@@ -37,6 +37,7 @@
       <div class="card center" style="margin-top:22px">
         <span class="eyebrow" style="justify-content:center">Available to withdraw</span>
         <div class="mono" id="pending" style="font-size:44px;font-weight:600;color:var(--positive);margin:8px 0">$0.00</div>
+        <div id="bonus-badge" class="hide" style="display:inline-flex;align-items:center;gap:8px;margin:0 0 10px;padding:7px 14px;border-radius:999px;background:rgba(255,197,61,.12);border:1px solid rgba(255,197,61,.4);color:#ffd089;font-size:13px;font-weight:600"></div>
         <div class="muted" id="min-hint" style="font-size:12px;margin:-2px 0 10px"></div>
         <div id="payout-method" style="margin:6px 0 12px;font-size:13px"></div>
         <button class="btn btn-primary btn-lg" id="payout" title="">Withdraw</button>
@@ -107,6 +108,14 @@
         $("dash").classList.remove("hide");
         $("who").textContent = data.email;
         $("pending").textContent = money(data.pendingUsd);
+        // Locked early-access welcome bonus (shown, but not withdrawable yet).
+        const badge = $("bonus-badge");
+        if (data.bonusUsd > 0) {
+          badge.innerHTML = `🎁 ${money(data.bonusUsd)} welcome bonus <span style="opacity:.8;font-weight:500">· unlocks when you start earning</span>`;
+          badge.classList.remove("hide");
+        } else {
+          badge.classList.add("hide");
+        }
         renderPayoutMethod(data);
         renderPayouts(data.payouts || []);
         if (linked) {
@@ -198,7 +207,15 @@
       // up their payout method (so they're ready the moment it lifts). Banner is
       // prepended to whatever the payout-method UI renders below.
       let gateBanner = "", gateNote = "";
-      if (!data.matured && data.payoutUnlocksAt) {
+      if (data.prelaunch) {
+        // Pre-launch: the extension isn't on the Web Store yet, so there's
+        // nothing to cash out. Set the warm "we're almost live" expectation.
+        const bonusLine = data.bonusUsd > 0
+          ? ` Your <b>${money(data.bonusUsd)}</b> welcome bonus is locked in and unlocks the moment you start earning.`
+          : "";
+        gateBanner = `<div class="success" style="text-align:left;padding:12px 14px;margin-bottom:10px"><b>🚀 We launch on the Chrome Web Store in a couple days.</b> Install the extension then to start earning, and cash-outs open right after.${bonusLine} We'll email you the second it's live.</div>`;
+        gateNote = "Cash-outs open at launch.";
+      } else if (!data.matured && data.payoutUnlocksAt) {
         // New accounts have a short holding period before they can cash out.
         const when = new Date(data.payoutUnlocksAt);
         const days = Math.max(1, Math.ceil((data.payoutUnlocksAt - Date.now()) / 86400000));

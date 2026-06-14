@@ -114,12 +114,15 @@ export function renderAdline(el, { brand, text, iconDataUrl, accent }) {
     '<span class="ar">↗</span>';
 }
 
-/** Header nav. "Cash out" for earners, "Launch an ad" for advertisers. */
+/** Header nav. The earner link adapts to login state: "Log in" when signed out
+ *  (so it never implies you already have money to cash out), "My account" once
+ *  signed in. "Launch an ad" for advertisers. */
 export function mountNav(active) {
   const el = document.querySelector("[data-nav]");
   if (!el) return;
+  const signedIn = !!store.get("usrToken");
   const links = [
-    ["/portal", "Cash out"],
+    ["/portal", signedIn ? "My account" : "Log in"],
     ["/advertiser", "Advertiser portal"],
   ];
   el.innerHTML =
