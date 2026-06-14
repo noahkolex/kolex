@@ -1,6 +1,7 @@
 // Transactional email. Pluggable provider — Resend over HTTP today (no extra
 // dependency), trivially swappable for SES/Postmark/SMTP. When no provider is
 // configured, sends fall back to a console log so dev/stub still works.
+import crypto from "node:crypto";
 import { config } from "./config.mjs";
 
 /** True when a real email provider is wired up (so resets actually deliver). */
@@ -12,8 +13,9 @@ export function emailConfigured() {
  * Send one email. Returns { delivered: true } when a provider actually accepted
  * it, { delivered: false } when it only fell back to logging. Throws if a
  * configured provider rejects the send (so the caller can log the failure).
+ * `headers` lets callers add e.g. List-Unsubscribe for bulk mail.
  */
-export async function sendEmail({ to, subject, html, text }) {
+export async function sendEmail({ to, subject, html, text, headers }) {
   if (config.email.provider === "resend" && config.email.resendApiKey) {
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
@@ -21,7 +23,7 @@ export async function sendEmail({ to, subject, html, text }) {
         authorization: `Bearer ${config.email.resendApiKey}`,
         "content-type": "application/json",
       },
-      body: JSON.stringify({ from: config.email.from, to: [to], subject, html, text }),
+      body: JSON.stringify({ from: config.email.from, to: [to], subject, html, text, ...(headers ? { headers } : {}) }),
     });
     if (!res.ok) {
       const body = await res.text().catch(() => "");
@@ -32,6 +34,15 @@ export async function sendEmail({ to, subject, html, text }) {
   // No provider configured — log so a developer can still grab the contents.
   console.log(`[kolex] (no email provider) → ${to}: ${subject}`);
   return { delivered: false };
+}
+
+// ── Unsubscribe links (stable per-email token, no DB lookup needed to verify) ──
+const UNSUB_SECRET = config.antiabuse.adminToken || "kolex-unsubscribe-secret";
+export function unsubToken(email) {
+  return crypto.createHmac("sha256", UNSUB_SECRET).update(String(email).toLowerCase().trim()).digest("hex").slice(0, 40);
+}
+export function unsubscribeUrl(base, email) {
+  return `${base.replace(/\/$/, "")}/unsubscribe?e=${encodeURIComponent(email)}&t=${unsubToken(email)}`;
 }
 
 /** Branded password-reset email (HTML + plain-text). */
@@ -96,4 +107,48 @@ This link expires in 7 days. If you didn't create a Kolex account, ignore this e
   </body>
 </html>`;
   return { subject: "Confirm your email for Kolex", html, text };
+}
+
+/** Launch announcement: Kolex is live on the Chrome Web Store. */
+export function launchEmail({ storeUrl, unsubUrl, bonusUsd = 5 }) {
+  const subject = "Kolex is live — get paid for your AI's loading screen 🤑";
+  const text = `Kolex is live on the Chrome Web Store.
+
+You signed up early — thank you. Kolex turns the "thinking…" spinner on ChatGPT,
+Claude, Gemini and Grok into one sponsored line, and you keep 50% of the ad money.
+
+Add it to Chrome (free):
+${storeUrl}
+
+The first users to start also get a $${bonusUsd.toFixed(0)} welcome bonus — it unlocks once you
+verify your email and rack up a few minutes of AI waiting. Grab it before it's gone.
+
+— The Kolex team
+
+Unsubscribe: ${unsubUrl}
+`;
+  const html = `<!doctype html>
+<html>
+  <body style="margin:0;background:#0a0e0c;font-family:-apple-system,Segoe UI,sans-serif;color:#eaf6ef">
+    <div style="max-width:480px;margin:0 auto;padding:32px 24px">
+      <div style="font-weight:800;font-size:20px;letter-spacing:-.03em;color:#16e0a3;margin-bottom:20px">kolex</div>
+      <h1 style="font-size:24px;font-weight:800;letter-spacing:-.02em;margin:0 0 12px">We're live 🎉</h1>
+      <p style="color:#8a9a91;font-size:15px;line-height:1.6;margin:0 0 18px">
+        You signed up early — thank you. Kolex is now on the Chrome Web Store. It turns the
+        "thinking…" spinner on ChatGPT, Claude, Gemini and Grok into one sponsored line, and
+        you keep <b style="color:#eaf6ef">50% of the ad money</b>, automatically.
+      </p>
+      <a href="${storeUrl}" style="display:inline-block;background:#16e0a3;color:#052016;font-weight:700;text-decoration:none;padding:13px 24px;border-radius:10px;font-size:15px">Add Kolex to Chrome — free</a>
+      <p style="color:#8a9a91;font-size:14px;line-height:1.6;margin:22px 0 0">
+        The first users to start also get a <b style="color:#ffc53d">$${bonusUsd.toFixed(0)} welcome bonus</b> — it unlocks
+        once you verify your email and rack up a few minutes of AI waiting. Grab it before it's gone.
+      </p>
+      <p style="color:#5e6e65;font-size:12px;line-height:1.6;margin:28px 0 0;border-top:1px solid #1a241e;padding-top:16px">
+        You're getting this because you signed up at kolex.ai.
+        <a href="${unsubUrl}" style="color:#5e6e65">Unsubscribe</a>.
+      </p>
+    </div>
+  </body>
+</html>`;
+  return { subject, html, text };
 }

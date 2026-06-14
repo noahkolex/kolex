@@ -24,7 +24,7 @@ import {
   changePassword,
   newId,
 } from "./auth.mjs";
-import { sendEmail, passwordResetEmail, verifyEmail, emailConfigured } from "./mailer.mjs";
+import { sendEmail, passwordResetEmail, verifyEmail, emailConfigured, unsubToken } from "./mailer.mjs";
 import { capture, publicAnalyticsConfig } from "./analytics.mjs";
 import {
   createCheckout,
@@ -224,6 +224,31 @@ app.get("/api/stripe-config", (_req, res) => res.json(stripeStatus()));
 // Public PostHog config so the website + extension can capture to the same
 // project. Null key → analytics disabled everywhere.
 app.get("/api/analytics-config", (_req, res) => res.json(publicAnalyticsConfig()));
+
+// One-click unsubscribe from product emails. Token is an HMAC of the email, so
+// the link verifies without a lookup. Supports GET (link) + POST (RFC 8058
+// one-click that Gmail/Apple fire from the List-Unsubscribe header).
+async function applyUnsubscribe(req) {
+  const email = String(req.query.e || "").toLowerCase().trim();
+  if (!email || String(req.query.t || "") !== unsubToken(email)) return false;
+  const db = load();
+  const u = db.users.find((x) => x.email === email);
+  if (u && !u.unsubscribed) { u.unsubscribed = true; await save(); }
+  return true;
+}
+app.post("/unsubscribe", async (req, res) => { await applyUnsubscribe(req); res.sendStatus(200); });
+app.get("/unsubscribe", async (req, res) => {
+  const ok = await applyUnsubscribe(req);
+  res.type("html").send(
+    `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
+      `<title>Unsubscribe · Kolex</title><link rel="stylesheet" href="/assets/brand.css"></head>` +
+      `<body><main class="wrap narrow" style="padding:80px 20px;text-align:center">` +
+      `<div class="card" style="max-width:420px;margin:0 auto;padding:40px 28px">` +
+      `<h1 style="font-size:22px;margin:0 0 8px">${ok ? "You're unsubscribed" : "Link invalid"}</h1>` +
+      `<p class="muted" style="margin:0">${ok ? "You won't get product emails from Kolex anymore. Changed your mind? Just log back in." : "This unsubscribe link looks invalid or expired."}</p>` +
+      `<a class="btn btn-ghost" href="/" style="margin-top:18px">Back to Kolex</a></div></main></body></html>`,
+  );
+});
 
 // Public promo status — drives the "X of 500 $5 spots left" counter on the site.
 app.get("/api/promo", (_req, res) => {
