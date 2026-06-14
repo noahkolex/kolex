@@ -15,6 +15,8 @@ process.env.STRIPE_MODE = "stub";
 process.env.KOLEX_MIN_PAYOUT_USD = "0.10";
 process.env.KOLEX_PAYOUT_MATURATION_DAYS = "0";
 process.env.KOLEX_PRELAUNCH = "0";
+process.env.KOLEX_DAILY_CAP_USD = "0"; // disable daily caps for earnings-math tests
+process.env.KOLEX_MAX_IMPRESSIONS_PER_DAY = "0";
 
 const db = await import("../server/db.mjs");
 const { app } = await import("../server/index.mjs");

@@ -19,6 +19,8 @@ process.env.KOLEX_BONUS_UNLOCK_MINUTES = "5"; // 5 min × 12 imp/min = 60 impres
 process.env.KOLEX_HOURLY_CAP_USD = "0";
 process.env.KOLEX_MAX_IMPRESSIONS_PER_MIN = "100000000";
 process.env.KOLEX_MAX_EVENTS_PER_BATCH = "100000";
+process.env.KOLEX_DAILY_CAP_USD = "0"; // disable daily caps for earnings-math tests
+process.env.KOLEX_MAX_IMPRESSIONS_PER_DAY = "0";
 process.env.KOLEX_DB = path.join(os.tmpdir(), `kolex-bonus-${process.pid}-${Date.now()}.json`);
 
 const { app } = await import("../server/index.mjs");

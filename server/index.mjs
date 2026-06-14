@@ -289,8 +289,17 @@ app.get("/api/activity", (_req, res) => {
     .filter((c) => c.status === "active")
     .map((c) => ({ type: "launch", brand: c.brand, bidPerBlock: c.bidPerBlock, at: c.payment?.paidAt || c.createdAt }))
     .sort(byNewest);
-  // People EARNING (watching ads), not just cashing out.
-  const earnEvents = (db.recentEarnings || [])
+  // People EARNING (watching ads), not just cashing out. Aggregate each device's
+  // recent earnings into ONE row so the feed shows a meaningful total instead of
+  // a stream of identical $0.01s.
+  const byDevice = new Map();
+  for (const e of db.recentEarnings || []) {
+    const cur = byDevice.get(e.deviceId) || { deviceId: e.deviceId, amountUsd: 0, at: 0 };
+    cur.amountUsd += e.amountUsd || 0;
+    cur.at = Math.max(cur.at, e.at || 0);
+    byDevice.set(e.deviceId, cur);
+  }
+  const earnEvents = [...byDevice.values()]
     .map((e) => ({
       type: "earn",
       amountUsd: e.amountUsd,

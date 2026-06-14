@@ -53,6 +53,11 @@ export const config = {
     disableClicks: bool(process.env.KOLEX_DISABLE_CLICKS, false),
     // Max a single device can earn per rolling hour (USD). 0 disables the cap.
     hourlyCapUsd: process.env.KOLEX_HOURLY_CAP_USD === undefined ? 5 : Number(process.env.KOLEX_HOURLY_CAP_USD),
+    // Max a single device can earn per rolling 24h (USD). 0 disables it.
+    dailyCapUsd: process.env.KOLEX_DAILY_CAP_USD === undefined ? 1 : Number(process.env.KOLEX_DAILY_CAP_USD),
+    // Max impressions credited to one device per rolling 24h (frequency cap, so a
+    // single user can't drain a campaign even at a tiny bid). 0 disables it.
+    maxImpressionsPerDay: process.env.KOLEX_MAX_IMPRESSIONS_PER_DAY === undefined ? 500 : Number(process.env.KOLEX_MAX_IMPRESSIONS_PER_DAY),
     // Physically a device can earn ~12 impressions/min (one per 5s); anything
     // well above that is fabricated. Over this/minute → drop + flag → auto-ban.
     maxImpressionsPerMin: Number(process.env.KOLEX_MAX_IMPRESSIONS_PER_MIN) || 20,

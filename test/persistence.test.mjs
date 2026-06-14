@@ -6,6 +6,11 @@ import os from "node:os";
 import path from "node:path";
 import fs from "node:fs";
 
+// Isolate from any local .env (which may point DATABASE_URL at Postgres) so the
+// file-backend tests below actually exercise the file backend.
+process.env.KOLEX_ENV_FILE = "/dev/null";
+delete process.env.DATABASE_URL;
+
 test("a mutation is durably written to disk (survives a restart)", async () => {
   const dbFile = path.join(os.tmpdir(), `kolex-persist-${process.pid}-${Date.now()}.json`);
   process.env.KOLEX_DB = dbFile;

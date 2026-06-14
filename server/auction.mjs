@@ -44,6 +44,20 @@ function allowSettle(db, deviceId, type, userShareUsd) {
       return false; // fabricated traffic — drop
     }
   }
+  const DAY = 86_400_000;
+  // Per-day impression frequency cap: one user can't rack up unlimited credited
+  // impressions (which also bill the advertiser), even at a tiny bid.
+  if (type === "impression" && ab.maxImpressionsPerDay > 0) {
+    if (a.dayImprStart === undefined || now - a.dayImprStart > DAY) { a.dayImprStart = now; a.dayImpr = 0; }
+    if (a.dayImpr >= ab.maxImpressionsPerDay) return false;
+    a.dayImpr += 1;
+  }
+  // Per-day earnings cap.
+  if (ab.dailyCapUsd > 0) {
+    if (a.dayStart === undefined || now - a.dayStart > DAY) { a.dayStart = now; a.dayUsd = 0; }
+    if (a.dayUsd >= ab.dailyCapUsd) return false; // hit the daily cap
+    a.dayUsd += userShareUsd;
+  }
   if (ab.hourlyCapUsd > 0) {
     if (now - a.hourStart > 3_600_000) { a.hourStart = now; a.hourUsd = 0; }
     if (a.hourUsd >= ab.hourlyCapUsd) return false; // hit the hourly cap

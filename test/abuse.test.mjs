@@ -14,6 +14,8 @@ process.env.KOLEX_DISABLE_CLICKS = "1";
 process.env.KOLEX_HOURLY_CAP_USD = "5";
 process.env.KOLEX_MAX_IMPRESSIONS_PER_MIN = "20";
 process.env.KOLEX_AUTOBAN_FLAGS = "2";
+process.env.KOLEX_DAILY_CAP_USD = "0"; // disable daily caps for earnings-math tests
+process.env.KOLEX_MAX_IMPRESSIONS_PER_DAY = "0";
 process.env.KOLEX_ADMIN_TOKEN = "secret-admin";
 process.env.KOLEX_DB = path.join(os.tmpdir(), `kolex-abuse-${process.pid}-${Date.now()}.json`);
 
