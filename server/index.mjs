@@ -225,6 +225,23 @@ app.get("/api/stripe-config", (_req, res) => res.json(stripeStatus()));
 // project. Null key → analytics disabled everywhere.
 app.get("/api/analytics-config", (_req, res) => res.json(publicAnalyticsConfig()));
 
+// Public promo status — drives the "X of 500 $5 spots left" counter on the site.
+app.get("/api/promo", (_req, res) => {
+  const claimed = bonusSpotsClaimed(load());
+  const total = config.signupBonusLimit;
+  const spotsLeft = Math.max(0, total - claimed);
+  res.json({
+    prelaunch: config.prelaunch,
+    bonusUsd: config.signupBonusUsd,
+    spotsTotal: total,
+    spotsClaimed: claimed,
+    spotsLeft,
+    waitlistCount: config.waitlistCount,
+    // The bonus is offered while pre-launch AND spots remain.
+    bonusAvailable: config.prelaunch && config.signupBonusUsd > 0 && spotsLeft > 0,
+  });
+});
+
 // Real activity + totals (no fabricated data). Empty on a fresh deployment.
 app.get("/api/activity", (_req, res) => {
   const db = load();
@@ -393,7 +410,9 @@ app.post("/api/auth", loginLimiter, async (req, res) => {
   if (result.created && kind === "user" && config.prelaunch && config.signupBonusUsd > 0) {
     const db = load();
     const acct = db.users.find((u) => u.id === result.account.id);
-    if (acct && !acct.bonusUsd) {
+    // First-come, first-served: only the first signupBonusLimit accounts to ever
+    // receive a bonus get one (bonusGrantedAt persists even after it's paid out).
+    if (acct && !acct.bonusUsd && bonusSpotsClaimed(db) < config.signupBonusLimit) {
       acct.bonusUsd = config.signupBonusUsd;
       acct.bonusReason = "early-access";
       acct.bonusGrantedAt = Date.now();
@@ -802,6 +821,12 @@ async function cachedAccountStatus(accountId) {
 // When (ms) an account's payouts unlock — signup + the maturation window.
 function payoutUnlocksAt(account) {
   return (account?.createdAt || 0) + config.payoutMaturationDays * 86_400_000;
+}
+
+// How many welcome bonuses have ever been handed out (granted, even if already
+// cashed out — bonusGrantedAt stays set). Drives the 500-spot cap + the counter.
+function bonusSpotsClaimed(db) {
+  return db.users.reduce((n, u) => n + (u.bonusGrantedAt ? 1 : 0), 0);
 }
 
 // Total impressions this user has accrued across their linked devices.

@@ -73,6 +73,14 @@ export const config = {
   // during pre-launch. It's LOCKED (shown separately, never withdrawable on its
   // own) so mass-signup fraud can't cash it out. 0 disables it.
   signupBonusUsd: process.env.KOLEX_SIGNUP_BONUS_USD === undefined ? 5 : Number(process.env.KOLEX_SIGNUP_BONUS_USD),
+  // Only the first N earner accounts get the welcome bonus. After that, signups
+  // still work — they just don't receive the $5.
+  signupBonusLimit:
+    process.env.KOLEX_SIGNUP_BONUS_LIMIT === undefined ? 500 : Number(process.env.KOLEX_SIGNUP_BONUS_LIMIT),
+  // Social-proof waitlist headcount shown on the site (we display it as "N+").
+  // Bump/replace with the real number at launch via KOLEX_WAITLIST_COUNT.
+  waitlistCount:
+    process.env.KOLEX_WAITLIST_COUNT === undefined ? 1000 : Number(process.env.KOLEX_WAITLIST_COUNT),
   // The welcome bonus only UNLOCKS (becomes withdrawable) after the earner has
   // both verified their email AND watched this many minutes of ads. Stops drive-
   // by signups from ever cashing the $5 without real engagement.

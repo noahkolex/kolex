@@ -16,7 +16,7 @@
       <div class="wrap center">
         <span class="eyebrow" style="justify-content:center">kolex&nbsp;·&nbsp;/kə&#39;lɛks/&nbsp;·&nbsp;see also: <i>collects</i></span>
         <h1>Your AI's loading screen<br />now <span class="pop">collects</span> checks.</h1>
-        <p class="sub" style="margin-left:auto;margin-right:auto">Say the name out loud and it tells you what it does: <i>collects</i>. Kolex turns the "thinking…" spinner on ChatGPT, Claude, Gemini, and Grok into one sponsored line, and you keep <b>50% of the ad money</b>, automatically.</p>
+        <p class="sub" style="margin-left:auto;margin-right:auto">Kolex turns the "thinking…" spinner on ChatGPT, Claude, Gemini, and Grok into one sponsored line, and you keep <b>50% of the ad money</b>, automatically.</p>
 
         <div class="ticker" id="ticker">
           <span class="label">📈 projected earnings / active user / month</span>
@@ -28,6 +28,7 @@
           <a class="btn btn-primary btn-lg has-tip" href="#" id="waitlist-cta" data-tip="Get on the waitlist. We're launching in a couple days!">Add to Chrome, free 🤑</a>
           <a class="btn btn-ghost btn-lg" href="/advertise">Advertise on Kolex</a>
         </div>
+        <p class="muted" id="social-proof" style="margin-top:14px;font-size:13.5px;min-height:18px"></p>
       </div>
     </section>
 
@@ -156,7 +157,8 @@
       <div id="waitlist-form-wrap">
         <span class="eyebrow">Early access</span>
         <h3 style="margin:8px 0 6px;font-size:24px">Reserve your account, get <span style="color:var(--gold,#ffc53d)">$5 free</span> 🤑</h3>
-        <p class="muted" style="font-size:14px;margin:0 0 16px">We launch on the Chrome Web Store in a couple days. Make your account now and we'll drop <b>$5</b> in it, waiting for you the moment you start earning.</p>
+        <p class="muted" style="font-size:14px;margin:0 0 6px">We launch on the Chrome Web Store in a couple days. Make your account now and we'll drop <b>$5</b> in it, waiting for you the moment you start earning.</p>
+        <p id="waitlist-spots" style="font-size:13px;margin:0 0 16px;color:var(--gold,#ffc53d)"></p>
         <form id="waitlist-form">
           <div class="field"><label>Email</label><input type="email" id="waitlist-email" placeholder="you@email.com" required autocomplete="email"></div>
           <div class="field"><label>Password</label><input type="password" id="waitlist-password" placeholder="At least 8 characters" required autocomplete="new-password"></div>
@@ -189,6 +191,27 @@
     // One funnel: this and the nav "Log in" both lead to the same account.
     const wlModal = document.getElementById("waitlist-modal");
     const wlMsg = document.getElementById("waitlist-msg");
+
+    // Social proof + live "$5 spots left" counter (env-backed, see /api/promo).
+    let promo = null;
+    (async () => {
+      try {
+        promo = await api("/api/promo");
+        const line = document.getElementById("social-proof");
+        const bits = [];
+        if (promo.waitlistCount > 0) bits.push(`🔥 <b>${num(promo.waitlistCount)}+</b> on the waitlist`);
+        if (promo.bonusAvailable) bits.push(`only <b>${num(promo.spotsLeft)}</b> of ${num(promo.spotsTotal)} free $${promo.bonusUsd} bonuses left`);
+        if (line && bits.length) line.innerHTML = bits.join(" · ");
+        // Reflect the live spot count in the modal subheading.
+        const sub = document.getElementById("waitlist-spots");
+        if (sub) {
+          sub.innerHTML = promo.bonusAvailable
+            ? `Only <b>${num(promo.spotsLeft)}</b> of ${num(promo.spotsTotal)} free $${promo.bonusUsd} bonuses left — claim yours.`
+            : `Join <b>${num(promo.waitlistCount)}+</b> on the waitlist.`;
+        }
+      } catch {}
+    })();
+
     const openWaitlist = (e) => {
       if (e) e.preventDefault();
       // Already signed in? Skip the form, go straight to the account.
