@@ -81,9 +81,37 @@ export async function track(event, properties = {}) {
 /** Tie the anonymous id to a known person (e.g. after login). */
 export async function identify(email) {
   if (email) await track("$identify", { $set: { email } });
+  // Also identify the replay session so recordings attach to the person.
+  if (email && window.posthog && window.posthog.identify) {
+    try { window.posthog.identify(email, { email }); } catch {}
+  }
 }
 // Auto pageview on every page load.
 track("$pageview");
+
+// Load the full posthog-js SDK so SESSION REPLAY works (the capture above only
+// sends discrete events — it cannot record sessions). Events keep flowing through
+// the lightweight path; this adds rrweb session recording, keyed to the same
+// anonymous id so replays line up with events. Requires POSTHOG_KEY to be set
+// AND "Session Replay" enabled in the PostHog project settings.
+(async function loadSessionReplay() {
+  const cfg = await phCfg();
+  if (!cfg || !cfg.key) return; // analytics off → nothing to load
+  if (window.posthog && window.posthog.__SV) return; // already loaded
+  // Official PostHog web snippet (defines window.posthog, async-loads array.js).
+  !(function (t, e) { var o, n, p, r; e.__SV || ((window.posthog = e), (e._i = []), (e.init = function (i, s, a) { function g(t, e) { var o = e.split("."); 2 == o.length && ((t = t[o[0]]), (e = o[1])), (t[e] = function () { t.push([e].concat(Array.prototype.slice.call(arguments, 0))); }); } ((p = t.createElement("script")).type = "text/javascript"), (p.crossOrigin = "anonymous"), (p.async = !0), (p.src = s.api_host.replace(".i.posthog.com", "-assets.i.posthog.com") + "/static/array.js"), (r = t.getElementsByTagName("script")[0]).parentNode.insertBefore(p, r); var u = e; for (void 0 !== a ? (u = e[a] = []) : (a = "posthog"), u.people = u.people || [], u.toString = function (t) { var e = "posthog"; return "posthog" !== a && (e += "." + a), t || (e += " (stub)"), e; }, u.people.toString = function () { return u.toString(1) + ".people (stub)"; }, o = "init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagPayload isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "), n = 0; n < o.length; n++) g(u, o[n]); e._i.push([i, s, a]); }), (e.__SV = 1)); })(document, window.posthog || []);
+  try {
+    window.posthog.init(cfg.key, {
+      api_host: cfg.host,
+      bootstrap: { distinctID: anonId() }, // same id as the event capture above
+      autocapture: false, // events come from the lightweight capture; avoid dupes
+      capture_pageview: false,
+      capture_pageleave: true,
+      disable_session_recording: false, // ← session replay on
+      person_profiles: "identified_only",
+    });
+  } catch { /* never break the page over analytics */ }
+})();
 
 export function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
