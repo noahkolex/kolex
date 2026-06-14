@@ -187,19 +187,28 @@ section { padding: 52px 0; }
 .compare-col.win .mock { border-color: rgba(255, 197, 61, 0.4); box-shadow: 0 12px 38px rgba(255, 197, 61, 0.1); }
 .mock-line { color: #cdd6dd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mock-line.muted { color: var(--muted2); }
-.mock .spark { color: var(--gold); }
 .mock .adline { max-width: 100%; align-self: flex-start; }
 .mock .adline .cp { min-width: 0; }
-/* Three always-present dots that pulse via opacity — constant width, no jiggle. */
-.mock .dots span { opacity: 0.25; animation: blink-dot 1.4s infinite; }
-.mock .dots span:nth-child(2) { animation-delay: 0.2s; }
-.mock .dots span:nth-child(3) { animation-delay: 0.4s; }
-@keyframes blink-dot { 0%, 55%, 100% { opacity: 0.25; } 28% { opacity: 1; } }
+/* Claude-style loader: a pulsing sparkle + a shimmer sweeping across the word.
+   The "…" is a single static glyph, so the line never changes width. */
+.mock .spark { color: var(--gold); display: inline-block; animation: spark-pulse 1.4s ease-in-out infinite; }
+@keyframes spark-pulse { 0%, 100% { opacity: 0.5; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1.1); } }
+.shimmer {
+  background: linear-gradient(90deg, #6a7a71 35%, #f3f7f5 50%, #6a7a71 65%);
+  background-size: 220% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: shimmer 1.9s linear infinite;
+}
+@keyframes shimmer { 0% { background-position: 120% 0; } 100% { background-position: -120% 0; } }
 .compare-cap { font-size: 13px; text-align: center; }
 
 /* Stacked before/after (Stock above, Kolex below) for the hero demo column. */
 .mock-stack { display: flex; flex-direction: column; gap: 8px; }
-.mock-arrow { text-align: center; color: var(--muted2); font-size: 15px; line-height: 1; margin: 1px 0; }
+.mock-arrow { width: 100%; text-align: center; color: var(--muted2); font-size: 16px; line-height: 1; margin: 2px 0; }
+
+/* The earnings ticker is the money hook — make it pop in the hero column. */
+.hero-demo .ticker { border-color: rgba(22, 224, 163, 0.5); box-shadow: 0 0 64px rgba(22, 224, 163, 0.2), inset 0 0 44px rgba(22, 224, 163, 0.06); }
+.hero-demo .ticker .label:first-child { color: var(--green); opacity: 0.95; font-size: 12px; letter-spacing: 1.4px; }
+.hero-demo .ticker .amount { font-size: clamp(42px, 6vw, 56px); }
 
 /* ── Earnings-rate cards ── */
 .rate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
