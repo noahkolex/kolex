@@ -337,6 +337,13 @@ async function pgInit() {
     db = migrated;
     baseline = structuredClone(EMPTY); // write the whole document into the new tables
     await pgWrite();
+    await flush(); // make the import durable before we report it
+    const s = stats();
+    console.log(
+      `[kolex] ✓ migrated legacy document → normalized tables: ${s.advertisers} advertisers, ` +
+        `${s.campaigns} campaigns, ${s.users} users, ${s.earners} earning devices, ${s.payouts} payouts. ` +
+        `(kolex_state kept as a backup.)`,
+    );
     return;
   }
   db = await hydrate();
