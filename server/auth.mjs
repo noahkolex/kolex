@@ -56,6 +56,7 @@ export function authenticate(kind, email, password) {
     email,
     passwordHash: hashPassword(password),
     createdAt: Date.now(),
+    emailVerified: false,
   };
   list.push(account);
   save();
@@ -150,6 +151,50 @@ export function consumePasswordReset(rawToken, newPassword) {
   account.passwordHash = hashPassword(newPassword);
   delete db.passwordResets[h];
   dropSessionsFor(record.kind, record.accountId);
+  save();
+  return { account, kind: record.kind };
+}
+
+// ── Email verification (token-based, mirrors password reset) ──
+const VERIFY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+/** Begin email verification for an account. Returns the RAW token (deliver out
+ *  of band) or null if the account doesn't exist / is already verified. */
+export function createEmailVerification(kind, email) {
+  const account = findAccount(kind, email);
+  if (!account) return null;
+  if (account.emailVerified) return { token: null, account, alreadyVerified: true };
+  const db = load();
+  const raw = token();
+  // One outstanding verification per account.
+  for (const [h, r] of Object.entries(db.emailVerifications)) {
+    if (r.kind === kind && r.accountId === account.id) delete db.emailVerifications[h];
+  }
+  db.emailVerifications[sha256(raw)] = { kind, accountId: account.id, email: account.email, createdAt: Date.now() };
+  save();
+  return { token: raw, account };
+}
+
+/** Finish verification with the token from the link. Idempotent-ish: a consumed
+ *  token is gone, but an already-verified account is reported, not errored. */
+export function consumeEmailVerification(rawToken) {
+  const db = load();
+  const h = sha256(rawToken);
+  const record = db.emailVerifications[h];
+  if (!record) throw { status: 400, error: "This verification link is invalid or has already been used." };
+  if (Date.now() - record.createdAt > VERIFY_TTL_MS) {
+    delete db.emailVerifications[h];
+    save();
+    throw { status: 400, error: "This verification link has expired. Request a new one from your account." };
+  }
+  const account = accountById(record.kind, record.accountId);
+  if (!account) {
+    delete db.emailVerifications[h];
+    save();
+    throw { status: 400, error: "Account no longer exists." };
+  }
+  account.emailVerified = true;
+  delete db.emailVerifications[h];
   save();
   return { account, kind: record.kind };
 }

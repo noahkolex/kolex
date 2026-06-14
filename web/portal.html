@@ -38,7 +38,7 @@
       <div class="card center" style="margin-top:22px">
         <span class="eyebrow" style="justify-content:center">Available to withdraw</span>
         <div class="mono" id="pending" style="font-size:44px;font-weight:600;color:var(--positive);margin:8px 0">$0.00</div>
-        <div id="bonus-badge" class="hide" style="display:inline-flex;align-items:center;gap:8px;margin:0 0 10px;padding:7px 14px;border-radius:999px;background:rgba(255,197,61,.12);border:1px solid rgba(255,197,61,.4);color:#ffd089;font-size:13px;font-weight:600"></div>
+        <div id="bonus-box" class="hide" style="text-align:left;margin:4px 0 12px;padding:12px 14px;border-radius:12px;background:rgba(255,197,61,.1);border:1px solid rgba(255,197,61,.35);font-size:13px"></div>
         <div class="muted" id="min-hint" style="font-size:12px;margin:-2px 0 10px"></div>
         <div id="payout-method" style="margin:6px 0 12px;font-size:13px"></div>
         <button class="btn btn-primary btn-lg" id="payout" title="">Withdraw</button>
@@ -112,15 +112,10 @@
         $("login").classList.add("hide");
         $("dash").classList.remove("hide");
         $("who").textContent = data.email;
-        $("pending").textContent = money(data.pendingUsd);
-        // Locked early-access welcome bonus (shown, but not withdrawable yet).
-        const badge = $("bonus-badge");
-        if (data.bonusUsd > 0) {
-          badge.innerHTML = `🎁 ${money(data.bonusUsd)} welcome bonus <span style="opacity:.8;font-weight:500">· unlocks when you start earning</span>`;
-          badge.classList.remove("hide");
-        } else {
-          badge.classList.add("hide");
-        }
+        // Big number = what a withdrawal would actually send (device earnings +
+        // the welcome bonus once it's unlocked).
+        $("pending").textContent = money(data.withdrawableUsd ?? data.pendingUsd);
+        renderBonus(data);
         renderPayoutMethod(data);
         renderPayouts(data.payouts || []);
         if (linked) {
@@ -157,6 +152,39 @@
 
     function showLogin() { $("dash").classList.add("hide"); $("login").classList.remove("hide"); }
 
+    // The welcome bonus and its two unlock gates: verify email + watch 15 min.
+    function renderBonus(data) {
+      const box = $("bonus-box");
+      if (!(data.bonusUsd > 0)) { box.classList.add("hide"); return; }
+      box.classList.remove("hide");
+      if (data.bonusUnlocked) {
+        box.innerHTML = `<b style="color:#ffd089">🎉 Your ${money(data.bonusUsd)} welcome bonus is unlocked</b> — it's included in the balance above, ready to withdraw.`;
+        return;
+      }
+      const r = data.bonusRequirements || { emailVerified: data.emailVerified, minutesWatched: 0, minutesRequired: 15 };
+      const watched = Math.min(r.minutesRequired, Math.floor(r.minutesWatched || 0));
+      const emailRow = r.emailVerified
+        ? `<div style="margin-top:6px">✅ Email verified</div>`
+        : `<div style="margin-top:6px">⬜ Verify your email · <a href="#" id="resend-verify">Resend link</a> <span id="resend-msg" class="muted" style="font-size:12px"></span></div>`;
+      const watchRow = r.watchedEnough
+        ? `<div style="margin-top:4px">✅ Watched ${r.minutesRequired} minutes of ads</div>`
+        : `<div style="margin-top:4px">⬜ Watch ${r.minutesRequired} min of ads <span class="muted">(${watched}/${r.minutesRequired} min so far)</span></div>`;
+      box.innerHTML =
+        `<b style="color:#ffd089">🎁 ${money(data.bonusUsd)} welcome bonus — 2 steps to unlock it</b>${emailRow}${watchRow}`;
+      $("resend-verify")?.addEventListener("click", async (e) => {
+        e.preventDefault();
+        const msg = $("resend-msg");
+        msg.textContent = "Sending…";
+        try {
+          const res = await api("/api/auth/resend-verification", { method: "POST", token: store.get("usrToken") });
+          msg.textContent = res.alreadyVerified ? "Already verified — refresh." : "Sent! Check your inbox.";
+          if (res.verifyUrl) msg.innerHTML = `Test mode: <a href="${escapeHtml(res.verifyUrl)}">open verify link →</a>`;
+        } catch (err) {
+          msg.textContent = err.message || "Couldn't send, try again.";
+        }
+      });
+    }
+
     function renderPayouts(payouts) {
       const has = payouts.length > 0;
       $("payouts-empty").classList.toggle("hide", has);
@@ -189,8 +217,10 @@
     function renderPayoutMethod(data) {
       const pm = $("payout-method");
       const min = data.minPayoutUsd;
-      const enough = data.pendingUsd >= min;
-      const remaining = Math.max(0, min - data.pendingUsd);
+      // Withdrawable = device earnings + the bonus once it's unlocked.
+      const balance = data.withdrawableUsd ?? data.pendingUsd;
+      const enough = balance >= min;
+      const remaining = Math.max(0, min - balance);
 
       // Always make the minimum crystal clear: a persistent line + a hover
       // tooltip on the Withdraw button.
@@ -198,8 +228,8 @@
         ? `Minimum cash out: ${money(min)}, you're over it ✓`
         : `Minimum cash out: ${money(min)} · ${money(remaining)} to go`;
       $("payout").title = enough
-        ? `Cash out ${money(data.pendingUsd)}`
-        : `You need ${money(min)} to cash out. You have ${money(data.pendingUsd)}`;
+        ? `Cash out ${money(balance)}`
+        : `You need ${money(min)} to cash out. You have ${money(balance)}`;
 
       const po = data.payout || { hasAccount: !!data.payoutMethod, ready: data.payoutsReady, requirements: [] };
       if (data.suspended) {
@@ -234,8 +264,8 @@
       if (po.ready) {
         pm.innerHTML = '<span style="color:var(--positive)">✓ Payouts enabled</span> · <a href="#" id="reconnect">Manage</a>';
         $("payout").disabled = !enough;
-        $("payout-note").textContent = data.pendingUsd > 0 && !enough
-          ? `Minimum payout is ${money(data.minPayoutUsd)}. You have ${money(data.pendingUsd)}.`
+        $("payout-note").textContent = balance > 0 && !enough
+          ? `Minimum payout is ${money(data.minPayoutUsd)}. You have ${money(balance)}.`
           : "Payouts are sent to your connected Stripe account.";
         $("reconnect")?.addEventListener("click", (e) => { e.preventDefault(); startConnect(); });
       } else if (po.hasAccount) {

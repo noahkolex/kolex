@@ -73,6 +73,11 @@ export const config = {
   // during pre-launch. It's LOCKED (shown separately, never withdrawable on its
   // own) so mass-signup fraud can't cash it out. 0 disables it.
   signupBonusUsd: process.env.KOLEX_SIGNUP_BONUS_USD === undefined ? 5 : Number(process.env.KOLEX_SIGNUP_BONUS_USD),
+  // The welcome bonus only UNLOCKS (becomes withdrawable) after the earner has
+  // both verified their email AND watched this many minutes of ads. Stops drive-
+  // by signups from ever cashing the $5 without real engagement.
+  bonusUnlockMinutes:
+    process.env.KOLEX_BONUS_UNLOCK_MINUTES === undefined ? 15 : Number(process.env.KOLEX_BONUS_UNLOCK_MINUTES),
   // New accounts can't cash out until this many days after signup — a standard
   // holding period (also matches Stripe's ~2-day settlement and deters drive-by
   // fraud). 0 disables it.

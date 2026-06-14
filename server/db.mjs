@@ -32,6 +32,7 @@ const EMPTY = {
   earnings: {}, // deviceId -> { impressions, clicks, pendingUsd, paidUsd }
   sessions: {}, // token -> { kind: 'user'|'advertiser', id, email }
   passwordResets: {}, // sha256(token) -> { kind, accountId, email, createdAt }
+  emailVerifications: {}, // sha256(token) -> { kind, accountId, email, createdAt }
   seenEvents: {}, // eventId -> true (idempotency)
   processedWebhooks: {}, // stripe event id -> true (idempotency)
   payouts: [], // { id, userId, amountUsd, status, stripeId, createdAt }

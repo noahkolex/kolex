@@ -10,7 +10,7 @@ import {
   liveCampaigns,
   banId,
 } from "./auction.mjs";
-import { IMPRESSIONS_PER_BLOCK, MIN_BID_PER_BLOCK, fmtUsd } from "./economics.mjs";
+import { IMPRESSIONS_PER_BLOCK, IMPRESSIONS_PER_MIN, MIN_BID_PER_BLOCK, fmtUsd } from "./economics.mjs";
 import {
   authenticate,
   validatePassword,
@@ -19,10 +19,12 @@ import {
   requireKind,
   createPasswordReset,
   consumePasswordReset,
+  createEmailVerification,
+  consumeEmailVerification,
   changePassword,
   newId,
 } from "./auth.mjs";
-import { sendEmail, passwordResetEmail } from "./mailer.mjs";
+import { sendEmail, passwordResetEmail, verifyEmail } from "./mailer.mjs";
 import { capture, publicAnalyticsConfig } from "./analytics.mjs";
 import {
   createCheckout,
@@ -400,8 +402,14 @@ app.post("/api/auth", loginLimiter, async (req, res) => {
       capture("signup_bonus_granted", { distinctId: email, properties: { amountUsd: bonusUsd } });
     }
   }
+  // Send an email-verification link to brand-new earner accounts (verifying is
+  // one of the two gates that unlock the welcome bonus).
+  let verifySent = false, verifyUrl;
+  if (result.created && kind === "user") {
+    ({ delivered: verifySent, devUrl: verifyUrl } = await sendVerificationEmail(req, kind, email, bonusUsd));
+  }
   capture(result.created ? "account_created" : "signed_in", { distinctId: email, properties: { kind } });
-  res.json({ token: createSession(kind, result.account), email, kind, created: result.created, bonusUsd });
+  res.json({ token: createSession(kind, result.account), email, kind, created: result.created, bonusUsd, verifySent, verifyUrl });
 });
 
 // Request a password reset. Always 200 (never reveals whether the email is
@@ -448,6 +456,46 @@ app.post("/api/auth/reset", loginLimiter, (req, res) => {
   // Auto-login with a fresh session so the user lands signed in.
   const token = createSession(out.kind, out.account);
   res.json({ token, email: out.account.email, kind: out.kind });
+});
+
+// Send (or re-send) an email-verification link. Returns { delivered, devUrl }
+// where devUrl is only populated in non-prod when no provider delivered it.
+async function sendVerificationEmail(req, kind, email, bonusUsd = 0) {
+  const v = createEmailVerification(kind, email);
+  if (!v || v.alreadyVerified || !v.token) return { delivered: false };
+  const verifyUrl = `${publicBase(req)}/verify?token=${v.token}&kind=${kind}`;
+  let delivered = false;
+  try {
+    const msg = verifyEmail(verifyUrl, bonusUsd);
+    ({ delivered } = await sendEmail({ to: email, ...msg }));
+  } catch (err) {
+    console.error(`[kolex] verification email failed for ${email}: ${err.message}`);
+  }
+  if (!delivered) console.log(`[kolex] email verification for ${email} (${kind}): ${verifyUrl}`);
+  return { delivered, devUrl: !delivered && !config.isProd ? verifyUrl : undefined };
+}
+
+// Confirm an email with the token from the link.
+app.post("/api/auth/verify", loginLimiter, (req, res) => {
+  const tokenStr = String(req.body?.token ?? "");
+  if (!tokenStr) return res.status(400).json({ error: "Missing verification token." });
+  let out;
+  try {
+    out = consumeEmailVerification(tokenStr);
+  } catch (e) {
+    return res.status(e.status || 400).json({ error: e.error || "Verification failed." });
+  }
+  capture("email_verified", { distinctId: out.account.email, properties: { kind: out.kind } });
+  res.json({ ok: true, email: out.account.email, kind: out.kind });
+});
+
+// Re-send the verification link to the signed-in earner.
+app.post("/api/auth/resend-verification", loginLimiter, requireKind("user"), async (req, res) => {
+  const me = load().users.find((u) => u.id === req.session.id);
+  if (!me) return res.status(404).json({ error: "account not found" });
+  if (me.emailVerified) return res.json({ ok: true, alreadyVerified: true });
+  const { delivered, devUrl } = await sendVerificationEmail(req, "user", me.email, me.bonusUsd || 0);
+  res.json({ ok: true, delivered, verifyUrl: devUrl });
 });
 
 // Change password while signed in (advertiser or earner). Verifies the current
@@ -593,6 +641,7 @@ app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
       paidUsd += e.paidUsd;
     }
   }
+  const bonus = bonusStatus(db, me);
   res.json({
     email: req.session.email,
     devices: devices.map((d) => d.deviceId),
@@ -608,10 +657,20 @@ app.get("/api/portal/summary", requireKind("user"), async (req, res) => {
     suspended: !!db.banned[req.session.id],
     payoutUnlocksAt: payoutUnlocksAt(me),
     matured: Date.now() >= payoutUnlocksAt(me),
-    // Early-access welcome bonus — shown separately, LOCKED until launch, and
-    // deliberately NOT part of pendingUsd (the withdrawable balance).
-    bonusUsd: me?.bonusUsd || 0,
-    bonusLocked: !!me?.bonusUsd, // released post-launch once real earning starts
+    emailVerified: !!me?.emailVerified,
+    // Early-access welcome bonus. It is NOT part of pendingUsd; it only folds
+    // into the withdrawable balance once unlocked (email verified + 15 min
+    // watched). bonusRequirements drives the progress UI.
+    bonusUsd: bonus.bonusUsd,
+    bonusUnlocked: bonus.unlocked,
+    bonusLocked: bonus.bonusUsd > 0 && !bonus.unlocked,
+    bonusRequirements: {
+      emailVerified: bonus.emailVerified,
+      minutesWatched: bonus.minutesWatched,
+      minutesRequired: bonus.minutesRequired,
+      watchedEnough: bonus.watchedEnough,
+    },
+    withdrawableUsd: pendingUsd + (bonus.unlocked ? bonus.bonusUsd : 0),
     prelaunch: config.prelaunch,
     payouts: db.payouts.filter((p) => p.userId === req.session.id),
   });
@@ -738,6 +797,32 @@ function payoutUnlocksAt(account) {
   return (account?.createdAt || 0) + config.payoutMaturationDays * 86_400_000;
 }
 
+// Total impressions this user has accrued across their linked devices.
+function userImpressions(db, userId) {
+  return db.devices
+    .filter((d) => d.userId === userId)
+    .reduce((sum, d) => sum + (db.earnings[d.deviceId]?.impressions || 0), 0);
+}
+
+// The welcome bonus only UNLOCKS once the earner has (a) verified their email
+// and (b) watched the required minutes of ads. Returns the full status so the
+// UI can show progress and the payout gate can decide.
+function bonusStatus(db, user) {
+  const bonusUsd = user?.bonusUsd || 0;
+  const minutesRequired = config.bonusUnlockMinutes;
+  const minutesWatched = user ? userImpressions(db, user.id) / IMPRESSIONS_PER_MIN : 0;
+  const emailVerified = !!user?.emailVerified;
+  const watchedEnough = minutesWatched >= minutesRequired;
+  return {
+    bonusUsd,
+    emailVerified,
+    minutesWatched,
+    minutesRequired,
+    watchedEnough,
+    unlocked: bonusUsd > 0 && emailVerified && watchedEnough,
+  };
+}
+
 // Per-user lock so concurrent payout requests can't double-spend the balance
 // across the `await` to Stripe.
 const payoutsInFlight = new Set();
@@ -775,8 +860,12 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
   const snapshot = devices
     .map((d) => ({ deviceId: d.deviceId, amt: db.earnings[d.deviceId]?.pendingUsd ?? 0 }))
     .filter((s) => s.amt > 0);
-  const total = snapshot.reduce((s, x) => s + x.amt, 0);
+  const deviceTotal = snapshot.reduce((s, x) => s + x.amt, 0);
   const me = db.users.find((u) => u.id === userId);
+  // Fold in the welcome bonus only if it's unlocked (email verified + 15 min).
+  const bonus = bonusStatus(db, me);
+  const bonusPart = bonus.unlocked ? bonus.bonusUsd : 0;
+  const total = deviceTotal + bonusPart;
   try {
     if (!me?.payoutsReady) {
       return res.status(400).json({
@@ -791,6 +880,7 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
     }
     // Deduct FIRST (before the await) so a concurrent request sees zero.
     for (const s of snapshot) db.earnings[s.deviceId].pendingUsd = 0;
+    if (bonusPart > 0) { me.bonusUsd = 0; me.bonusPaidAt = Date.now(); } // bonus is one-time
     await save(); // durably record the deduction BEFORE moving any money
 
     let result;
@@ -803,6 +893,7 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
     } catch (err) {
       // Restore the balance — the money never moved.
       for (const s of snapshot) db.earnings[s.deviceId].pendingUsd += s.amt;
+      if (bonusPart > 0) { me.bonusUsd = bonus.bonusUsd; delete me.bonusPaidAt; }
       await save();
       let msg = err.message;
       if (err.code === "balance_insufficient" || /insufficient (available )?funds/i.test(err.message || "")) {
@@ -823,6 +914,7 @@ app.post("/api/portal/payout", requireKind("user"), async (req, res) => {
       id: newId("pay"),
       userId,
       amountUsd: total,
+      bonusUsd: bonusPart, // portion that was the unlocked welcome bonus
       status: result.status,
       stripeId: result.id,
       createdAt: Date.now(),
@@ -938,6 +1030,7 @@ const PAGES = {
   "/advertiser": "advertiser.html",
   "/portal": "portal.html",
   "/reset": "reset.html",
+  "/verify": "verify.html",
   "/mock-checkout": "mock-checkout.html",
   "/mock-connect": "mock-connect.html",
   "/terms": "terms.html",

@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Confirm your email · Kolex</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+</head>
+<body>
+  <header class="nav" data-nav></header>
+
+  <main class="wrap narrow" style="padding-top:40px;padding-bottom:60px">
+    <div style="max-width:440px;margin:30px auto;text-align:center">
+      <span class="eyebrow" style="justify-content:center">Email verification</span>
+
+      <!-- Working -->
+      <div id="working">
+        <h1 style="font-size:26px;font-weight:600;letter-spacing:-.02em;margin:12px 0 6px">Confirming your email…</h1>
+        <p class="muted" style="margin-top:0">One moment.</p>
+      </div>
+
+      <!-- Success -->
+      <div id="ok" class="hide">
+        <div style="font-size:48px;line-height:1;margin-bottom:6px">✅</div>
+        <h1 style="font-size:26px;font-weight:600;letter-spacing:-.02em;margin:12px 0 6px">Email confirmed!</h1>
+        <p class="muted" style="margin-top:0">That's one of the two steps to unlock your <b>$5</b>. The other: watch 15 minutes of ads once we launch.</p>
+        <a class="btn btn-primary btn-lg" href="/portal" style="margin-top:16px">Go to my account →</a>
+      </div>
+
+      <!-- Failure -->
+      <div id="bad" class="hide">
+        <div style="font-size:48px;line-height:1;margin-bottom:6px">⚠️</div>
+        <h1 style="font-size:26px;font-weight:600;letter-spacing:-.02em;margin:12px 0 6px">Couldn't confirm this link.</h1>
+        <p class="muted" id="bad-msg" style="margin-top:0"></p>
+        <a class="btn btn-ghost btn-lg" href="/portal" style="margin-top:16px">Resend it from my account →</a>
+      </div>
+    </div>
+  </main>
+
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/privacy">Privacy</a></div></footer>
+
+  <script type="module">
+    import { api, mountNav, qp } from "/assets/app.js";
+    mountNav();
+
+    const $ = (id) => document.getElementById(id);
+    const token = qp("token");
+
+    async function run() {
+      if (!token) { return fail("This link is missing its verification token."); }
+      try {
+        await api("/api/auth/verify", { method: "POST", body: { token } });
+        $("working").classList.add("hide");
+        $("ok").classList.remove("hide");
+      } catch (e) {
+        fail(e.message);
+      }
+    }
+    function fail(msg) {
+      $("working").classList.add("hide");
+      $("bad-msg").textContent = msg || "This link is invalid or has expired.";
+      $("bad").classList.remove("hide");
+    }
+    run();
+  </script>
+</body>
+</html>
