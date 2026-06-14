@@ -31,6 +31,37 @@
       </div>
     </section>
 
+    <!-- Before / after: what Kolex actually does to the spinner -->
+    <section class="compare">
+      <div class="wrap">
+        <div class="section-head center" style="margin-bottom:22px">
+          <span class="eyebrow" style="justify-content:center">What Kolex actually does</span>
+          <h2>We turned “Discombobulating…” into an ad marketplace.</h2>
+          <p>Every AI parks you on a spinner. Kolex swaps that one line for a sponsored message, and pays you <b>50% of what the advertiser bid</b>. Same wait. Now it earns.</p>
+        </div>
+        <div class="compare-grid">
+          <div class="compare-col">
+            <div class="compare-tag">Stock AI</div>
+            <div class="mock">
+              <div class="mock-line muted">✓ Read main.rs · 0.4s</div>
+              <div class="mock-line"><span class="spark">✶</span> Simmering<span class="dots"></span></div>
+              <div class="mock-line muted">Grep · 2.8s</div>
+            </div>
+            <div class="compare-cap muted">You wait. Nothing comes back.</div>
+          </div>
+          <div class="compare-col win">
+            <div class="compare-tag gold">With Kolex 🤑</div>
+            <div class="mock">
+              <div class="mock-line muted">✓ Read main.rs · 0.4s</div>
+              <div class="adline" id="compare-adline"></div>
+              <div class="mock-line muted">Write · 1.5s</div>
+            </div>
+            <div class="compare-cap"><b style="color:var(--gold,#ffc53d)">+$0.04</b> lands in your balance — every spin.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <section style="padding-top:8px">
       <div class="wrap" style="max-width:680px">
         <div class="section-head center" style="margin-bottom:16px">
@@ -144,8 +175,14 @@
   </div>
 
   <script type="module">
-    import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago, escapeHtml, store, track } from "/assets/app.js";
+    import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago, escapeHtml, store, track, renderAdline } from "/assets/app.js";
     mountNav("/");
+
+    // The "With Kolex" side of the before/after uses the REAL sponsored-line
+    // component, so the demo matches exactly what runs in the extension.
+    renderAdline(document.getElementById("compare-adline"), {
+      brand: "Ramp", text: "save time and money", accent: "#FFD54A",
+    });
 
     // ── Early-access signup (until the extension is live on the Web Store) ──
     // Creates a REAL earner account and the server credits a locked $5 bonus.
