@@ -467,6 +467,20 @@ test("ADV: completed campaign (impressions exhausted) stops serving; click must 
   assert.equal(c2.spendUsd, before, `BUG: click billed after budget exhausted (was ${before}, now ${c2.spendUsd})`);
 });
 
+test("ADV: with no live campaign in the leaderboard, impressions earn nothing", async () => {
+  // No campaigns at all → an impression credits $0 and bills nobody.
+  const r1 = await events([{ id: "ghost-imp", type: "impression", adId: "cmp_nonexistent" }], "dev-ghost");
+  assert.equal(r1.body.accepted, 0, "nothing settled with no matching campaign");
+  assert.equal((await balance("dev-ghost")).body.pendingUsd, 0);
+
+  // A campaign that's been exhausted (out of the leaderboard) also earns nothing.
+  const { campaignId } = await makeActiveCampaign({ bidPerBlock: 1000, blocks: 1 });
+  await events(Array.from({ length: 1000 }, (_, i) => ({ id: `x-${i}`, type: "impression", adId: campaignId })), "dev-x");
+  const beforeBal = (await balance("dev-y")).body.pendingUsd;
+  await events([{ id: "after-imp", type: "impression", adId: campaignId }], "dev-y");
+  assert.equal((await balance("dev-y")).body.pendingUsd, beforeBal, "no earning against an exhausted campaign");
+});
+
 test("ADV: total advertiser spend never exceeds paid budget (overspend probe)", async () => {
   const blocks = 2;
   const bid = 1000;

@@ -135,6 +135,7 @@ function budgetOf(campaign) {
  */
 function canBill(campaign, cost) {
   if (campaign.status !== "active") return false;
+  if (campaign.impressionsRemaining <= 0) return false; // no inventory → not in the live board → no earning
   return campaign.spendUsd + cost <= budgetOf(campaign) + 1e-9;
 }
 
