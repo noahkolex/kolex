@@ -25,7 +25,11 @@
       "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -y -ss 4 -t 20 -i one-night-gamble.mp3 -i sfx/slot-wheel.mp3 -i sfx/coin-win.mp3 -i sfx/coins-clink.mp3 -i sfx/coins-clink.mp3 -i sfx/score-counter.mp3 -i sfx/gold-coin.mp3 -i sfx/money-bag.mp3 -i sfx/coins-handling.mp3 -filter_complex ' *)",
       "Bash(cp mix-gamble-subtle.mp3 /Users/insanity/kolex/promo-video/audio/kolex-music.mp3)",
       "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -y -i sfx/score-counter.mp3 -i sfx/coins-clink.mp3 -i sfx/coin-win.mp3 -i sfx/coins-clink.mp3 -i sfx/money-bag.mp3 -i sfx/coins-handling.mp3 -f lavfi -t 10 -i anullsrc=r=44100:cl=stereo -filter_complex ' *)",
-      "Bash(cp sfx-10s.mp3 /Users/insanity/kolex/promo-video/audio/)"
+      "Bash(cp sfx-10s.mp3 /Users/insanity/kolex/promo-video/audio/)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -i x-ads/kolex-waitlist-9x16-raw.mp4 -t 10 -c copy x-ads/kolex-waitlist-9x16.mp4 -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-10s.mp4 -frames:v 1 x-ads/still-waitlist.png -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-9x16.mp4 -frames:v 1 x-ads/still-waitlist-9x16.png -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-9x16.mp4 -frames:v 1 -vf scale=-1:960 /tmp/kolex-check/url-check.png -y)"
     ]
   }
 }

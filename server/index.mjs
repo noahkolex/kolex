@@ -227,15 +227,9 @@ app.get("/api/analytics-config", (_req, res) => res.json(publicAnalyticsConfig()
 
 // Public promo status — drives the "X of 500 $5 spots left" counter on the site.
 app.get("/api/promo", (_req, res) => {
-  const realClaimed = bonusSpotsClaimed(load());
-  const total = config.signupBonusLimit;
-  const realLeft = Math.max(0, total - realClaimed);
-  // Display count: either the real remaining, or a scarcity number that ticks
-  // down from signupBonusShownLeft as real accounts claim.
-  let spotsLeft = config.signupBonusShownLeft == null
-    ? realLeft
-    : Math.max(0, config.signupBonusShownLeft - realClaimed);
-  if (realLeft > 0 && spotsLeft === 0) spotsLeft = 1; // never show 0 while still granting
+  const db = load();
+  const spotsLeft = bonusSpotsLeft(db); // single source of truth: shown == granted
+  const total = config.signupBonusLimit; // the pool size shown for framing ("X of 500")
   res.json({
     prelaunch: config.prelaunch,
     bonusUsd: config.signupBonusUsd,
@@ -243,9 +237,9 @@ app.get("/api/promo", (_req, res) => {
     spotsClaimed: total - spotsLeft,
     spotsLeft,
     waitlistCount: config.waitlistCount,
-    // The bonus is offered while pre-launch AND real spots remain (not the
-    // display number) — granting is governed by the true cap.
-    bonusAvailable: config.prelaunch && config.signupBonusUsd > 0 && realLeft > 0,
+    // Offered while pre-launch AND spots remain. When spotsLeft hits 0, this
+    // goes false and the grant gate above stops handing out the $5.
+    bonusAvailable: config.prelaunch && config.signupBonusUsd > 0 && spotsLeft > 0,
   });
 });
 
@@ -417,9 +411,9 @@ app.post("/api/auth", loginLimiter, async (req, res) => {
   if (result.created && kind === "user" && config.prelaunch && config.signupBonusUsd > 0) {
     const db = load();
     const acct = db.users.find((u) => u.id === result.account.id);
-    // First-come, first-served: only the first signupBonusLimit accounts to ever
-    // receive a bonus get one (bonusGrantedAt persists even after it's paid out).
-    if (acct && !acct.bonusUsd && bonusSpotsClaimed(db) < config.signupBonusLimit) {
+    // First-come, first-served: grant only while spots remain. Once the shown
+    // "spots left" hits 0, no more bonuses (bonusGrantedAt persists after payout).
+    if (acct && !acct.bonusUsd && bonusSpotsLeft(db) > 0) {
       acct.bonusUsd = config.signupBonusUsd;
       acct.bonusReason = "early-access";
       acct.bonusGrantedAt = Date.now();
@@ -832,9 +826,21 @@ function payoutUnlocksAt(account) {
 }
 
 // How many welcome bonuses have ever been handed out (granted, even if already
-// cashed out — bonusGrantedAt stays set). Drives the 500-spot cap + the counter.
+// cashed out — bonusGrantedAt stays set). Drives the spot cap + the counter.
 function bonusSpotsClaimed(db) {
   return db.users.reduce((n, u) => n + (u.bonusGrantedAt ? 1 : 0), 0);
+}
+
+// The real number of bonuses we'll grant. When a scarcity number is shown, that
+// number IS the cap — so when the displayed "spots left" hits 0, granting stops.
+function bonusGrantCap() {
+  const shown = config.signupBonusShownLeft;
+  return shown == null ? config.signupBonusLimit : Math.min(config.signupBonusLimit, shown);
+}
+
+// Spots actually still available (the number shown on the site and the gate).
+function bonusSpotsLeft(db) {
+  return Math.max(0, bonusGrantCap() - bonusSpotsClaimed(db));
 }
 
 // Total impressions this user has accrued across their linked devices.

@@ -25,8 +25,14 @@ pre-launch.
 
 | Asset | Length | Use |
 |---|---|---|
-| `kolex-waitlist-10s.mp4` | 10s | Primary waitlist conversion ad. Ends on a giant gold "$5 / just for joining the waitlist". |
-| `still-waitlist.png` | image | The $5 CTA card. Strong standalone image ad and link-preview. |
+| `kolex-waitlist-10s.mp4` | 10s | Primary waitlist conversion ad (16:9). Ends on a giant gold "$5 / just for joining the waitlist". |
+| `kolex-waitlist-9x16.mp4` | 10s | **Vertical 1080x1920** cut for Instagram Reels / TikTok / Stories / YouTube Shorts. Same flow, stacked layout. |
+| `still-waitlist.png` | image | The $5 CTA card (16:9). Strong standalone image ad and link-preview. |
+| `still-waitlist-9x16.png` | image | The $5 CTA card, vertical 1080x1920. |
+
+Vertical safe areas: the $5, button, and url sit in the centered safe zone. The bottom
+"EARLY ACCESS..." strip and corner "$" marks may sit under TikTok/Reels UI; they're
+decorative, the CTA is not affected.
 
 Link: **kolex.ai/waitlist**. Offer line everywhere: "Get $5 just for joining the waitlist."
 

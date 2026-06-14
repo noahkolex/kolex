@@ -157,8 +157,8 @@
       </div>
       <div id="waitlist-done" hidden style="text-align:center;padding:8px 0">
         <div style="font-size:44px;line-height:1">🎉</div>
-        <h3 style="margin:10px 0 4px;font-size:22px">You're in! <span style="color:var(--gold,#ffc53d)" id="waitlist-bonus-amt">$5.00</span> is waiting.</h3>
-        <p class="muted" style="font-size:14px;margin:0 0 14px">Check your inbox and <b>confirm your email</b> — step one to unlock your $5. Then add the extension at launch and clock 5 minutes of AI loading time (the waiting you'd do anyway). We'll email your install link.</p>
+        <h3 id="waitlist-done-h" style="margin:10px 0 4px;font-size:22px">You're in! <span style="color:var(--gold,#ffc53d)" id="waitlist-bonus-amt">$5.00</span> is waiting.</h3>
+        <p class="muted" id="waitlist-done-p" style="font-size:14px;margin:0 0 14px">Check your inbox and <b>confirm your email</b> — step one to unlock your $5. Then add the extension at launch and clock 5 minutes of AI loading time (the waiting you'd do anyway). We'll email your install link.</p>
         <a class="btn btn-primary btn-lg" href="/portal" style="width:100%;justify-content:center">Go to my account →</a>
       </div>
     </div>
@@ -229,7 +229,13 @@
         track("signup_promo", { created: r.created, bonusUsd: r.bonusUsd || 0 });
         if (r.created) {
           // New account: celebrate the (server-confirmed) bonus and offer the account.
-          if (r.bonusUsd > 0) document.getElementById("waitlist-bonus-amt").textContent = money(r.bonusUsd);
+          if (r.bonusUsd > 0) {
+            document.getElementById("waitlist-bonus-amt").textContent = money(r.bonusUsd);
+          } else {
+            // Spots are gone — reserve the account without promising the $5.
+            document.getElementById("waitlist-done-h").textContent = "You're in! Your spot is reserved.";
+            document.getElementById("waitlist-done-p").innerHTML = "Check your inbox and <b>confirm your email</b>. We'll email your install link the moment we launch.";
+          }
           document.getElementById("waitlist-form-wrap").hidden = true;
           document.getElementById("waitlist-done").hidden = false;
           if (isSoundOn()) chaching();
