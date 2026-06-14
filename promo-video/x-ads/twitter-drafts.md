@@ -17,6 +17,49 @@ money numbers always specific ($13.07, not "money").
 Note: both videos currently carry the SFX-only mix (coin dings, no music) since
 the music bed is still being decided. Most X viewers watch muted anyway.
 
+## Waitlist campaign ($5 signup bonus)
+
+Same proof + mechanism, but the CTA leads with the $5 bonus and links to the
+waitlist instead of the Chrome store. Use this set while the extension is
+pre-launch.
+
+| Asset | Length | Use |
+|---|---|---|
+| `kolex-waitlist-10s.mp4` | 10s | Primary waitlist conversion ad. Ends on a giant gold "$5 / just for joining the waitlist". |
+| `still-waitlist.png` | image | The $5 CTA card. Strong standalone image ad and link-preview. |
+
+Link: **kolex.ai/waitlist**. Offer line everywhere: "Get $5 just for joining the waitlist."
+
+### W1. The bribe (pair: kolex-waitlist-10s.mp4)
+> We'll literally pay you $5 to join a waitlist.
+>
+> Because once Kolex is live, your AI's loading screen starts printing money,
+> and we want you first in line.
+>
+> kolex.ai/waitlist
+
+### W2. Proof + bonus (pair: still-waitlist.png)
+> Soon: get paid every time your AI says "Thinking..."
+>
+> Today: get $5 just for joining the waitlist.
+>
+> Early spots are limited. kolex.ai/waitlist
+
+### W3. Plain offer (pair: kolex-waitlist-10s.mp4)
+> $5. For signing up. That's the whole ask.
+>
+> Join the Kolex waitlist and we'll drop $5 in your account, plus early access
+> to getting paid for AI wait time.
+>
+> kolex.ai/waitlist
+
+### W4. FOMO (pair: still-waitlist.png)
+> The waitlist pays $5. The product pays you every time you wait on ChatGPT.
+>
+> Both are free. Only the first batch gets in early.
+>
+> kolex.ai/waitlist
+
 ## Drafts
 
 ### 1. Proof flex (pair: kolex-x-10s.mp4)
