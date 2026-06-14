@@ -77,6 +77,14 @@ export const config = {
   // still work — they just don't receive the $5.
   signupBonusLimit:
     process.env.KOLEX_SIGNUP_BONUS_LIMIT === undefined ? 500 : Number(process.env.KOLEX_SIGNUP_BONUS_LIMIT),
+  // Scarcity: the "spots left" number SHOWN on the site (decreases as real
+  // accounts claim). Display-only — the real signupBonusLimit still governs who
+  // actually gets the $5. Set to "off"/0 to just show the real remaining count.
+  signupBonusShownLeft: (() => {
+    const v = process.env.KOLEX_SIGNUP_BONUS_SHOWN_LEFT;
+    if (v === undefined) return 49;
+    return /^(off|false|0)$/i.test(v.trim()) ? null : Number(v);
+  })(),
   // Social-proof waitlist headcount shown on the site (we display it as "N+").
   // Bump/replace with the real number at launch via KOLEX_WAITLIST_COUNT.
   waitlistCount:

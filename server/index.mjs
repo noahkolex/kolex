@@ -227,18 +227,25 @@ app.get("/api/analytics-config", (_req, res) => res.json(publicAnalyticsConfig()
 
 // Public promo status — drives the "X of 500 $5 spots left" counter on the site.
 app.get("/api/promo", (_req, res) => {
-  const claimed = bonusSpotsClaimed(load());
+  const realClaimed = bonusSpotsClaimed(load());
   const total = config.signupBonusLimit;
-  const spotsLeft = Math.max(0, total - claimed);
+  const realLeft = Math.max(0, total - realClaimed);
+  // Display count: either the real remaining, or a scarcity number that ticks
+  // down from signupBonusShownLeft as real accounts claim.
+  let spotsLeft = config.signupBonusShownLeft == null
+    ? realLeft
+    : Math.max(0, config.signupBonusShownLeft - realClaimed);
+  if (realLeft > 0 && spotsLeft === 0) spotsLeft = 1; // never show 0 while still granting
   res.json({
     prelaunch: config.prelaunch,
     bonusUsd: config.signupBonusUsd,
     spotsTotal: total,
-    spotsClaimed: claimed,
+    spotsClaimed: total - spotsLeft,
     spotsLeft,
     waitlistCount: config.waitlistCount,
-    // The bonus is offered while pre-launch AND spots remain.
-    bonusAvailable: config.prelaunch && config.signupBonusUsd > 0 && spotsLeft > 0,
+    // The bonus is offered while pre-launch AND real spots remain (not the
+    // display number) — granting is governed by the true cap.
+    bonusAvailable: config.prelaunch && config.signupBonusUsd > 0 && realLeft > 0,
   });
 });
 

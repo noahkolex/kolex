@@ -177,8 +177,9 @@ section { padding: 52px 0; }
 .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; max-width: 760px; margin: 0 auto; }
 @media (max-width: 640px) { .compare-grid { grid-template-columns: 1fr; } }
 .compare-col { display: flex; flex-direction: column; gap: 10px; }
-.compare-tag { font: 700 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
+.compare-tag { display: inline-flex; align-items: center; gap: 6px; font: 700 11px var(--mono); letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 .compare-tag.gold { color: var(--gold); }
+.compare-tag .brand-ico { width: 14px; height: 14px; color: #e7e9ee; flex: none; }
 .mock {
   background: #0a0d10; border: 1px solid var(--rule); border-radius: 14px; padding: 22px 18px;
   display: flex; flex-direction: column; gap: 13px; min-height: 84px; justify-content: center;
@@ -203,7 +204,7 @@ section { padding: 52px 0; }
 
 /* Stacked before/after (Stock above, Kolex below) for the hero demo column. */
 .mock-stack { display: flex; flex-direction: column; gap: 8px; }
-.mock-arrow { width: 100%; text-align: center; color: var(--muted2); font-size: 16px; line-height: 1; margin: 2px 0; }
+.mock-arrow { display: flex; justify-content: center; align-items: center; color: var(--muted2); margin: 3px 0; }
 
 /* The earnings ticker is the money hook — make it pop in the hero column. */
 .hero-demo .ticker { border-color: rgba(22, 224, 163, 0.5); box-shadow: 0 0 64px rgba(22, 224, 163, 0.2), inset 0 0 44px rgba(22, 224, 163, 0.06); }

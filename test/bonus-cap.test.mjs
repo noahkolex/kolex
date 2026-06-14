@@ -10,6 +10,7 @@ import fs from "node:fs";
 process.env.KOLEX_ENV_FILE = "/dev/null";
 process.env.STRIPE_MODE = "stub";
 process.env.KOLEX_SIGNUP_BONUS_LIMIT = "2"; // tiny cap to exercise the limit
+process.env.KOLEX_SIGNUP_BONUS_SHOWN_LEFT = "off"; // test the real counts, not the scarcity display
 process.env.KOLEX_WAITLIST_COUNT = "1000";
 process.env.KOLEX_DB = path.join(os.tmpdir(), `kolex-cap-${process.pid}-${Date.now()}.json`);
 
