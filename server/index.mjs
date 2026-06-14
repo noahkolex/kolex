@@ -24,7 +24,7 @@ import {
   changePassword,
   newId,
 } from "./auth.mjs";
-import { sendEmail, passwordResetEmail, verifyEmail } from "./mailer.mjs";
+import { sendEmail, passwordResetEmail, verifyEmail, emailConfigured } from "./mailer.mjs";
 import { capture, publicAnalyticsConfig } from "./analytics.mjs";
 import {
   createCheckout,
@@ -433,11 +433,11 @@ app.post("/api/auth/forgot", loginLimiter, async (req, res) => {
   } catch (err) {
     console.error(`[kolex] reset email failed for ${email}: ${err.message}`);
   }
-  if (!delivered) console.log(`[kolex] password reset for ${email} (${kind}): ${resetUrl}`);
+  if (!delivered && !emailConfigured()) console.log(`[kolex] (no email provider) password reset for ${email} (${kind}): ${resetUrl}`);
 
-  // Only surface the link in the response when it was NOT emailed and we're not
-  // in production — i.e. local/stub testing without an email provider.
-  res.json(!delivered && !config.isProd ? { ...generic, resetUrl } : generic);
+  // Surface the link only when there's no email provider configured (dev
+  // convenience). With a provider wired up we never leak it, even on failure.
+  res.json(!delivered && !emailConfigured() ? { ...generic, resetUrl } : generic);
 });
 
 // Complete a password reset with the token from the link. Logs the user in.
@@ -458,21 +458,28 @@ app.post("/api/auth/reset", loginLimiter, (req, res) => {
   res.json({ token, email: out.account.email, kind: out.kind });
 });
 
-// Send (or re-send) an email-verification link. Returns { delivered, devUrl }
-// where devUrl is only populated in non-prod when no provider delivered it.
+// Send (or re-send) an email-verification link. Returns { delivered, devUrl,
+// error }. The devUrl fallback is shown ONLY when no email provider is wired up
+// (a real dev convenience). If a provider IS configured but the send fails, we
+// surface the error instead of leaking a link — that's a misconfig to fix, not
+// a "test mode".
 async function sendVerificationEmail(req, kind, email, bonusUsd = 0) {
   const v = createEmailVerification(kind, email);
   if (!v || v.alreadyVerified || !v.token) return { delivered: false };
   const verifyUrl = `${publicBase(req)}/verify?token=${v.token}&kind=${kind}`;
-  let delivered = false;
+  let delivered = false, error;
   try {
     const msg = verifyEmail(verifyUrl, bonusUsd);
     ({ delivered } = await sendEmail({ to: email, ...msg }));
   } catch (err) {
-    console.error(`[kolex] verification email failed for ${email}: ${err.message}`);
+    error = err.message;
+    console.error(`[kolex] verification email FAILED for ${email}: ${err.message}`);
   }
-  if (!delivered) console.log(`[kolex] email verification for ${email} (${kind}): ${verifyUrl}`);
-  return { delivered, devUrl: !delivered && !config.isProd ? verifyUrl : undefined };
+  if (!delivered && !emailConfigured()) {
+    console.log(`[kolex] (no email provider) email verification for ${email} (${kind}): ${verifyUrl}`);
+  }
+  // Link only when there's genuinely no provider; otherwise report the failure.
+  return { delivered, devUrl: !delivered && !emailConfigured() ? verifyUrl : undefined, error };
 }
 
 // Confirm an email with the token from the link.
@@ -494,8 +501,8 @@ app.post("/api/auth/resend-verification", loginLimiter, requireKind("user"), asy
   const me = load().users.find((u) => u.id === req.session.id);
   if (!me) return res.status(404).json({ error: "account not found" });
   if (me.emailVerified) return res.json({ ok: true, alreadyVerified: true });
-  const { delivered, devUrl } = await sendVerificationEmail(req, "user", me.email, me.bonusUsd || 0);
-  res.json({ ok: true, delivered, verifyUrl: devUrl });
+  const { delivered, devUrl, error } = await sendVerificationEmail(req, "user", me.email, me.bonusUsd || 0);
+  res.json({ ok: true, delivered, verifyUrl: devUrl, emailConfigured: emailConfigured(), error });
 });
 
 // Change password while signed in (advertiser or earner). Verifies the current
@@ -1124,6 +1131,17 @@ if (process.argv[1] && import.meta.url === `file://${process.argv[1]}`) {
       console.log(
         `        ${s.advertisers} advertisers, ${s.campaigns} campaigns, ${s.users} users, ${s.earners} earning devices, ${s.payouts} payouts`,
       );
+      // Email + env diagnostics so misconfig (the #1 "why test mode" cause) is
+      // visible at a glance rather than buried in a failed send.
+      console.log(
+        `  email: ${emailConfigured() ? `${config.email.provider} as "${config.email.from}"` : "NOT configured (links logged, shown as 'test mode')"}` +
+          `  ·  NODE_ENV=${process.env.NODE_ENV || "(unset)"}${config.isProd ? "" : " ⚠️ not 'production'"}`,
+      );
+      if (emailConfigured() && /onboarding@resend\.dev/.test(config.email.from)) {
+        console.log(
+          "  ⚠️  KOLEX_EMAIL_FROM is the Resend sandbox sender (onboarding@resend.dev): it can ONLY email your own Resend account address. Verify a domain and set KOLEX_EMAIL_FROM to send to real users.",
+        );
+      }
     });
   })().catch((err) => {
     console.error("kolex: failed to start:", err.message);
