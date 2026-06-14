@@ -190,9 +190,16 @@ section { padding: 52px 0; }
 .mock .spark { color: var(--gold); }
 .mock .adline { max-width: 100%; align-self: flex-start; }
 .mock .adline .cp { min-width: 0; }
-.mock .dots::after { content: "·"; animation: dots 1.4s steps(1) infinite; }
-@keyframes dots { 0% { content: "·"; } 33% { content: "··"; } 66% { content: "···"; } }
+/* Three always-present dots that pulse via opacity — constant width, no jiggle. */
+.mock .dots span { opacity: 0.25; animation: blink-dot 1.4s infinite; }
+.mock .dots span:nth-child(2) { animation-delay: 0.2s; }
+.mock .dots span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes blink-dot { 0%, 55%, 100% { opacity: 0.25; } 28% { opacity: 1; } }
 .compare-cap { font-size: 13px; text-align: center; }
+
+/* Stacked before/after (Stock above, Kolex below) for the hero demo column. */
+.mock-stack { display: flex; flex-direction: column; gap: 8px; }
+.mock-arrow { text-align: center; color: var(--muted2); font-size: 15px; line-height: 1; margin: 1px 0; }
 
 /* ── Earnings-rate cards ── */
 .rate-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 14px; }
