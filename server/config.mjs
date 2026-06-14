@@ -88,7 +88,7 @@ export const config = {
   // Social-proof waitlist headcount shown on the site (we display it as "N+").
   // Bump/replace with the real number at launch via KOLEX_WAITLIST_COUNT.
   waitlistCount:
-    process.env.KOLEX_WAITLIST_COUNT === undefined ? 1000 : Number(process.env.KOLEX_WAITLIST_COUNT),
+    process.env.KOLEX_WAITLIST_COUNT === undefined ? 100 : Number(process.env.KOLEX_WAITLIST_COUNT),
   // The welcome bonus only UNLOCKS (becomes withdrawable) after the earner has
   // verified their email, installed the extension, AND accumulated this many
   // minutes of AI waiting time. Stops drive-by signups from cashing the $5
