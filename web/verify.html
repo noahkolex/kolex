@@ -44,7 +44,7 @@
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/privacy">Privacy</a></div></footer>
 
   <script type="module">
-    import { api, mountNav, qp } from "/assets/app.js";
+    import { api, mountNav, qp, pixel } from "/assets/app.js";
     mountNav();
 
     const $ = (id) => document.getElementById(id);
@@ -54,6 +54,7 @@
       if (!token) { return fail("This link is missing its verification token."); }
       try {
         await api("/api/auth/verify", { method: "POST", body: { token } });
+        pixel("EmailVerified", { content_name: "email_verified" }, true);
         $("working").classList.add("hide");
         $("ok").classList.remove("hide");
       } catch (e) {

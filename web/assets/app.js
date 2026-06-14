@@ -86,6 +86,17 @@ export async function identify(email) {
     try { window.posthog.identify(email, { email }); } catch {}
   }
 }
+
+/**
+ * Fire a Meta (Facebook) Pixel event. No-op when the pixel isn't loaded (e.g.
+ * localhost / no key). Use a standard event name (Lead, CompleteRegistration,
+ * InitiateCheckout, Purchase, …) or pass custom=true for a custom event. Also
+ * mirrors to PostHog so both funnels see the same conversions.
+ */
+export function pixel(event, params = {}, custom = false) {
+  try { if (window.fbq) window.fbq(custom ? "trackCustom" : "track", event, params); } catch {}
+  track(`fb:${event}`, params); // mirror into PostHog for cross-checking
+}
 // Auto pageview on every page load.
 track("$pageview");
 

@@ -86,7 +86,7 @@
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, store, qp, chaching, coinBurst, ding, animateCount, escapeHtml, track } from "/assets/app.js";
+    import { api, money, num, mountNav, store, qp, chaching, coinBurst, ding, animateCount, escapeHtml, track, pixel } from "/assets/app.js";
     mountNav("/portal");
 
     const $ = (id) => document.getElementById(id);
@@ -315,6 +315,7 @@
 
     async function startConnect() {
       track("payout_setup_click");
+      pixel("PayoutSetup", { content_name: "connect_stripe" }, true);
       try {
         const r = await api("/api/portal/connect", { method: "POST", token: store.get("usrToken") });
         location.href = r.url; // Stripe Connect onboarding (or the mock page in stub mode)
@@ -326,8 +327,9 @@
     $("signin").addEventListener("click", async () => {
       $("login-err").classList.add("hide");
       try {
-        const { token } = await api("/api/auth", { method: "POST", body: { email: $("email").value, password: $("password").value, kind: "user" } });
-        store.set("usrToken", token);
+        const r = await api("/api/auth", { method: "POST", body: { email: $("email").value, password: $("password").value, kind: "user" } });
+        store.set("usrToken", r.token);
+        if (r.created) pixel("CompleteRegistration", { content_name: "earner_signup", currency: "USD", value: r.bonusUsd || 0 });
         loadDash();
       } catch (e) {
         $("login-err").textContent = e.message;
@@ -349,6 +351,7 @@
         const rect = $("payout").getBoundingClientRect();
         for (let i = 0; i < 4; i++) setTimeout(() => coinBurst(rect.left + rect.width / 2, rect.top, 18), i * 120);
         const amt = r.paidUsd || r.queuedUsd || 0;
+        pixel("CashOut", { content_name: "earner_payout", currency: "USD", value: amt }, true);
         resultNote = r.payout?.status === "paid"
           ? `🎉 Paid out ${money(amt)}! It's on its way.`
           : `Withdrawal of ${money(amt)} queued. It'll arrive shortly.`;

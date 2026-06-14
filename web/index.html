@@ -165,7 +165,12 @@
   </div>
 
   <script type="module">
-    import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago, escapeHtml, store, track, renderAdline } from "/assets/app.js";
+    import { api, money, num, mountNav, ding, chaching, setSound, isSoundOn, animateCount, coinBurst, ago, escapeHtml, store, track, renderAdline, pixel } from "/assets/app.js";
+    // Meta Pixel: any click that heads to /advertise is an advertiser-intent signal.
+    document.addEventListener("click", (e) => {
+      const a = e.target.closest('a[href="/advertise"], a[href^="/advertise"]');
+      if (a) pixel("AdvertiseClick", { content_name: "advertise_cta" }, true);
+    });
     mountNav("/");
 
     // The "With Kolex" side of the before/after uses the REAL sponsored-line
@@ -204,6 +209,7 @@
       if (e) e.preventDefault();
       // Already signed in? Skip the form, go straight to the account.
       if (store.get("usrToken")) { location.href = "/portal"; return; }
+      pixel("Lead", { content_name: "claim_5_signup" }); // opened the signup CTA
       wlModal.hidden = false;
       wlMsg.textContent = "";
       setTimeout(() => document.getElementById("waitlist-email").focus(), 50);
@@ -227,6 +233,7 @@
         const r = await api("/api/auth", { method: "POST", body: { email, password, kind: "user" } });
         store.set("usrToken", r.token);
         track("signup_promo", { created: r.created, bonusUsd: r.bonusUsd || 0 });
+        if (r.created) pixel("CompleteRegistration", { content_name: "earner_signup", currency: "USD", value: r.bonusUsd || 0 });
         if (r.created) {
           // New account: celebrate the (server-confirmed) bonus and offer the account.
           if (r.bonusUsd > 0) {

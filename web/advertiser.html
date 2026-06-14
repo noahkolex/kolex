@@ -99,7 +99,7 @@
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertise">Advertise</a></div></footer>
 
   <script type="module">
-    import { api, money, num, mountNav, store, escapeHtml, renderAdline } from "/assets/app.js";
+    import { api, money, num, mountNav, store, escapeHtml, renderAdline, pixel } from "/assets/app.js";
     mountNav();
 
     const $ = (id) => document.getElementById(id);
@@ -275,10 +275,14 @@
       }
     });
 
-    if (new URLSearchParams(location.search).get("paid") === "1") {
-      $("paid-banner").classList.remove("hide");
-    }
-    loadDash();
+    const justPaid = new URLSearchParams(location.search).get("paid") === "1";
+    if (justPaid) $("paid-banner").classList.remove("hide");
+    loadDash().then(() => {
+      if (!justPaid) return;
+      // Meta Pixel Purchase, valued at the campaign that just paid.
+      const c = [...campaigns].filter((x) => x.payment?.paidAt).sort((a, b) => b.payment.paidAt - a.payment.paidAt)[0];
+      pixel("Purchase", { content_name: "ad_campaign", currency: "USD", value: c?.payment?.amountUsd || 0 });
+    });
   </script>
 </body>
 </html>
