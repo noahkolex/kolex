@@ -149,14 +149,16 @@ export function mountNav(active) {
   const el = document.querySelector("[data-nav]");
   if (!el) return;
   const signedIn = !!store.get("usrToken");
+  // cls marks each link so CSS can prioritise on small screens (the advertiser
+  // link is hidden on phones; the account link stays).
   const links = [
-    ["/portal", signedIn ? "My account" : "Log in"],
-    ["/advertiser", "Advertiser portal"],
+    ["/portal", signedIn ? "My account" : "Log in", "nav-user"],
+    ["/advertiser", "Advertiser portal", "nav-adv"],
   ];
   el.innerHTML =
     `<div class="wrap"><a class="brandmark" href="/">${bird(24)}<span>kolex</span></a><span class="spacer"></span>` +
-    links.map(([h, t]) => `<a class="navlink${h === active ? " on" : ""}" href="${h}">${t}</a>`).join("") +
-    `<a class="btn btn-primary" href="/advertise">Launch an ad ⚡</a></div>`;
+    links.map(([h, t, c]) => `<a class="navlink ${c}${h === active ? " on" : ""}" href="${h}">${t}</a>`).join("") +
+    `<a class="btn btn-primary nav-cta" href="/advertise"><span class="cta-long">Launch an ad</span><span class="cta-short">Advertise</span> ⚡</a></div>`;
 }
 
 // ─────────────────────────── Sound (synthesized) ───────────────────────────

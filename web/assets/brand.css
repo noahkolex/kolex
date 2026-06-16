@@ -63,8 +63,10 @@ img { max-width: 100%; }
 .brandmark { display: inline-flex; align-items: center; gap: 8px; font-weight: 800; font-size: 19px; letter-spacing: -0.03em; color: var(--ink); }
 .brandmark svg { filter: drop-shadow(0 0 6px var(--green-glow)); }
 .nav .spacer { flex: 1; }
-.nav a.navlink { color: var(--muted); font-weight: 600; font-size: 14px; }
+.nav a.navlink { color: var(--muted); font-weight: 600; font-size: 14px; white-space: nowrap; }
 .nav a.navlink:hover, .nav a.navlink.on { color: var(--ink); }
+.nav .cta-short { display: none; }
+.nav .nav-cta { white-space: nowrap; }
 
 /* ── Buttons ── */
 .btn {
@@ -335,4 +337,28 @@ footer .spacer { flex: 1; }
   .steps { grid-template-columns: 1fr; }
   .row2 { grid-template-columns: 1fr; }
   .board .hide-sm { display: none; }
+}
+
+/* ── Phones ── */
+@media (max-width: 560px) {
+  .wrap { padding: 0 16px; }
+  section { padding: 40px 0; }
+  .hero { padding-top: 44px; }
+  /* Nav fits on one line: keep brand + account link + a compact CTA; the
+     advertiser-portal link is reachable from the page body / footer. */
+  .nav .wrap { gap: 10px; height: 58px; }
+  .nav a.navlink { font-size: 13px; }
+  .nav .nav-adv { display: none; }
+  .nav .cta-long { display: none; }
+  .nav .cta-short { display: inline; }
+  .nav .btn.nav-cta { padding: 8px 14px; font-size: 13px; }
+  /* Tables: let wide boards scroll horizontally instead of squashing. */
+  .board-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  /* Big display numbers shouldn't overflow narrow screens. */
+  .ticker .amount { font-size: clamp(38px, 13vw, 56px); }
+}
+
+@media (max-width: 380px) {
+  /* Very small phones: drop the account link too, keep brand + CTA. */
+  .nav .nav-user { display: none; }
 }
