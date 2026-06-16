@@ -617,6 +617,70 @@ app.post("/api/advertiser/campaigns/:id/checkout", requireKind("advertiser"), as
   }
 });
 
+// Relaunch a campaign: clone its creative into a brand-new PENDING campaign
+// with fresh budget (new bid/blocks), then return a checkout URL. Counters
+// (impressions/clicks/spend) reset; the original is left untouched. Works for
+// any of the advertiser's own campaigns (the dashboard surfaces it on
+// completed ones). Bid/blocks default to the source campaign's if omitted.
+app.post("/api/advertiser/campaigns/:id/relaunch", requireKind("advertiser"), async (req, res) => {
+  const db = load();
+  const src = db.campaigns.find((c) => c.id === req.params.id && c.advertiserId === req.session.id);
+  if (!src) return res.status(404).json({ error: "campaign not found" });
+  const b = req.body ?? {};
+  const bidPerBlock = b.bidPerBlock === undefined ? src.bidPerBlock : Number(b.bidPerBlock);
+  const blocks = b.blocks === undefined ? src.blocks : Math.floor(Number(b.blocks));
+  const errors = [];
+  if (!Number.isFinite(bidPerBlock) || bidPerBlock < MIN_BID_PER_BLOCK)
+    errors.push(`Bid must be at least $${MIN_BID_PER_BLOCK} per 1,000 impressions.`);
+  else if (bidPerBlock > 100_000) errors.push("Bid is too large.");
+  if (!Number.isFinite(blocks) || blocks < 1) errors.push("Buy at least one block of 1,000 impressions.");
+  else if (blocks > 1_000_000) errors.push("That's more than 1,000,000 blocks — please contact sales.");
+  if (errors.length) return res.status(400).json({ errors });
+
+  const amountUsd = blocks * bidPerBlock;
+  const campaign = {
+    id: newId("cmp"),
+    advertiserId: src.advertiserId,
+    brand: src.brand,
+    text: src.text,
+    url: src.url,
+    iconDataUrl: src.iconDataUrl,
+    accent: src.accent,
+    bidPerBlock,
+    blocks,
+    impressionsRemaining: blocks * IMPRESSIONS_PER_BLOCK,
+    impressions: 0,
+    clicks: 0,
+    spendUsd: 0,
+    status: "pending",
+    createdAt: Date.now(),
+    payment: { status: "unpaid", amountUsd, checkoutId: null, paidAt: null },
+    relaunchOf: src.id,
+  };
+  db.campaigns.push(campaign);
+  await save();
+
+  const base = publicBase(req);
+  let checkout;
+  try {
+    checkout = await createCheckout({
+      campaign,
+      amountUsd,
+      successUrl: `${base}/advertiser?paid=1&campaign=${campaign.id}`,
+      cancelUrl: `${base}/advertiser?canceled=1`,
+    });
+  } catch (err) {
+    return res.status(502).json({ error: `Payment setup failed: ${err.message}` });
+  }
+  campaign.payment.checkoutId = checkout.id;
+  await save();
+  capture("campaign_relaunched", {
+    distinctId: req.session.email,
+    properties: { from: src.id, campaignId: campaign.id, amountUsd, bidPerBlock, blocks },
+  });
+  res.json({ campaign, checkoutUrl: checkout.url, amountUsd });
+});
+
 // Edit a campaign's creative (text / destination / accent / logo) after the
 // fact — works for live campaigns too. Bid and budget are NOT editable here.
 app.patch("/api/advertiser/campaigns/:id", requireKind("advertiser"), async (req, res) => {

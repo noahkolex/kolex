@@ -222,6 +222,41 @@ test("stub-only completion endpoint is mode-guarded", async () => {
   assert.equal(res.status, 200);
 });
 
+test("relaunch clones a campaign into a new pending campaign with fresh budget", async () => {
+  const r = await post("/api/ads", { email: "relaunch@adv.com", password: "pw-test-12345", brand: "Acme", text: "acme makes widgets", url: "https://acme.com", bidPerBlock: 10, blocks: 5, accent: "#123456" });
+  const token = r.body.token;
+  const srcId = r.body.campaign.id;
+  await post("/api/stub/complete-checkout", { campaignId: srcId });
+  const auth = { authorization: `Bearer ${token}` };
+
+  // Relaunch with a bigger budget → new PENDING campaign + checkout, counters reset.
+  const rl = await post(`/api/advertiser/campaigns/${srcId}/relaunch`, { bidPerBlock: 20, blocks: 50 }, auth);
+  assert.equal(rl.status, 200, JSON.stringify(rl.body));
+  assert.ok(rl.body.checkoutUrl, "returns a checkout URL");
+  const nc = rl.body.campaign;
+  assert.notEqual(nc.id, srcId, "a brand-new campaign is created");
+  assert.equal(nc.status, "pending");
+  assert.equal(nc.bidPerBlock, 20);
+  assert.equal(nc.blocks, 50);
+  assert.equal(nc.impressions, 0);
+  assert.equal(nc.spendUsd, 0);
+  assert.equal(nc.brand, "Acme");           // creative is cloned
+  assert.equal(nc.text, "acme makes widgets");
+  assert.equal(nc.url, "https://acme.com");
+  assert.equal(nc.relaunchOf, srcId);
+  assert.equal(rl.body.amountUsd, 1000);
+
+  // Omitting budget reuses the source campaign's bid/blocks.
+  const rl2 = await post(`/api/advertiser/campaigns/${srcId}/relaunch`, {}, auth);
+  assert.equal(rl2.body.campaign.bidPerBlock, 10);
+  assert.equal(rl2.body.campaign.blocks, 5);
+
+  // Invalid budget is rejected; another advertiser can't relaunch it.
+  assert.equal((await post(`/api/advertiser/campaigns/${srcId}/relaunch`, { bidPerBlock: 0, blocks: 1 }, auth)).status, 400);
+  const other = await post("/api/auth", { email: "other@adv.com", password: "pw-test-12345", kind: "advertiser" });
+  assert.equal((await post(`/api/advertiser/campaigns/${srcId}/relaunch`, { blocks: 2 }, { authorization: `Bearer ${other.body.token}` })).status, 404);
+});
+
 test("auth is required for protected routes", async () => {
   assert.equal((await get("/api/advertiser/campaigns")).status, 401);
   assert.equal((await get("/api/portal/summary")).status, 401);

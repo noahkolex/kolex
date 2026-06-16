@@ -84,6 +84,24 @@
     </div>
   </div>
 
+  <!-- Relaunch-campaign modal -->
+  <div id="relaunch-modal" class="modal hide">
+    <div class="modal-card">
+      <div style="display:flex;align-items:center;gap:10px"><span class="eyebrow">Relaunch campaign</span><span class="spacer" style="flex:1"></span><button class="modal-x" id="relaunch-cancel">✕</button></div>
+      <div style="background:var(--elev);border:1px solid var(--rule);border-radius:8px;padding:20px;display:flex;justify-content:center;margin:14px 0;overflow:hidden">
+        <div class="adline" id="relaunch-preview" style="max-width:100%"></div>
+      </div>
+      <p class="muted" style="margin:0 0 14px;font-size:13px">Same creative, fresh budget. This creates a new campaign you pay for — the original stays as-is.</p>
+      <div id="relaunch-err" class="errors hide"></div>
+      <div class="row2">
+        <div class="field"><label>Bid per 1,000 impressions ($)</label><input type="number" id="relaunch-bid" min="1" step="1" /></div>
+        <div class="field"><label>Blocks (× 1,000 impressions)</label><input type="number" id="relaunch-blocks" min="1" step="1" /></div>
+      </div>
+      <div class="hint" id="relaunch-hint" style="margin:-4px 0 10px">Budget: $0 · 0 impressions</div>
+      <button class="btn btn-gold btn-lg" id="relaunch-go" style="width:100%;justify-content:center;margin-top:6px">Relaunch &amp; pay</button>
+    </div>
+  </div>
+
   <!-- Change-password modal -->
   <div id="pw-modal" class="modal hide">
     <div class="modal-card" style="max-width:420px">
@@ -142,8 +160,9 @@
         const bx = 'style="padding:4px 10px;font-size:11px;margin-left:6px"';
         const editBtn = (c) => `<button class="btn btn-ghost" ${bx} data-edit="${c.id}">Edit</button>`;
         const statusCell = (c) => {
+          const relaunchBtn = (c) => `<button class="btn btn-gold" ${bx} data-relaunch="${c.id}">Relaunch</button>`;
           if (c.status === "active") return `<span class="pill live">Live</span>${editBtn(c)}`;
-          if (c.status === "completed") return `<span class="pill done">Done</span>${editBtn(c)}`;
+          if (c.status === "completed") return `<span class="pill done">Done</span>${relaunchBtn(c)}${editBtn(c)}`;
           return `<span class="pill unpaid">Unpaid</span>
                   <button class="btn btn-gold" ${bx} data-pay="${c.id}">Pay now</button>${editBtn(c)}
                   <button class="btn btn-ghost" ${bx} data-del="${c.id}">Delete</button>`;
@@ -172,6 +191,9 @@
         }
         for (const btn of document.querySelectorAll("[data-edit]")) {
           btn.addEventListener("click", () => openEdit(campaigns.find((c) => c.id === btn.dataset.edit)));
+        }
+        for (const btn of document.querySelectorAll("[data-relaunch]")) {
+          btn.addEventListener("click", () => openRelaunch(campaigns.find((c) => c.id === btn.dataset.relaunch)));
         }
         for (const btn of document.querySelectorAll("[data-del]")) {
           btn.addEventListener("click", async () => {
@@ -272,6 +294,43 @@
         const list = err.data?.errors || [err.message];
         $("edit-err").innerHTML = list.map((x) => `<div>${x}</div>`).join("");
         $("edit-err").classList.remove("hide");
+      }
+    });
+
+    // ── Relaunch-campaign modal ──
+    let relaunchId = null;
+    function relaunchHint() {
+      const bid = Number($("relaunch-bid").value) || 0, blocks = Number($("relaunch-blocks").value) || 0;
+      $("relaunch-hint").textContent = `Budget: ${money(bid * blocks, false)} · ${num(blocks * 1000)} impressions`;
+    }
+    function openRelaunch(c) {
+      if (!c) return;
+      relaunchId = c.id;
+      renderAdline($("relaunch-preview"), { brand: c.brand, text: c.text, accent: c.accent, iconDataUrl: c.iconDataUrl });
+      $("relaunch-bid").value = c.bidPerBlock;
+      $("relaunch-blocks").value = c.blocks;
+      $("relaunch-err").classList.add("hide");
+      relaunchHint();
+      $("relaunch-modal").classList.remove("hide");
+    }
+    const closeRelaunch = () => $("relaunch-modal").classList.add("hide");
+    ["relaunch-bid", "relaunch-blocks"].forEach((id) => $(id).addEventListener("input", relaunchHint));
+    $("relaunch-cancel").addEventListener("click", closeRelaunch);
+    $("relaunch-modal").addEventListener("click", (e) => { if (e.target.id === "relaunch-modal") closeRelaunch(); });
+    $("relaunch-go").addEventListener("click", async () => {
+      $("relaunch-err").classList.add("hide");
+      const btn = $("relaunch-go"); btn.disabled = true;
+      try {
+        const r = await api(`/api/advertiser/campaigns/${relaunchId}/relaunch`, {
+          method: "POST", token: store.get("advToken"),
+          body: { bidPerBlock: Number($("relaunch-bid").value), blocks: Number($("relaunch-blocks").value) },
+        });
+        location.href = r.checkoutUrl;
+      } catch (err) {
+        btn.disabled = false;
+        const list = err.data?.errors || [err.message];
+        $("relaunch-err").innerHTML = list.map((x) => `<div>${x}</div>`).join("");
+        $("relaunch-err").classList.remove("hide");
       }
     });
 
