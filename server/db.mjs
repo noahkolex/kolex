@@ -41,7 +41,8 @@ const EMPTY = {
   payouts: [], // { id, userId, amountUsd, bonusUsd, status, stripeId, createdAt }
   recentEarnings: [], // capped log for the live feed: { deviceId, amountUsd, at }
   banned: {}, // deviceId|userId -> { reason, at } (no earning, no cash-out)
-  abuse: {}, // deviceId -> { hourStart, hourUsd, minStart, minImpr, flags } (rate/cap state)
+  abuse: {}, // deviceId -> { hourStart, hourUsd, minStart, minImpr, flags } (per-device rate/fabrication state)
+  accountAbuse: {}, // accountId (or unlinked deviceId) -> { dayStart, dayUsd, hourStart, hourUsd, dayImprStart, dayImpr } (account-wide earning caps)
 };
 
 let db = null;
@@ -168,6 +169,13 @@ const SCHEMA = [
   {
     name: "abuse", kind: "map", pk: "device_id", pkType: TEXT,
     cols: [["hour_start", "hourStart", BIGINT], ["hour_usd", "hourUsd", REAL], ["min_start", "minStart", BIGINT], ["min_impr", "minImpr", INT], ["flags", "flags", INT]],
+  },
+  {
+    // Account-wide earning caps (daily $, hourly $, daily impressions). Keyed by
+    // the linked account id so registering N devices can't multiply the caps N×.
+    // day* fields ride in the `extra` jsonb column (same as abuse).
+    name: "account_abuse", kind: "map", coll: "accountAbuse", pk: "account_id", pkType: TEXT,
+    cols: [["hour_start", "hourStart", BIGINT], ["hour_usd", "hourUsd", REAL]],
   },
   { name: "seen_events", kind: "set", pk: "event_id", pkType: TEXT, coll: "seenEvents" },
   { name: "processed_webhooks", kind: "set", pk: "event_id", pkType: TEXT, coll: "processedWebhooks" },

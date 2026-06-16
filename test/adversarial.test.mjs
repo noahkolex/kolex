@@ -10,6 +10,7 @@ import fs from "node:fs";
 // Configure BEFORE importing the app (config reads env at import time).
 process.env.KOLEX_ENV_FILE = "/dev/null";
 process.env.STRIPE_MODE = "stub";
+process.env.KOLEX_REQUIRE_LINKED_TO_EARN = "0"; // these probe settlement math, dedup, and link-isolation on disposable devices; the link gate is covered in account-cap.test
 process.env.KOLEX_MIN_PAYOUT_USD = "0.10";
 // These probes flood thousands of events to exercise the CORE billing cap; turn
 // the abuse layer off here so it doesn't pre-empt them (it has its own tests).

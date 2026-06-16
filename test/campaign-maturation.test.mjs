@@ -124,6 +124,10 @@ test("a brand-new account cannot cash out until the holding period passes", asyn
   const camp = await newCampaign("adv-for-earn@startup.com");
   await post("/api/stub/complete-checkout", { campaignId: camp.campaignId });
   const DEV = "dev-mat-1";
+  // Link the device to the account FIRST — only linked devices earn.
+  const login = await post("/api/auth", { email: "fresh@me.com", password: "pw-test-12345", kind: "user" });
+  const auth = { authorization: `Bearer ${login.body.token}` };
+  await post("/api/portal/link-device", { deviceId: DEV }, auth);
   // 1000 impressions = $80/1000 * 0.5 * 1000 = $40 pending (clears the minimum).
   const evs = Array.from({ length: 1000 }, (_, i) => ({ id: `m${i}`, type: "impression", adId: camp.campaignId }));
   await fetch(url("/v1/events"), {
@@ -131,10 +135,6 @@ test("a brand-new account cannot cash out until the holding period passes", asyn
     headers: { "content-type": "application/json", "x-kolex-device": DEV },
     body: JSON.stringify({ events: evs }),
   });
-
-  const login = await post("/api/auth", { email: "fresh@me.com", password: "pw-test-12345", kind: "user" });
-  const auth = { authorization: `Bearer ${login.body.token}` };
-  await post("/api/portal/link-device", { deviceId: DEV }, auth);
   await post("/api/stub/complete-connect", undefined, auth);
 
   // Summary tells the UI the account isn't matured yet, and when it unlocks.
