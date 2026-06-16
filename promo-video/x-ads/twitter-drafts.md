@@ -123,6 +123,46 @@ Link: **kolex.ai/waitlist**. Offer line everywhere: "Get $5 just for joining the
 > Undivided attention. Zero competition for the viewport. Auction is live at
 > kolex.ai/advertise.
 
+## Advertiser campaign (B2B — the buy side)
+
+Flips the pitch from "get paid to wait" to "buy the most captive ad slot on the
+internet." Links to kolex.ai/advertise. Same visual style, advertiser-framed
+copy: captive attention, the auction, "your brand in the spinner."
+
+| Asset | Format | Use |
+|---|---|---|
+| `kolex-advertiser-20s.mp4` | 16:9, 20s | Full story. Pinned post / LinkedIn / site. |
+| `kolex-advertiser-10s.mp4` | 16:9, 10s | Paid feed (X/LinkedIn) conversion ad. |
+| `kolex-advertiser-9x16.mp4` | 1080x1920, 10s | Reels / TikTok / Stories / Shorts. |
+| `still-adv-spinner.png` | image | "Your brand, in the spinner" with the Acme ad line. |
+| `still-adv-auction.png` | image | The auction/campaign dashboard (50,000 impressions, #1 bid). |
+| `still-adv-cta.png` / `-9x16.png` | image | "Own the loading screen" CTA, both ratios. |
+
+### A1. Captive attention (pair: kolex-advertiser-10s.mp4 / 9x16)
+> The most undivided attention on the internet is the 5 seconds someone waits
+> for AI to answer.
+>
+> Nobody's advertising there. Yet. kolex.ai/advertise
+
+### A2. The slot (pair: still-adv-spinner.png)
+> Your brand, in the spinner.
+>
+> One sponsored line while their AI thinks. Your logo, your color, your link,
+> in front of fully captive attention. kolex.ai/advertise
+
+### A3. The auction (pair: still-adv-auction.png)
+> Bid in dollars for blocks of 1,000 five-second AI-wait impressions.
+> Highest bid serves first. Zero competition for the viewport.
+>
+> Live auction: kolex.ai/advertise
+
+### A4. The math (pair: kolex-advertiser-9x16.mp4)
+> CPM on the AI loading screen: ~$25.
+> Competition for that screen: zero.
+> Attention: total.
+>
+> kolex.ai/advertise
+
 ## Posting notes
 
 - First frame is the thumbnail on X: both videos open on a money frame by design.
