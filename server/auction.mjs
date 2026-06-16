@@ -23,30 +23,64 @@ export function banId(db, id, reason) {
   if (id && !db.banned[id]) db.banned[id] = { reason: reason || "flagged", at: Date.now() };
 }
 
+/** The cap bucket a device's earnings count against: the linked ACCOUNT when
+ *  there is one, otherwise the device itself. Account-keyed buckets live in a
+ *  separate map (`accountAbuse`) from the per-device fabrication state, so a
+ *  forged `x-kolex-device` header can never poison or share an account's bucket.
+ *  Returns { bucket, accountWide }. */
+function capBucket(db, deviceId, now) {
+  const dev = db.devices.find((d) => d.deviceId === deviceId);
+  if (dev?.userId) {
+    const bucket = (db.accountAbuse[dev.userId] ??= { hourStart: now, hourUsd: 0 });
+    return { bucket, accountWide: true };
+  }
+  // Not linked yet — fall back to the device's own (per-device) abuse record.
+  const bucket = (db.abuse[deviceId] ??= { hourStart: now, hourUsd: 0, minStart: now, minImpr: 0, flags: 0 });
+  return { bucket, accountWide: false };
+}
+
 /**
  * Gate a would-be credit through the abuse controls. Returns true to bill the
  * advertiser + credit the viewer, false to DROP the event entirely ($0, no
- * advertiser bill). Maintains per-device rolling windows and auto-bans devices
- * that exceed a physically-impossible impression rate.
+ * advertiser bill).
+ *
+ * Two layers:
+ *   • Per-DEVICE: the physically-impossible impression-rate check + auto-ban.
+ *     A real device serves ~12 impressions/min, so this stays per-device — a
+ *     legit account with several real devices isn't flagged for their combined
+ *     rate.
+ *   • Account-WIDE: the daily $, hourly $, and daily-impression frequency caps.
+ *     These count against the linked account, so registering N devices can't
+ *     multiply the caps N× (the original abuse: one account, ~100 devices, each
+ *     under its own $1/day cap → ~$100/day).
  */
 function allowSettle(db, deviceId, type, userShareUsd) {
   const ab = config.antiabuse;
   if (isBanned(db, deviceId)) return false;
   if (type === "click" && ab.disableClicks) return false;
+  // Only linked/authorized devices earn. The device id is an unauthenticated
+  // client header, so unlinked (or forged) devices never accrue or bill — they'd
+  // otherwise be farmable and later linked to absorb the balance.
+  if (config.requireLinkedToEarn && !db.devices.find((d) => d.deviceId === deviceId)?.userId) {
+    return false;
+  }
   const now = Date.now();
-  const a = (db.abuse[deviceId] ??= { hourStart: now, hourUsd: 0, minStart: now, minImpr: 0, flags: 0 });
+  // Per-device fabrication check (always keyed by the device itself).
+  const dev = (db.abuse[deviceId] ??= { hourStart: now, hourUsd: 0, minStart: now, minImpr: 0, flags: 0 });
   if (type === "impression") {
-    if (now - a.minStart > 60_000) { a.minStart = now; a.minImpr = 0; }
-    a.minImpr += 1;
-    if (a.minImpr > ab.maxImpressionsPerMin) {
-      a.flags = (a.flags || 0) + 1;
-      if (a.flags >= ab.autoBanFlags) banId(db, deviceId, "impossible impression rate");
+    if (now - dev.minStart > 60_000) { dev.minStart = now; dev.minImpr = 0; }
+    dev.minImpr += 1;
+    if (dev.minImpr > ab.maxImpressionsPerMin) {
+      dev.flags = (dev.flags || 0) + 1;
+      if (dev.flags >= ab.autoBanFlags) banId(db, deviceId, "impossible impression rate");
       return false; // fabricated traffic — drop
     }
   }
+  // Account-wide earning + frequency caps (keyed by the linked account).
+  const { bucket: a } = capBucket(db, deviceId, now);
   const DAY = 86_400_000;
-  // Per-day impression frequency cap: one user can't rack up unlimited credited
-  // impressions (which also bill the advertiser), even at a tiny bid.
+  // Per-day impression frequency cap: an account can't rack up unlimited
+  // credited impressions (which also bill the advertiser), even at a tiny bid.
   if (type === "impression" && ab.maxImpressionsPerDay > 0) {
     if (a.dayImprStart === undefined || now - a.dayImprStart > DAY) { a.dayImprStart = now; a.dayImpr = 0; }
     if (a.dayImpr >= ab.maxImpressionsPerDay) return false;
@@ -59,7 +93,7 @@ function allowSettle(db, deviceId, type, userShareUsd) {
     a.dayUsd += userShareUsd;
   }
   if (ab.hourlyCapUsd > 0) {
-    if (now - a.hourStart > 3_600_000) { a.hourStart = now; a.hourUsd = 0; }
+    if (a.hourStart === undefined || now - a.hourStart > 3_600_000) { a.hourStart = now; a.hourUsd = 0; }
     if (a.hourUsd >= ab.hourlyCapUsd) return false; // hit the hourly cap
     a.hourUsd += userShareUsd;
   }

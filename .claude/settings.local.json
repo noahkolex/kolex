@@ -30,7 +30,18 @@
       "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-10s.mp4 -frames:v 1 x-ads/still-waitlist.png -y)",
       "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-9x16.mp4 -frames:v 1 x-ads/still-waitlist-9x16.png -y)",
       "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-waitlist-9x16.mp4 -frames:v 1 -vf scale=-1:960 /tmp/kolex-check/url-check.png -y)",
-      "Bash(grep -vE '^\\\\s*$')"
+      "Bash(grep -vE '^\\\\s*$')",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.5 -i x-ads/kolex-advertiser-20s.mp4 -frames:v 1 x-ads/still-adv-spinner.png -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 14.0 -i x-ads/kolex-advertiser-20s.mp4 -frames:v 1 x-ads/still-adv-auction.png -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 18.0 -i x-ads/kolex-advertiser-20s.mp4 -frames:v 1 x-ads/still-adv-cta.png -y)",
+      "Bash(/usr/local/bin/ffprobe -v error -show_entries format=duration -of csv=p=0 x-ads/kolex-advertiser-10s.mp4)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-advertiser-9x16.mp4 -frames:v 1 x-ads/still-adv-cta-9x16.png -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 1.5 -i x-ads/kolex-advertiser-9x16.mp4 -frames:v 1 x-ads/still-adv-auction-9x16.png -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -i x-ads/kolex-advertiser-9x16-raw.mp4 -t 10 -c copy x-ads/kolex-advertiser-9x16.mp4 -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 2.0 -i x-ads/kolex-advertiser-10s.mp4 -frames:v 1 -vf scale=960:-1 /tmp/kolex-check/final-10s.png -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 1.4 -i x-ads/kolex-advertiser-9x16.mp4 -frames:v 1 -vf scale=-1:960 /tmp/kolex-check/final-V.png -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 2.0 -i x-ads/kolex-advertiser-20s.mp4 -frames:v 1 x-ads/still-adv-spinner.png -y)",
+      "Bash(/usr/local/bin/ffmpeg -hide_banner -loglevel error -ss 8.6 -i x-ads/kolex-advertiser-10s.mp4 -frames:v 1 -vf scale=960:-1 /tmp/kolex-check/url-fixed.png -y)"
     ]
   }
 }

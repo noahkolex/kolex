@@ -70,6 +70,12 @@ export const config = {
   // Global payout kill-switch — set KOLEX_PAYOUTS_HALTED=1 to pause all cash-outs
   // (balances are kept; turn it back off to resume).
   payoutsHalted: bool(process.env.KOLEX_PAYOUTS_HALTED, false),
+  // Only credit (and bill) events from devices linked to an account. The device
+  // id is an unauthenticated client header (x-kolex-device), so paying unlinked
+  // devices lets an abuser farm unlimited anonymous buckets and link them later
+  // to absorb the pile. Default ON. Set KOLEX_REQUIRE_LINKED_TO_EARN=0 to allow
+  // pre-signup "try it and earn" accrual (the old behavior).
+  requireLinkedToEarn: bool(process.env.KOLEX_REQUIRE_LINKED_TO_EARN, true),
   // Pre-launch mode: drives the "we launch soon" portal messaging. Now that the
   // extension is live on the Chrome Web Store this defaults OFF; set
   // KOLEX_PRELAUNCH=1 to bring the pre-launch banner back. (It no longer gates

@@ -8,6 +8,7 @@ import fs from "node:fs";
 
 process.env.KOLEX_ENV_FILE = "/dev/null";
 process.env.STRIPE_MODE = "stub";
+process.env.KOLEX_REQUIRE_LINKED_TO_EARN = "0"; // exercise the per-device fallback in isolation (the link gate is covered in account-cap.test)
 process.env.KOLEX_HOURLY_CAP_USD = "0"; // isolate the DAILY caps
 process.env.KOLEX_MAX_IMPRESSIONS_PER_MIN = "100000000";
 process.env.KOLEX_MAX_EVENTS_PER_BATCH = "100000";

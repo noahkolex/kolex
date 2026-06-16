@@ -9,6 +9,7 @@ import fs from "node:fs";
 
 process.env.KOLEX_ENV_FILE = "/dev/null";
 process.env.STRIPE_MODE = "stub";
+process.env.KOLEX_REQUIRE_LINKED_TO_EARN = "0"; // these exercise per-device rate/cap mechanics on throwaway devices; the link gate is covered in account-cap.test
 process.env.KOLEX_MIN_PAYOUT_USD = "0.10";
 process.env.KOLEX_DISABLE_CLICKS = "1";
 process.env.KOLEX_HOURLY_CAP_USD = "5";

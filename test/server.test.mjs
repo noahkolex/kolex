@@ -129,6 +129,10 @@ test("FLOW 4 — webhook completion is idempotent (no double-activation/errors)"
 
 test("FLOW 5 — extension serves & settles: events bill advertiser, credit device", async () => {
   const DEV = "dev-flow-1";
+  // Only linked devices earn — sign up the earner and link the device first.
+  const login = await post("/api/auth", { email: "earner@me.com", password: "pw-test-12345", kind: "user" });
+  flow.earnerAuth = { authorization: `Bearer ${login.body.token}` };
+  await post("/api/portal/link-device", { deviceId: DEV }, flow.earnerAuth);
   const events = {
     events: [
       { id: "imp-1", type: "impression", adId: flow.campaignId },
@@ -150,11 +154,9 @@ test("FLOW 5 — extension serves & settles: events bill advertiser, credit devi
 });
 
 test("FLOW 6 — user links device, sees earnings, and cashes out", async () => {
-  const login = await post("/api/auth", { email: "earner@me.com", password: "pw-test-12345", kind: "user" });
-  const token = login.body.token;
-  const auth = { authorization: `Bearer ${token}` };
-
-  await post("/api/portal/link-device", { deviceId: flow.device }, auth);
+  // Earner signed up + linked the device in FLOW 5; reuse that session.
+  const auth = flow.earnerAuth;
+  await post("/api/portal/link-device", { deviceId: flow.device }, auth); // idempotent re-link
   const sum = await get("/api/portal/summary", auth);
   assert.ok(Math.abs(sum.body.pendingUsd - 2.04) < 1e-6);
   assert.equal(sum.body.impressions, 1);
@@ -184,15 +186,16 @@ test("FLOW 6 — user links device, sees earnings, and cashes out", async () => 
 
 test("FLOW 7 — payout below the minimum is rejected", async () => {
   const DEV2 = "dev-flow-2";
+  // Link first — only linked devices earn.
+  const login = await post("/api/auth", { email: "small@me.com", password: "pw-test-12345", kind: "user" });
+  const auth = { authorization: `Bearer ${login.body.token}` };
+  await post("/api/portal/link-device", { deviceId: DEV2 }, auth);
   // 1 impression only on the $80 campaign = $0.04 < $0.10 minimum.
   await fetch(url("/v1/events"), {
     method: "POST",
     headers: { "content-type": "application/json", "x-kolex-device": DEV2 },
     body: JSON.stringify({ events: [{ id: "imp-2", type: "impression", adId: flow.campaignId }] }),
   });
-  const login = await post("/api/auth", { email: "small@me.com", password: "pw-test-12345", kind: "user" });
-  const auth = { authorization: `Bearer ${login.body.token}` };
-  await post("/api/portal/link-device", { deviceId: DEV2 }, auth);
   await post("/api/stub/complete-connect", undefined, auth); // payout account ready
   const payout = await post("/api/portal/payout", undefined, auth);
   assert.equal(payout.status, 400);
@@ -226,6 +229,10 @@ test("auth is required for protected routes", async () => {
 });
 
 test("click redirect records a click and 302s to the advertiser", async () => {
+  // Only linked devices earn — link dev-redir first.
+  const login = await post("/api/auth", { email: "redir@me.com", password: "pw-test-12345", kind: "user" });
+  const auth = { authorization: `Bearer ${login.body.token}` };
+  await post("/api/portal/link-device", { deviceId: "dev-redir" }, auth);
   const res = await fetch(url(`/r/${flow.campaignId}?d=dev-redir`), { redirect: "manual" });
   assert.equal(res.status, 302);
   assert.equal(res.headers.get("location"), "https://startup.com");
