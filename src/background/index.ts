@@ -1,5 +1,6 @@
 import { ChromeKV } from "../shared/kv.js";
 import { Rotation } from "../shared/rotation.js";
+import { SIGN_IN_AD } from "../shared/inventory.js";
 import { sanitizeSites, DEFAULT_SITES } from "../shared/detect.js";
 import type {
   KolexRequest,
@@ -100,6 +101,17 @@ async function refreshLinkStatus(): Promise<LinkState> {
   } catch {
     return kv.get<LinkState>("link", { linked: false, email: null });
   }
+}
+
+// While the sign-in prompt is showing, re-check link status at most every 30s
+// so the spinner flips to real ads shortly after the user connects (without
+// hammering the endpoint on every 1s tick).
+let lastLinkRefreshTs = 0;
+async function throttledLinkRefresh(): Promise<void> {
+  const now = Date.now();
+  if (now - lastLinkRefreshTs < 30_000) return;
+  lastLinkRefreshTs = now;
+  await refreshLinkStatus();
 }
 
 type ServerBalance = { pendingUsd: number; settledUsd: number; minPayoutUsd: number };
@@ -222,7 +234,7 @@ chrome.runtime.onInstalled.addListener(() => {
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "kolex:refresh") void refreshRemoteConfig();
+  if (alarm.name === "kolex:refresh") { void refreshRemoteConfig(); void refreshLinkStatus(); }
   if (alarm.name === "kolex:flush") void flushLedger();
 });
 
@@ -233,6 +245,30 @@ async function handle(req: KolexRequest): Promise<unknown> {
     case "kolex:tick": {
       if (!s.consent || !s.enabled || s.killswitch) {
         return { serving: false, balanceUsd: 0, impressionRecorded: false, ratePerImpressionUsd: 0, msIntoImpression: 0 } satisfies TickResponse;
+      }
+      // Until this device is linked to an account it can't earn — show a
+      // sign-in prompt instead of paid ads (which would reward nobody and the
+      // backend now drops). Real ads return as soon as the account is linked.
+      if (!DEMO) {
+        const link = await kv.get<LinkState>("link", { linked: false, email: null });
+        if (!link.linked) {
+          void throttledLinkRefresh(); // flip to real ads soon after they connect
+          return {
+            serving: true,
+            ad: {
+              id: SIGN_IN_AD.id,
+              brand: SIGN_IN_AD.brand,
+              text: SIGN_IN_AD.text,
+              house: true,
+              iconDataUrl: SIGN_IN_AD.iconDataUrl,
+              accent: SIGN_IN_AD.accent,
+            },
+            balanceUsd: 0,
+            impressionRecorded: false,
+            ratePerImpressionUsd: 0,
+            msIntoImpression: 0,
+          } satisfies TickResponse;
+        }
       }
       const out = await rotation.tick(req.surface);
       // Demo: fake locally-accruing balance, no backend. Otherwise push the new
@@ -259,6 +295,14 @@ async function handle(req: KolexRequest): Promise<unknown> {
 
     case "kolex:click": {
       if (!s.consent || !s.enabled) return { ok: false };
+      // The sign-in prompt opens the portal connect flow (it carries the device
+      // id so the portal links this browser to the account after login).
+      if (req.adId === SIGN_IN_AD.id) {
+        const { site } = await bases();
+        await chrome.tabs.create({ url: `${site}/portal?device=${encodeURIComponent(s.deviceId)}&connect=1`, active: true });
+        void track("signin_prompt_clicked", { surface: req.surface });
+        return { ok: true };
+      }
       await rotation.click(req.adId, req.surface);
       const ads = await rotation.getAds();
       const ad = ads.find((a) => a.id === req.adId);

@@ -48,6 +48,17 @@ export const HOUSE_ADS: Ad[] = [
   kolexAd("kolex-50", "Keep 50% of the ad money. That's the deal."),
 ];
 
+/**
+ * Shown in the spinner — in place of any paid ad — until this device is linked
+ * to a Kolex account. Unlinked devices can't earn, so prompting sign-in beats
+ * burning a paid impression that rewards nobody. Served explicitly by the
+ * background worker, NOT part of the auction rotation.
+ */
+export const SIGN_IN_AD: Ad = kolexAd(
+  "kolex-signin",
+  "Sign in to Kolex to start earning from your AI wait time",
+);
+
 export function findAd(ads: Ad[], id: string | null | undefined): Ad | undefined {
   if (!id) return undefined;
   return ads.find((a) => a.id === id);
