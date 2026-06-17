@@ -1186,7 +1186,12 @@ const PAGES = {
   "/logos": "logos.html",
 };
 for (const [route, file] of Object.entries(PAGES)) {
-  app.get(route, (_req, res) => res.sendFile(path.join(WEB, file)));
+  app.get(route, (_req, res) => {
+    // Always revalidate HTML so a deploy is picked up immediately — never serve a
+    // stale page from the browser/bfcache (the file is tiny; 304s keep it cheap).
+    res.set("Cache-Control", "no-cache");
+    res.sendFile(path.join(WEB, file), { cacheControl: false });
+  });
 }
 app.use(express.static(WEB));
 
