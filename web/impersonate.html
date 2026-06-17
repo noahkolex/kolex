@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>View as user · Kolex admin</title>
+  <link rel="icon" href="/assets/favicon.svg" />
+  <link rel="stylesheet" href="/assets/brand.css" />
+  <meta name="robots" content="noindex" />
+</head>
+<body>
+  <header class="nav" data-nav></header>
+
+  <main class="wrap narrow" style="padding-top:40px;padding-bottom:60px">
+    <span class="eyebrow">Admin · support tool</span>
+    <h1 style="font-size:30px;font-weight:600;letter-spacing:-.02em;margin:12px 0 6px">View as a user</h1>
+    <p class="muted" style="margin-top:0">Open the app signed in as one of your earners — to see exactly what they see (payout state, Stripe restrictions, balance). Their session is minted server-side; you never need their password.</p>
+
+    <div id="err" class="errors hide" style="margin-top:16px"></div>
+
+    <div class="field" style="margin-top:18px">
+      <label>Admin token</label>
+      <input type="password" id="admin" placeholder="KOLEX_ADMIN_TOKEN" autocomplete="off" />
+      <div class="hint">Stored in this browser only, so you enter it once.</div>
+    </div>
+
+    <div class="field">
+      <label>User email <span class="muted">(or paste a usr_… id)</span></label>
+      <input type="text" id="who" placeholder="jane@example.com" autocomplete="off" />
+    </div>
+
+    <div class="row2" style="margin-top:6px">
+      <button class="btn btn-primary btn-lg" id="go" style="justify-content:center">View their portal →</button>
+      <button class="btn btn-ghost btn-lg" id="copy" style="justify-content:center">Just copy their token</button>
+    </div>
+    <p class="muted" style="font-size:12px;margin-top:12px">This signs <b>this browser tab</b> in as them. Use <a href="/portal">/portal</a> to return to your own account (Sign out), or open this in a private window.</p>
+  </main>
+
+  <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a></div></footer>
+
+  <script type="module">
+    import { mountNav, store } from "/assets/app.js";
+    mountNav();
+    const $ = (id) => document.getElementById(id);
+    // Remember the admin token locally so it's entered once.
+    $("admin").value = store.get("adminToken") || "";
+
+    function showErr(msg) { $("err").textContent = msg; $("err").classList.remove("hide"); }
+
+    async function mint() {
+      $("err").classList.add("hide");
+      const admin = $("admin").value.trim();
+      const who = $("who").value.trim();
+      if (!admin) { showErr("Enter the admin token."); return null; }
+      if (!who) { showErr("Enter a user email or id."); return null; }
+      store.set("adminToken", admin);
+      const body = who.startsWith("usr_") ? { userId: who } : { email: who };
+      const res = await fetch("/api/admin/impersonate", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${admin}` },
+        body: JSON.stringify(body),
+      });
+      if (res.status === 404) { showErr("Not found — check the admin token and that the email/id matches an earner."); return null; }
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.token) { showErr(data.error || "Could not impersonate."); return null; }
+      return data;
+    }
+
+    $("go").addEventListener("click", async () => {
+      const data = await mint();
+      if (!data) return;
+      store.set("usrToken", data.token); // sign this tab in as them
+      location.href = "/portal";
+    });
+
+    $("copy").addEventListener("click", async () => {
+      const data = await mint();
+      if (!data) return;
+      try { await navigator.clipboard.writeText(data.token); } catch {}
+      showErr(`Token for ${data.email} copied. Set localStorage["kolex:usrToken"] to it, then open /portal.`);
+      $("err").classList.remove("errors"); $("err").classList.add("success");
+    });
+  </script>
+</body>
+</html>

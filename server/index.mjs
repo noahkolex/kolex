@@ -1125,6 +1125,24 @@ app.get("/api/admin/suspicious", requireAdmin, (_req, res) => {
   res.json({ banned: db.banned, flagged, topEarners, controls: { ...config.antiabuse, adminToken: undefined }, payoutsHalted: config.payoutsHalted });
 });
 
+// Admin: mint a real session for an earner so you can view the app EXACTLY as
+// they see it (support / debugging — e.g. reproducing a Stripe payout
+// restriction). Look up by email or userId. Set the returned token as the
+// browser's `kolex:usrToken` and load /portal to "be" them. Gated by the admin
+// token and logged. The /impersonate page wraps this in one click.
+app.post("/api/admin/impersonate", requireAdmin, (req, res) => {
+  const db = load();
+  const email = String(req.body?.email ?? "").toLowerCase().trim();
+  const userId = String(req.body?.userId ?? "").trim();
+  const user = userId
+    ? db.users.find((u) => u.id === userId)
+    : db.users.find((u) => u.email === email);
+  if (!user) return res.status(404).json({ error: "no earner with that email / id" });
+  const token = createSession("user", user);
+  capture("admin_impersonate", { distinctId: user.email, properties: { userId: user.id } });
+  res.json({ token, userId: user.id, email: user.email });
+});
+
 // Dev/demo helper — reseed the store. Disabled in LIVE mode (real money) so
 // it can't wipe real data; available in stub/demo deploys.
 app.post("/api/reset", async (_req, res) => {
@@ -1181,6 +1199,7 @@ const PAGES = {
   "/verify": "verify.html",
   "/mock-checkout": "mock-checkout.html",
   "/mock-connect": "mock-connect.html",
+  "/impersonate": "impersonate.html",
   "/terms": "terms.html",
   "/privacy": "privacy.html",
   "/logos": "logos.html",
