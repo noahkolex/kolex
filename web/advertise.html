@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Advertise on Kolex</title>
+  <title>Advertise on Kolex · ads inside ChatGPT, Claude, Gemini & Grok</title>
+  <meta name="description" content="Place your brand directly on the loading spinner of ChatGPT, Claude, Gemini, and Grok. Reach 10,000+ people using LLMs every day, at the exact moment they're watching the screen. Self-serve, live in under a minute." />
   <link rel="icon" href="/assets/favicon.svg" />
   <link rel="stylesheet" href="/assets/brand.css" />
   <!-- Meta Pixel -->
@@ -13,90 +14,236 @@
 <body>
   <header class="nav" data-nav></header>
 
-  <main class="wrap narrow" style="padding-top:40px;padding-bottom:60px">
-    <span class="eyebrow">Launch an ad</span>
-    <h1 style="font-size:34px;letter-spacing:-.02em;font-weight:600;margin:12px 0 6px">Your brand, in the spinner.</h1>
-    <p class="muted" style="margin-top:0">Under a minute. Upload your logo and pick a color, and the whole loading indicator wears your brand. Bid for blocks of 1,000 five-second impressions.</p>
-
-    <!-- Live preview -->
-    <div style="margin:24px 0 28px">
-      <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Live preview: exactly how it appears</div>
-      <div style="background:var(--elev);border:1px solid var(--rule);border-radius:8px;padding:28px;display:flex;justify-content:center">
-        <div class="adline" id="preview"></div>
-      </div>
-    </div>
-
-    <div id="errors" class="errors hide"></div>
-
-    <form id="form" autocomplete="off">
-      <div class="row2">
-        <div class="field">
-          <label>Brand name</label>
-          <input type="text" id="brand" maxlength="40" placeholder="Acme" required />
+  <main>
+    <!-- ───────────────────────── Hero ───────────────────────── -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <span class="eyebrow">Advertise on Kolex</span>
+          <h1>Place your ad directly on <span class="pop">ChatGPT, Claude, Gemini &amp; Grok</span>.</h1>
+          <p class="sub">Every time someone waits on their AI, your logo and message take over the loading spinner. Get in front of <b>10,000+ people</b> using LLMs every day — at the one moment they're actually staring at the screen.</p>
+          <div class="cta-row" style="margin-top:24px">
+            <a class="btn btn-gold btn-lg" href="#launch">Launch a campaign →</a>
+            <a class="btn btn-ghost btn-lg" href="#auction">See the live auction</a>
+          </div>
+          <p class="muted" id="hero-proof" style="margin-top:14px;font-size:13.5px;min-height:18px"></p>
         </div>
-        <div class="field">
-          <label>Your email</label>
-          <input type="email" id="email" placeholder="you@acme.com" required />
-        </div>
-      </div>
 
-      <div class="field">
-        <label>Password</label>
-        <input type="password" id="password" placeholder="At least 8 characters" autocomplete="current-password" required />
-        <div class="hint">New here? We'll create your advertiser account. Returning? Sign in.</div>
-      </div>
-
-      <div class="field">
-        <label>Ad copy <span id="copycount" class="muted">0/60</span></label>
-        <input type="text" id="text" maxlength="60" placeholder="The fastest way to ship your product" required />
-        <div class="hint">3–60 characters. Shown in muted text after your brand name.</div>
-      </div>
-
-      <div class="field">
-        <label>Destination URL</label>
-        <input type="url" id="url" placeholder="https://acme.com" required />
-      </div>
-
-      <div class="row2">
-        <div class="field">
-          <label>Brand logo</label>
-          <input type="file" id="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
-          <div class="hint">PNG, JPG, WebP, or SVG, under 64KB. Replaces the Kolex mark.</div>
-        </div>
-        <div class="field">
-          <label>Accent color</label>
-          <input type="text" id="accent" value="#16E0A3" maxlength="7" />
-          <div class="hint">Tints the dot, the AD tag, and the arrow.</div>
+        <!-- Before / after: the real sponsored-line component, exactly as it runs. -->
+        <div class="hero-demo">
+          <div class="demo-label">Your brand, in the spinner</div>
+          <div class="mock-stack">
+            <div class="compare-col">
+              <div class="compare-tag"><img class="brand-ico" src="/assets/chatgpt.png" alt="" aria-hidden="true" />ChatGPT · without you</div>
+              <div class="mock"><div class="mock-line muted">Thinking…</div></div>
+            </div>
+            <div class="mock-arrow"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></svg></div>
+            <div class="compare-col win">
+              <div class="compare-tag gold">With your campaign 📣</div>
+              <div class="mock"><div class="adline" id="hero-adline"></div></div>
+            </div>
+          </div>
         </div>
       </div>
+    </section>
 
-      <div class="row2">
-        <div class="field">
-          <label>Bid per 1,000 impressions ($)</label>
-          <div class="input-money"><input type="number" id="bid" min="1" step="1" value="25" required /></div>
-          <div class="hint" id="rankhint">In US dollars. Higher bids serve first.</div>
+    <!-- ──────────────────── Surfaces ──────────────────── -->
+    <section style="background:var(--bg2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule);padding:34px 0">
+      <div class="wrap center">
+        <span class="eyebrow" style="justify-content:center">One campaign, every major assistant</span>
+        <div id="surfaces" style="display:flex;flex-wrap:wrap;gap:10px;justify-content:center;margin-top:16px">
+          <span class="surface-chip"><img class="brand-ico" src="/assets/chatgpt.png" alt="" aria-hidden="true" />ChatGPT</span>
+          <span class="surface-chip">Claude</span>
+          <span class="surface-chip">Gemini</span>
+          <span class="surface-chip">Grok</span>
         </div>
-        <div class="field">
-          <label>Blocks (× 1,000 impressions)</label>
-          <input type="number" id="blocks" min="1" step="1" value="50" required />
-          <div class="hint" id="budgethint">Budget: $1,250 · 50,000 impressions</div>
+        <p class="muted" style="margin:16px auto 0;max-width:560px;font-size:14px">Your ad runs across the loading states of the assistants people already use all day. No new app to download, no audience to build.</p>
+      </div>
+    </section>
+
+    <!-- ──────────────────── Value props ──────────────────── -->
+    <section>
+      <div class="wrap">
+        <div class="section-head center">
+          <span class="eyebrow" style="justify-content:center">Why Kolex</span>
+          <h2 style="margin-left:auto;margin-right:auto">The most-watched real estate on the web</h2>
+          <p style="margin:0 auto">Not a banner buried in a feed. The spinner is the one thing a user is guaranteed to be looking at — because they're waiting for it.</p>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:16px;margin-top:8px">
+          <div class="card">
+            <h3 style="margin:0 0 6px;font-size:18px">🎯 Front and center</h3>
+            <p class="muted" style="font-size:14px;margin:0">Your logo, color, and message replace the loading indicator itself — full attention, zero clutter.</p>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 6px;font-size:18px">👀 Captive moment</h3>
+            <p class="muted" style="font-size:14px;margin:0">Users are actively waiting on the answer, eyes on the screen. It's the highest-intent attention online.</p>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 6px;font-size:18px">📈 10,000+ daily users</h3>
+            <p class="muted" style="font-size:14px;margin:0">A growing base of people prompting ChatGPT, Claude, Gemini, and Grok every single day.</p>
+          </div>
+          <div class="card">
+            <h3 style="margin:0 0 6px;font-size:18px">⚡ Live in a minute</h3>
+            <p class="muted" style="font-size:14px;margin:0">Self-serve. Upload creative, set your bid, pay with card. Your campaign serves the instant payment clears.</p>
+          </div>
         </div>
       </div>
+    </section>
 
-      <button type="submit" class="btn btn-primary btn-lg" id="submit" style="width:100%;justify-content:center">Continue to payment →</button>
-      <p class="muted center" style="font-size:12px;margin-top:10px">Secure checkout via Stripe. Your campaign goes live the moment payment clears.</p>
-    </form>
+    <!-- ──────────────────── How it works ──────────────────── -->
+    <section style="background:var(--bg2);border-top:1px solid var(--rule);border-bottom:1px solid var(--rule)">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">From zero to on-screen</span>
+          <h2>How it works</h2>
+          <p>No sales calls, no minimums to negotiate. You're three fields away from running.</p>
+        </div>
+        <div class="steps">
+          <div class="step"><div class="num">01</div><h3>Upload your creative</h3><p>Brand name, one line of copy, your logo and accent color. A live preview shows exactly how it'll look.</p></div>
+          <div class="step"><div class="num">02</div><h3>Set your bid &amp; budget</h3><p>Bid in dollars for blocks of 1,000 five-second impressions. Higher bids serve first.</p></div>
+          <div class="step"><div class="num">03</div><h3>Go live</h3><p>Pay securely with Stripe. Your campaign starts serving across every assistant the moment it clears.</p></div>
+        </div>
+        <div class="center" style="margin-top:26px"><a class="btn btn-gold btn-lg" href="#launch">Launch a campaign →</a></div>
+      </div>
+    </section>
 
-    <!-- Success -->
-    <div id="done" class="success hide" style="margin-top:24px">
-      <h3 style="margin:0 0 8px">You're live. 🎉</h3>
-      <p style="margin:0 0 6px" id="done-msg"></p>
-      <div class="adline" id="done-ad" style="margin:12px 0"></div>
-      <a class="btn btn-primary" href="/advertiser" id="done-portal">Open your portal →</a>
-    </div>
+    <!-- ──────────────────── Live auction ──────────────────── -->
+    <section id="auction">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">The auction</span>
+          <h2>Bid for the top spot 💰</h2>
+          <p>It's a real-time auction. Highest bid serves first across every session. Here's who's bidding right now — outbid them to take #1.</p>
+        </div>
+        <div class="stats-strip" id="stats"></div>
+        <table class="board">
+          <thead>
+            <tr>
+              <th class="rank">#</th><th>Brand</th>
+              <th class="num">Bid / 1k</th>
+              <th class="num hide-sm">Impressions</th>
+              <th class="num hide-sm">Spent</th>
+              <th class="num">Status</th>
+            </tr>
+          </thead>
+          <tbody id="board-body"><tr><td colspan="6" class="muted center" style="padding:28px">Loading the auction…</td></tr></tbody>
+        </table>
+        <div class="center" style="margin-top:22px"><a class="btn btn-gold btn-lg" href="#launch">Be the top bidder →</a></div>
+      </div>
+    </section>
+
+    <!-- ──────────────────── Launch form ──────────────────── -->
+    <section id="launch" style="background:var(--bg2);border-top:1px solid var(--rule)">
+      <div class="wrap narrow" style="padding-top:8px">
+        <div class="section-head">
+          <span class="eyebrow">Launch an ad</span>
+          <h2>Your brand, in the spinner.</h2>
+          <p>Under a minute. Upload your logo and pick a color, and the whole loading indicator wears your brand. Bid for blocks of 1,000 five-second impressions.</p>
+        </div>
+
+        <!-- Live preview -->
+        <div style="margin:8px 0 28px">
+          <div class="mono muted" style="font-size:11px;letter-spacing:1px;text-transform:uppercase;margin-bottom:10px">Live preview: exactly how it appears</div>
+          <div style="background:var(--elev);border:1px solid var(--rule);border-radius:8px;padding:28px;display:flex;justify-content:center">
+            <div class="adline" id="preview"></div>
+          </div>
+        </div>
+
+        <div id="errors" class="errors hide"></div>
+
+        <form id="form" autocomplete="off">
+          <div class="row2">
+            <div class="field">
+              <label>Brand name</label>
+              <input type="text" id="brand" maxlength="40" placeholder="Acme" required />
+            </div>
+            <div class="field">
+              <label>Your email</label>
+              <input type="email" id="email" placeholder="you@acme.com" required />
+            </div>
+          </div>
+
+          <div class="field">
+            <label>Password</label>
+            <input type="password" id="password" placeholder="At least 8 characters" autocomplete="current-password" required />
+            <div class="hint">New here? We'll create your advertiser account. Returning? Sign in.</div>
+          </div>
+
+          <div class="field">
+            <label>Ad copy <span id="copycount" class="muted">0/60</span></label>
+            <input type="text" id="text" maxlength="60" placeholder="The fastest way to ship your product" required />
+            <div class="hint">3–60 characters. Shown in muted text after your brand name.</div>
+          </div>
+
+          <div class="field">
+            <label>Destination URL</label>
+            <input type="url" id="url" placeholder="https://acme.com" required />
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>Brand logo</label>
+              <input type="file" id="logo" accept="image/png,image/jpeg,image/webp,image/svg+xml" />
+              <div class="hint">PNG, JPG, WebP, or SVG, under 64KB. Replaces the Kolex mark.</div>
+            </div>
+            <div class="field">
+              <label>Accent color</label>
+              <input type="text" id="accent" value="#16E0A3" maxlength="7" />
+              <div class="hint">Tints the dot, the AD tag, and the arrow.</div>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div class="field">
+              <label>Bid per 1,000 impressions ($)</label>
+              <div class="input-money"><input type="number" id="bid" min="1" step="1" value="25" required /></div>
+              <div class="hint" id="rankhint">In US dollars. Higher bids serve first.</div>
+            </div>
+            <div class="field">
+              <label>Blocks (× 1,000 impressions)</label>
+              <input type="number" id="blocks" min="1" step="1" value="50" required />
+              <div class="hint" id="budgethint">Budget: $1,250 · 50,000 impressions</div>
+            </div>
+          </div>
+
+          <button type="submit" class="btn btn-primary btn-lg" id="submit" style="width:100%;justify-content:center">Continue to payment →</button>
+          <p class="muted center" style="font-size:12px;margin-top:10px">Secure checkout via Stripe. Your campaign goes live the moment payment clears.</p>
+        </form>
+
+        <!-- Success -->
+        <div id="done" class="success hide" style="margin-top:24px">
+          <h3 style="margin:0 0 8px">You're live. 🎉</h3>
+          <p style="margin:0 0 6px" id="done-msg"></p>
+          <div class="adline" id="done-ad" style="margin:12px 0"></div>
+          <a class="btn btn-primary" href="/advertiser" id="done-portal">Open your portal →</a>
+        </div>
+      </div>
+    </section>
+
+    <!-- ──────────────────── FAQ ──────────────────── -->
+    <section>
+      <div class="wrap narrow">
+        <div class="section-head center">
+          <span class="eyebrow" style="justify-content:center">Good to know</span>
+          <h2 style="margin-left:auto;margin-right:auto">Questions, answered</h2>
+        </div>
+        <div style="display:grid;gap:12px">
+          <div class="card"><h3 style="margin:0 0 6px;font-size:16px">Where exactly does my ad show?</h3><p class="muted" style="font-size:14px;margin:0">On the loading / "thinking…" indicator inside ChatGPT, Claude, Gemini, and Grok, for users who run the Kolex extension. Your brand and copy replace the spinner itself.</p></div>
+          <div class="card"><h3 style="margin:0 0 6px;font-size:16px">How is pricing set?</h3><p class="muted" style="font-size:14px;margin:0">You bid in dollars for blocks of 1,000 five-second impressions. It's a live auction — the highest bid serves first. You only ever spend the budget you buy.</p></div>
+          <div class="card"><h3 style="margin:0 0 6px;font-size:16px">How fast does it go live?</h3><p class="muted" style="font-size:14px;margin:0">Immediately. The moment your Stripe payment clears, your campaign enters the auction and starts serving.</p></div>
+          <div class="card"><h3 style="margin:0 0 6px;font-size:16px">Can I edit or relaunch later?</h3><p class="muted" style="font-size:14px;margin:0">Yes. Your advertiser portal lets you edit the creative anytime, track impressions and clicks, and relaunch a finished campaign with a fresh budget in one click.</p></div>
+        </div>
+        <div class="center" style="margin-top:24px"><a class="btn btn-gold btn-lg" href="#launch">Launch a campaign →</a></div>
+      </div>
+    </section>
   </main>
 
   <footer><div class="wrap"><span>© 2026 Kolex</span><span class="spacer"></span><a href="/">Home</a><a href="/advertiser">Advertiser login</a></div></footer>
+
+  <style>
+    .surface-chip { display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border:1px solid var(--rule); border-radius:999px; background:var(--surface); font-weight:600; font-size:14px; }
+    .surface-chip .brand-ico { width:18px; height:18px; object-fit:contain; }
+  </style>
 
   <script type="module">
     import { api, money, num, mountNav, renderAdline, store, track, pixel } from "/assets/app.js";
@@ -105,6 +252,43 @@
     const $ = (id) => document.getElementById(id);
     let logoData = null;
 
+    // Hero demo: the real sponsored-line component with a sample brand.
+    renderAdline($("hero-adline"), { brand: "Your Brand", text: "your message, right here", accent: "#FFD54A" });
+
+    // ── Live auction board + hero social proof (same data as the homepage) ──
+    function renderBoard(leaderboard, stats) {
+      $("stats").innerHTML = [
+        ["Top bid / 1k", money(stats.topBid, false), "green"],
+        ["Live campaigns", num(stats.liveCampaigns), ""],
+        ["Advertiser spend", money(stats.totalSpendUsd, false), ""],
+        ["Daily users", "10,000+", "green"],
+      ].map(([l, v, c]) => `<div class="stat-chip ${c}"><b>${v}</b><span>${l}</span></div>`).join("");
+      $("board-body").innerHTML = leaderboard.length
+        ? leaderboard.map((c) => `
+          <tr data-id="${c.id}">
+            <td class="rank">${c.rank}</td>
+            <td><div class="brandcell">${c.iconDataUrl ? `<img src="${c.iconDataUrl}" alt="">` : ""}<span>${c.brand}</span></div></td>
+            <td class="num bid">${money(c.bidPerBlock, false)}</td>
+            <td class="num hide-sm mono">${num(c.impressions)}</td>
+            <td class="num hide-sm mono">${money(c.spendUsd, false)}</td>
+            <td class="num"><span class="pill ${c.status === "active" ? "live" : "done"}">${c.status === "active" ? "Live" : "Done"}</span></td>
+          </tr>`).join("")
+        : '<tr><td colspan="6" class="muted center" style="padding:28px">No paid campaigns yet — the spinner is showing <b>Kolex</b>. Launch below to take the #1 spot uncontested.</td></tr>';
+      const proof = $("hero-proof");
+      if (proof) {
+        proof.innerHTML = stats.liveCampaigns > 0
+          ? `🔥 <b>${num(stats.liveCampaigns)}</b> live campaign${stats.liveCampaigns === 1 ? "" : "s"} bidding now · top bid <b>${money(stats.topBid, false)}/1k</b>`
+          : `🥇 No one is bidding yet — be the first brand in the spinner.`;
+      }
+    }
+    function loadBoard() {
+      api("/api/auction").then(({ leaderboard, stats }) => renderBoard(leaderboard, stats))
+        .catch(() => renderBoard([], { topBid: 0, liveCampaigns: 0, totalSpendUsd: 0 }));
+    }
+    loadBoard();
+    setInterval(loadBoard, 8000);
+
+    // ── Launch form ──
     function model() {
       return {
         brand: $("brand").value, text: $("text").value, accent: $("accent").value, iconDataUrl: logoData,
