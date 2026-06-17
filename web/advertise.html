@@ -250,7 +250,12 @@
     @media (max-width: 768px) {
       /* Kill any sideways scroll at the root (clip keeps the sticky nav working). */
       html, body { overflow-x:clip; max-width:100%; }
-      .hero-grid { text-align:center; }
+      .hero-grid { grid-template-columns:1fr !important; text-align:center; }
+      /* The real fix: grid items default to min-width:auto and won't shrink below
+         their content, so the demo's intrinsic width was forcing the whole track
+         (and the headline with it) wider than the screen. Let them shrink. */
+      .hero-copy, .hero-demo { min-width:0; max-width:100%; }
+      .hero-demo .mock { overflow:hidden; }
       /* Flex-center every child so centering never depends on text-align alone. */
       .hero-copy { display:flex; flex-direction:column; align-items:center; }
       /* Cap the headline so long lines wrap instead of running off the screen. */
