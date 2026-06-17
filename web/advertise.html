@@ -244,21 +244,27 @@
   <style>
     .surface-chip { display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border:1px solid var(--rule); border-radius:999px; background:var(--surface); font-weight:600; font-size:14px; }
     .surface-chip .brand-ico { width:18px; height:18px; object-fit:contain; }
-    /* Auction table scrolls inside its own box instead of pushing the page wide. */
     .board-scroll { width:100%; }
 
-    /* ── Mobile polish ── */
+    /* ── Tablet / mobile: guarantee a centered hero that never overflows ── */
+    @media (max-width: 768px) {
+      /* Kill any sideways scroll at the root (clip keeps the sticky nav working). */
+      html, body { overflow-x:clip; max-width:100%; }
+      .hero-grid { text-align:center; }
+      /* Flex-center every child so centering never depends on text-align alone. */
+      .hero-copy { display:flex; flex-direction:column; align-items:center; }
+      /* Cap the headline so long lines wrap instead of running off the screen. */
+      .hero-copy h1 { width:100%; font-size:clamp(26px, 7.5vw, 44px) !important; line-height:1.07; margin:12px 0 14px; overflow-wrap:anywhere; }
+      .hero-copy .sub { width:100%; font-size:16px; margin-left:auto; margin-right:auto; }
+      .hero .cta-row { width:100%; justify-content:center; }
+      .section-head h2 { overflow-wrap:anywhere; }
+    }
     @media (max-width: 560px) {
-      /* Nothing on the page may cause sideways scroll. */
-      body { overflow-x:hidden; }
-      .hero h1, .section-head h2 { overflow-wrap:anywhere; }
-      /* Hero CTAs read cleaner stacked full-width than wrapping unevenly. */
-      .hero .cta-row { width:100%; }
-      .hero .cta-row .btn { flex:1 1 100%; justify-content:center; }
-      /* Let the auction board scroll horizontally rather than squashing. */
+      /* Stack the hero buttons full-width; let the auction table scroll itself. */
+      .hero .cta-row { flex-direction:column; }
+      .hero .cta-row .btn { width:100%; justify-content:center; }
       .board-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--rule); border-radius:16px; }
-      .board-scroll .board { border:none; border-radius:0; min-width:340px; }
-      /* Surface chips a touch smaller so all four sit neatly two-up. */
+      .board-scroll .board { border:none; border-radius:0; min-width:360px; }
       .surface-chip { font-size:13px; padding:8px 13px; }
     }
   </style>
