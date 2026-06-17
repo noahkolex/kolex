@@ -26,7 +26,6 @@
             <a class="btn btn-gold btn-lg" href="#launch">Launch a campaign →</a>
             <a class="btn btn-ghost btn-lg" href="#auction">See the live auction</a>
           </div>
-          <p class="muted" id="hero-proof" style="margin-top:14px;font-size:13.5px;min-height:18px"></p>
         </div>
 
         <!-- Before / after: the real sponsored-line component, exactly as it runs. -->
@@ -116,18 +115,20 @@
           <p>It's a real-time auction. Highest bid serves first across every session. Here's who's bidding right now — outbid them to take #1.</p>
         </div>
         <div class="stats-strip" id="stats"></div>
-        <table class="board">
-          <thead>
-            <tr>
-              <th class="rank">#</th><th>Brand</th>
-              <th class="num">Bid / 1k</th>
-              <th class="num hide-sm">Impressions</th>
-              <th class="num hide-sm">Spent</th>
-              <th class="num">Status</th>
-            </tr>
-          </thead>
-          <tbody id="board-body"><tr><td colspan="6" class="muted center" style="padding:28px">Loading the auction…</td></tr></tbody>
-        </table>
+        <div class="board-scroll">
+          <table class="board">
+            <thead>
+              <tr>
+                <th class="rank">#</th><th>Brand</th>
+                <th class="num">Bid / 1k</th>
+                <th class="num hide-sm">Impressions</th>
+                <th class="num hide-sm">Spent</th>
+                <th class="num">Status</th>
+              </tr>
+            </thead>
+            <tbody id="board-body"><tr><td colspan="6" class="muted center" style="padding:28px">Loading the auction…</td></tr></tbody>
+          </table>
+        </div>
         <div class="center" style="margin-top:22px"><a class="btn btn-gold btn-lg" href="#launch">Be the top bidder →</a></div>
       </div>
     </section>
@@ -243,6 +244,23 @@
   <style>
     .surface-chip { display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border:1px solid var(--rule); border-radius:999px; background:var(--surface); font-weight:600; font-size:14px; }
     .surface-chip .brand-ico { width:18px; height:18px; object-fit:contain; }
+    /* Auction table scrolls inside its own box instead of pushing the page wide. */
+    .board-scroll { width:100%; }
+
+    /* ── Mobile polish ── */
+    @media (max-width: 560px) {
+      /* Nothing on the page may cause sideways scroll. */
+      body { overflow-x:hidden; }
+      .hero h1, .section-head h2 { overflow-wrap:anywhere; }
+      /* Hero CTAs read cleaner stacked full-width than wrapping unevenly. */
+      .hero .cta-row { width:100%; }
+      .hero .cta-row .btn { flex:1 1 100%; justify-content:center; }
+      /* Let the auction board scroll horizontally rather than squashing. */
+      .board-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid var(--rule); border-radius:16px; }
+      .board-scroll .board { border:none; border-radius:0; min-width:340px; }
+      /* Surface chips a touch smaller so all four sit neatly two-up. */
+      .surface-chip { font-size:13px; padding:8px 13px; }
+    }
   </style>
 
   <script type="module">
@@ -274,12 +292,6 @@
             <td class="num"><span class="pill ${c.status === "active" ? "live" : "done"}">${c.status === "active" ? "Live" : "Done"}</span></td>
           </tr>`).join("")
         : '<tr><td colspan="6" class="muted center" style="padding:28px">No paid campaigns yet — the spinner is showing <b>Kolex</b>. Launch below to take the #1 spot uncontested.</td></tr>';
-      const proof = $("hero-proof");
-      if (proof) {
-        proof.innerHTML = stats.liveCampaigns > 0
-          ? `🔥 <b>${num(stats.liveCampaigns)}</b> live campaign${stats.liveCampaigns === 1 ? "" : "s"} bidding now · top bid <b>${money(stats.topBid, false)}/1k</b>`
-          : `🥇 No one is bidding yet — be the first brand in the spinner.`;
-      }
     }
     function loadBoard() {
       api("/api/auction").then(({ leaderboard, stats }) => renderBoard(leaderboard, stats))
