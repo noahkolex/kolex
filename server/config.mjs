@@ -84,7 +84,7 @@ export const config = {
   // Early-access welcome bonus credited once when a NEW earner account signs up
   // during pre-launch. It's LOCKED (shown separately, never withdrawable on its
   // own) so mass-signup fraud can't cash it out. 0 disables it.
-  signupBonusUsd: process.env.KOLEX_SIGNUP_BONUS_USD === undefined ? 5 : Number(process.env.KOLEX_SIGNUP_BONUS_USD),
+  signupBonusUsd: process.env.KOLEX_SIGNUP_BONUS_USD === undefined ? 0 : Number(process.env.KOLEX_SIGNUP_BONUS_USD),
   // Only the first N earner accounts get the welcome bonus. After that, signups
   // still work — they just don't receive the $5.
   signupBonusLimit:
@@ -100,7 +100,7 @@ export const config = {
   // Social-proof waitlist headcount shown on the site (we display it as "N+").
   // Bump/replace with the real number at launch via KOLEX_WAITLIST_COUNT.
   waitlistCount:
-    process.env.KOLEX_WAITLIST_COUNT === undefined ? 100 : Number(process.env.KOLEX_WAITLIST_COUNT),
+    process.env.KOLEX_WAITLIST_COUNT === undefined ? 10000 : Number(process.env.KOLEX_WAITLIST_COUNT),
   // The welcome bonus only UNLOCKS (becomes withdrawable) after the earner has
   // verified their email, installed the extension, AND accumulated this many
   // minutes of AI waiting time. Stops drive-by signups from cashing the $5
