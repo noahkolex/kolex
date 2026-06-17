@@ -1125,12 +1125,19 @@ app.get("/api/admin/suspicious", requireAdmin, (_req, res) => {
   res.json({ banned: db.banned, flagged, topEarners, controls: { ...config.antiabuse, adminToken: undefined }, payoutsHalted: config.payoutsHalted });
 });
 
+// Impersonation ("view as user") is account-takeover power, so it is OFF by
+// default and HARD-disabled in production. Enable it ONLY when running locally:
+//   KOLEX_ENABLE_IMPERSONATE=1   (and NODE_ENV must not be "production")
+const ALLOW_IMPERSONATE =
+  !config.isProd && /^(1|true|yes|on)$/i.test(process.env.KOLEX_ENABLE_IMPERSONATE || "");
+
 // Admin: mint a real session for an earner so you can view the app EXACTLY as
 // they see it (support / debugging — e.g. reproducing a Stripe payout
 // restriction). Look up by email or userId. Set the returned token as the
 // browser's `kolex:usrToken` and load /portal to "be" them. Gated by the admin
-// token and logged. The /impersonate page wraps this in one click.
+// token AND the local-only flag above, and logged.
 app.post("/api/admin/impersonate", requireAdmin, (req, res) => {
+  if (!ALLOW_IMPERSONATE) return res.status(404).json({ error: "not found" });
   const db = load();
   const email = String(req.body?.email ?? "").toLowerCase().trim();
   const userId = String(req.body?.userId ?? "").trim();
@@ -1199,7 +1206,6 @@ const PAGES = {
   "/verify": "verify.html",
   "/mock-checkout": "mock-checkout.html",
   "/mock-connect": "mock-connect.html",
-  "/impersonate": "impersonate.html",
   "/terms": "terms.html",
   "/privacy": "privacy.html",
   "/logos": "logos.html",
@@ -1212,6 +1218,14 @@ for (const [route, file] of Object.entries(PAGES)) {
     res.sendFile(path.join(WEB, file), { cacheControl: false });
   });
 }
+// Admin impersonation page lives OUTSIDE the static web root and is only served
+// when impersonation is explicitly enabled (never in production) — so it can
+// never be reached as a plain static file.
+app.get("/impersonate", (_req, res) => {
+  if (!ALLOW_IMPERSONATE) return res.status(404).type("text/plain").send("Not found");
+  res.set("Cache-Control", "no-cache");
+  res.sendFile(path.join(DIR, "impersonate.html"), { cacheControl: false });
+});
 app.use(express.static(WEB));
 
 function validateAd(b) {
