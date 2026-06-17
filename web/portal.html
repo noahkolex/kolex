@@ -102,8 +102,13 @@
     const device = qp("device");       // from the extension "Cash out" CTA
     const code = qp("code");           // from device-code flow
     const connect = qp("connect") === "1" || device || code;
+    const welcome = qp("welcome") === "1"; // arrived from a fresh extension install
 
-    if (connect) {
+    if (welcome) {
+      document.querySelector("#login .eyebrow").textContent = "Welcome to Kolex 🎉";
+      document.querySelector("#login h1").textContent = "Sign in to start earning.";
+      $("login-sub").textContent = "You're all set up. Sign in — or pick a password to create an account — and this browser starts earning from the time you already spend waiting on AI.";
+    } else if (connect) {
       $("login-sub").textContent = "One step to connect your extension and claim your earnings. Enter your email and we'll link this browser automatically.";
     }
 

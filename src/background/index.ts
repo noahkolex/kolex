@@ -226,12 +226,32 @@ async function track(event: string, properties: Record<string, unknown> = {}): P
   }
 }
 
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener((details) => {
   // 3 min so a freshly-paid campaign appears quickly (the popup also pulls a
   // fresh copy on open, below).
   chrome.alarms.create("kolex:refresh", { periodInMinutes: 3, delayInMinutes: 0 });
   chrome.alarms.create("kolex:flush", { periodInMinutes: 5, delayInMinutes: 1 });
+  // On a FRESH install (not an update or browser refresh), open the portal so
+  // the user signs in and links this browser right away — only linked accounts
+  // earn. Demo builds skip this (they auto-run for screen recordings).
+  if (details.reason === "install" && !DEMO) void openSignIn();
 });
+
+/** Open the portal's sign-in / connect flow in a new tab, carrying this
+ *  device's id so it links to the account the moment they log in. */
+async function openSignIn(): Promise<void> {
+  try {
+    const s = await settings();
+    const { site } = await bases();
+    await chrome.tabs.create({
+      url: `${site}/portal?device=${encodeURIComponent(s.deviceId)}&connect=1&welcome=1`,
+      active: true,
+    });
+    void track("extension_installed");
+  } catch {
+    /* never let onboarding break the worker */
+  }
+}
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === "kolex:refresh") { void refreshRemoteConfig(); void refreshLinkStatus(); }
